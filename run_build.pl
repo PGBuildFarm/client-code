@@ -47,7 +47,7 @@
 =cut
 ###################################################
 
-# $Id: run_build.pl,v 1.5 2004/10/04 16:25:13 andrewd Exp $
+# $Id: run_build.pl,v 1.6 2004/10/04 22:10:46 andrewd Exp $
 
 use strict;
 use LWP;
@@ -56,6 +56,7 @@ use MIME::Base64;
 use Digest::SHA1  qw(sha1_hex);
 use Fcntl qw(:flock);
 use Getopt::Long;
+use POSIX qw(:signal_h);
 
 use File::Find ();
 use vars qw/*name *dir *prune/;
@@ -106,10 +107,10 @@ require $buildconf ;
 
 # get the config data into some local variables
 my ($buildroot,$target,$animal, $print_success,
-	$secret, $keep_errs, $force_every, $make) = 
+	$secret, $keep_errs, $force_every, $make, $cvs_timeout_secs) = 
 	@PGBuild::conf{
 		qw(build_root target animal print_success
-		   secret keep_error_builds force_every make)
+		   secret keep_error_builds force_every make cvs_timeout_secs)
 		};
 my @config_opts = @{$PGBuild::conf{config_opts}};
 my $cvsserver = $PGBuild::conf{cvsrepo} ||
@@ -195,7 +196,24 @@ END
 
 print "checking out source ...\n" if $verbose;
 
+
+my $timeout_pid;
+
+$timeout_pid = spawn(\&cvs_timeout,$cvs_timeout_secs) 
+	if $cvs_timeout_secs; 
+
+
 checkout();
+
+if ($timeout_pid)
+{
+    # don't kill me, I finished in time
+	if (kill (SIGTERM, $timeout_pid))
+	{
+		# reap the zombie
+		waitpid($timeout_pid,0); 
+	}
+}
 
 print "checking if build run needed ...\n" if $verbose;
 
@@ -739,4 +757,36 @@ sub get_config_summary
 	}
 	close($handle);
 	return $config;
+}
+
+sub cvs_timeout
+{
+	my $wait_time = shift;
+	my $who_to_kill = getpgrp(0);
+	my $sig = SIGTERM;
+	$sig = -$sig;
+	print "waiting $wait_time secs to time out process $who_to_kill\n"
+		if $verbose;
+	foreach my $sig (qw(INT TERM HUP QUIT))
+	{
+		$SIG{$sig}='DEFAULT';
+	}
+	sleep($wait_time);
+	$SIG{TERM} = 'IGNORE'; # so we don't kill ourself, we're exiting anyway
+	 # kill the whole process group
+	unless (kill $sig,$who_to_kill)
+	{
+		print "cvs timeout kill failed\n";
+	}
+}
+
+sub spawn
+{
+    my $coderef = shift;
+    my $pid = fork;
+    if (defined($pid) && $pid == 0)
+    {
+        exit &$coderef(@_);
+    }
+    return $pid;
 }
