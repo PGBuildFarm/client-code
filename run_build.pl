@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.21 2005/02/20 16:44:31 andrewd Exp $
+	q$Id: run_build.pl,v 1.22 2005/03/04 20:54:17 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -277,6 +277,7 @@ unlink "last.success";
 my $last_status = find_last('status') || 0;
 my $last_run_snap = find_last('run.snap');
 my $last_success_snap = find_last('success.snap');
+$forcerun = 1 unless (defined($last_run_snap));
 
 # updated by find_changed to last mtime of any file in the repo
 my $current_snap=0;
@@ -304,6 +305,9 @@ else
 # if no build required do nothing
 if ($last_status && ! @filtered_files)
 {
+	print "No build required: last status = ",scalar(gmtime($last_status)),
+	" GMT, current snapshot = ",scalar(gmtime($current_snap))," GMT,",
+	" changed files = ",scalar(@filtered_files),"\n" if $verbose;
 	system("rm -rf $pgsql");
 	exit 0;
 }
@@ -686,16 +690,15 @@ sub find_changed
 		if (-f _ )
 		{
 			$current_snap = $mtime  if ($mtime > $current_snap);
-
 			return unless $last_status;
 
 			my $sname = $name;
-			if ($last_run_snap && $mtime > $last_run_snap)
+			if ($last_run_snap && ($mtime > $last_run_snap))
 			{
 				$sname =~ s!^pgsql/!!;
 				push(@changed_files,$sname);
 			}
-			elsif ($last_success_snap && $mtime > $last_success_snap)
+			elsif ($last_success_snap && ($mtime > $last_success_snap))
 			{
 				$sname =~ s!^pgsql/!!;
 				push(@changed_since_success,$sname);
