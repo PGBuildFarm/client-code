@@ -47,7 +47,7 @@
 =cut
 ###################################################
 
-# $Id: run_build.pl,v 1.12 2004/12/07 15:06:49 andrewd Exp $
+# $Id: run_build.pl,v 1.13 2004/12/16 01:41:47 andrewd Exp $
 
 use strict;
 use LWP;
@@ -433,7 +433,7 @@ sub make_contrib_install
 
 sub initdb
 {
-	my @initout = `cd $installdir && bin/initdb data 2>&1`;
+	my @initout = `cd $installdir && LANG= LC_ALL= bin/initdb data 2>&1`;
 	my $status = $? >>8;
 	writelog('initdb',\@initout);
 	print "======== initdb log ===========\n",@initout if ($verbose > 1);
