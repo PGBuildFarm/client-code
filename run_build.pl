@@ -47,7 +47,7 @@
 =cut
 ###################################################
 
-# $Id: run_build.pl,v 1.9 2004/10/29 22:41:43 andrewd Exp $
+# $Id: run_build.pl,v 1.10 2004/11/04 20:39:02 andrewd Exp $
 
 use strict;
 use LWP;
@@ -515,7 +515,7 @@ sub make_check
 
 	# get the log files and the regression diffs
 	my @logs = glob("$pgsql/src/test/regress/log/*.log");
-	push(@logs,"$pgsql/src/test/regress/regression.diffs")
+	unshift(@logs,"$pgsql/src/test/regress/regression.diffs")
 		if (-e "$pgsql/src/test/regress/regression.diffs");
 	foreach my $logfile (@logs)
 	{
