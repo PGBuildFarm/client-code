@@ -48,7 +48,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.16 2004/12/20 01:28:00 andrewd Exp $
+	q$Id: run_build.pl,v 1.17 2004/12/20 23:17:24 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -802,7 +802,7 @@ sub get_config_summary
 		next unless $start;
 		last if /Core tests/;
 		next if /^\#/;
-		next if /= unknown/;
+		next if /= <?unknown>?/;
 		# split up long configure line
 		if (m!\$.*configure.*--with! && length > 70)
 		{
