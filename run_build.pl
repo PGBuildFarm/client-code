@@ -47,7 +47,9 @@
 =cut
 ###################################################
 
-# $Id: run_build.pl,v 1.13 2004/12/16 01:41:47 andrewd Exp $
+my $VERSION = sprintf "%d.%d", 
+	q$Id: run_build.pl,v 1.14 2004/12/17 19:12:48 andrewd Exp $
+	=~ /(\d+)/g; 
 
 use strict;
 use LWP;
@@ -57,6 +59,7 @@ use Digest::SHA1  qw(sha1_hex);
 use Fcntl qw(:flock);
 use Getopt::Long;
 use POSIX qw(:signal_h);
+use Data::Dumper;
 
 use File::Find ();
 use vars qw/*name *dir *prune/;
@@ -85,6 +88,7 @@ my $keepall;
 my $nostatus;
 my $verbose;
 my $help;
+my $multiroot;
 
 GetOptions('nosend' => \$nosend, 
 		   'config=s' => \$buildconf,
@@ -92,7 +96,8 @@ GetOptions('nosend' => \$nosend,
 		   'keepall' => \$keepall,
 		   'verbose:i' => \$verbose,
 		   'nostatus' => \$nostatus,
-		   'help' => \$help);
+		   'help' => \$help,
+		   'multiroot' => \$multiroot);
 
 $verbose=1 if (defined($verbose) && $verbose==0);
 
@@ -100,6 +105,7 @@ use vars qw($branch);
 $branch = shift || 'HEAD';
 
 print_help() if ($help);
+
 
 #
 # process config file
@@ -120,6 +126,9 @@ my $buildport = $PGBuild::conf{branch_ports}->{$branch} || 5999;
 
 my $cvsmethod = $PGBuild::conf{cvsmethod} || 'export';
 
+# special prefix for last.* if running multiroot, 
+# so they don't clobber each other
+my $mr_prefix = $multiroot ? "$animal." : ""; 
 
 my $pgsql = $cvsmethod eq 'export' ? "pgsql" : "pgsql.$$";
 
@@ -207,7 +216,6 @@ my $timeout_pid;
 $timeout_pid = spawn(\&cvs_timeout,$cvs_timeout_secs) 
 	if $cvs_timeout_secs; 
 
-
 checkout();
 
 if ($timeout_pid)
@@ -244,6 +252,11 @@ if ($last_status && ! @changed_files)
 	system("rm -rf $pgsql");
 	exit 0;
 }
+
+# get CVS version info on both changed files sets
+
+get_cvs_versions(\@changed_files);
+get_cvs_versions(\@changed_since_success);
 
 cleanlogs();
 
@@ -346,9 +359,9 @@ usage: $0 [options] [branch]
   --config=/path/to/file  = alternative location for config file
   --keepall               = keep directories if an error occurs
   --verbose[=n]           = verbosity (default 1) 2 or more = huge output.
+  --multiroot             = allow several members to use same build root
 
-Default branch is HEAD. Except for debugging purposes, you should only need
-to use the --config option.
+Default branch is HEAD. Usually only the --config option should be necessary.
 
 !;
 	exit(0);
@@ -364,8 +377,9 @@ sub interrupt_exit
 
 sub cleanlogs
 {
-	system("rm -rf lastrun-logs");
-	mkdir "lastrun-logs" || die "can't make lastrun-logs dir: $!";
+	my $lrname = $mr_prefix . "lastrun-logs";
+	system("rm -rf $lrname");
+	mkdir "$lrname" || die "can't make $lrname dir: $!";
 }
 
 sub writelog
@@ -373,7 +387,8 @@ sub writelog
 	my $stage = shift;
 	my $loglines = shift;
 	my $handle;
-	open($handle,">lastrun-logs/$stage.log");
+	my $lrname = $mr_prefix . "lastrun-logs";
+	open($handle,">$lrname/$stage.log");
 	print $handle @$loglines;
 	close($handle);
 }
@@ -599,19 +614,22 @@ sub find_changed
 	else
 	{
 		my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,
-        $size,$atime,$mtime,$ctime,$blksize,$blocks) = lstat($_);
+			$size,$atime,$mtime,$ctime,$blksize,$blocks) = lstat($_);
 
 		if (-f _)
 		{
-			  if ($mtime > $last_status)
-			  {
-				  push(@changed_files,$name);
-			  }
-			  elsif ($last_success && $mtime > $last_success)
-			  {
-				  push(@changed_since_success,$name);
-			  }
-		  }
+			my $sname = $name;
+			if ($mtime > $last_status)
+			{
+				$sname =~ s!^pgsql/!!;
+				push(@changed_files,$sname);
+			}
+			elsif ($last_success && $mtime > $last_success)
+			{
+				$sname =~ s!^pgsql/!!;
+				push(@changed_since_success,$sname);
+			}
+		}
 		
 	}
 }
@@ -648,11 +666,28 @@ sub checkout
 	send_result('CVS',$status,\@cvslog)	if ($status);
 }
 
+sub get_cvs_versions
+{
+	my $flist = shift;
+	my @cvs_status = `cd pgsql && cvs status @$flist 2>&1` ;
+	my $status = $? >>8;
+	print "======== cvs status log ===========\n",@cvs_status
+		if ($verbose > 1);
+	send_result('CVS-status',$status,\@cvs_status)	if ($status);
+	my @repolines = grep {/Repository revision:/} @cvs_status;
+	foreach (@repolines)
+	{
+		s!.*Repository revision:.(\d+(\.\d+)+).*(pgsql/.*),v.*!$3 $1!;
+	}
+	@$flist = (@repolines);
+}
+
 sub find_last
 {
 	my $which = shift;
+	my $stname = $mr_prefix . "last.$which";
 	my $handle;
-	open($handle,"last.$which") or return undef;
+	open($handle,$stname) or return undef;
 	my $time = <$handle>;
 	close($handle);
 	chomp $time;
@@ -662,9 +697,10 @@ sub find_last
 sub set_last
 {
 	my $which = shift;
+	my $stname = $mr_prefix . "last.$which";
 	my $st_now = shift || time;
 	my $handle;
-	open($handle,">last.$which") or die "opening last.$which: $!";
+	open($handle,">$stname") or die "opening $stname: $!";
 	print $handle "$st_now\n";
 	close($handle);
 }
@@ -772,10 +808,16 @@ sub get_config_summary
 			substr($_,$pos+1,0,"\\\n        ") if ($pos > 0);
 			$pos = index($_," ",140);
 			substr($_,$pos+1,0,"\\\n        ") if ($pos > 0);
+			$pos = index($_," ",210);
+			substr($_,$pos+1,0,"\\\n        ") if ($pos > 0);
 		}
 		$config .= $_;
 	}
 	close($handle);
+	my $conf = {%PGBuild::conf, script_version => $VERSION}; # shallow copy
+	delete $conf->{secret};
+	$config .= "\n========================================================\n";
+	$config .= Data::Dumper->Dump([$conf],['Script_Config']);
 	return $config;
 }
 
