@@ -47,7 +47,7 @@
 =cut
 ###################################################
 
-# $Id: run_build.pl,v 1.7 2004/10/05 19:57:21 andrewd Exp $
+# $Id: run_build.pl,v 1.8 2004/10/07 20:26:58 andrewd Exp $
 
 use strict;
 use LWP;
@@ -514,7 +514,7 @@ sub make_check
 	my $status = $? >>8;
 
 	# get the log files and the regression diffs
-	my @logs = glob("$pgsql/src/test/regress/logs/*.log");
+	my @logs = glob("$pgsql/src/test/regress/log/*.log");
 	push(@logs,"$pgsql/src/test/regress/regression.diffs")
 		if (-e "$pgsql/src/test/regress/regression.diffs");
 	foreach my $logfile (@logs)
