@@ -48,7 +48,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.14 2004/12/17 19:12:48 andrewd Exp $
+	q$Id: run_build.pl,v 1.15 2004/12/19 05:07:22 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -677,6 +677,7 @@ sub get_cvs_versions
 	my @repolines = grep {/Repository revision:/} @cvs_status;
 	foreach (@repolines)
 	{
+		chomp;
 		s!.*Repository revision:.(\d+(\.\d+)+).*(pgsql/.*),v.*!$3 $1!;
 	}
 	@$flist = (@repolines);
