@@ -48,7 +48,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.15 2004/12/19 05:07:22 andrewd Exp $
+	q$Id: run_build.pl,v 1.16 2004/12/20 01:28:00 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -669,6 +669,7 @@ sub checkout
 sub get_cvs_versions
 {
 	my $flist = shift;
+	return unless @$flist;
 	my @cvs_status = `cd pgsql && cvs status @$flist 2>&1` ;
 	my $status = $? >>8;
 	print "======== cvs status log ===========\n",@cvs_status
