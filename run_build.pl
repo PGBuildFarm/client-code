@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.22 2005/03/04 20:54:17 andrewd Exp $
+	q$Id: run_build.pl,v 1.23 2005/03/19 14:22:53 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -313,9 +313,13 @@ if ($last_status && ! @filtered_files)
 }
 
 # get CVS version info on both changed files sets
+# skip if in export mode
 
-get_cvs_versions(\@changed_files);
-get_cvs_versions(\@changed_since_success);
+unless ($method eq "export")
+{
+	get_cvs_versions(\@changed_files);
+	get_cvs_versions(\@changed_since_success);
+}
 
 cleanlogs();
 
