@@ -47,7 +47,7 @@
 =cut
 ###################################################
 
-# $Id: run_build.pl,v 1.10 2004/11/04 20:39:02 andrewd Exp $
+# $Id: run_build.pl,v 1.11 2004/11/13 20:17:55 andrewd Exp $
 
 use strict;
 use LWP;
@@ -96,7 +96,8 @@ GetOptions('nosend' => \$nosend,
 
 $verbose=1 if (defined($verbose) && $verbose==0);
 
-my $branch = shift || 'HEAD';
+use vars qw($branch);
+$branch = shift || 'HEAD';
 
 print_help() if ($help);
 
@@ -401,6 +402,14 @@ sub make_install
 	writelog('make-install',\@makeout);
 	print "======== make install log ===========\n",@makeout if ($verbose > 1);
 	send_result('Install',$status,\@makeout) if $status;
+
+	# On Windows and Cygwin avoid path problems associated with DLLs
+	# by copying them to the bin dir where the system will pick them
+	# up regardless.
+	foreach my $dll (glob("$installdir/lib/*pq.dll"))
+	{
+		system("cp $dll $installdir/bin");
+	}
 }
 
 sub make_contrib
