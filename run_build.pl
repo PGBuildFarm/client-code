@@ -48,7 +48,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.18 2005/01/09 22:11:24 andrewd Exp $
+	q$Id: run_build.pl,v 1.19 2005/01/18 16:24:29 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -572,8 +572,13 @@ sub make_check
 
 sub configure
 {
+	my @quoted_opts;
+	foreach my $c_opt (@config_opts)
+	{
+		push(@quoted_opts,"'$c_opt'");
+	}
 
-	my $confstr = join(" ",@config_opts,
+	my $confstr = join(" ",@quoted_opts,
 					   "--prefix=$installdir",
 					   "--with-pgport=$buildport");
 
