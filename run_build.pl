@@ -7,17 +7,9 @@
 
  SYNOPSIS:
 
-  run_build.pl [--nosend] [branchname]
+  run_build.pl [option ...] [branchname]
 
  AUTHOR: Andrew Dunstan
-
- TODO:
-  . collect more log data for installcheck runs
-
- FUTURE:
-  . possibly get dumps via rsync instead of via
-    cvs export/update, to save bandwidth (and 
-    processor overhead)
 
  USAGE:
 
@@ -26,7 +18,7 @@
    uploading results can be done using the --nosend 
    commandline flag.
 
-   Install this file and build-farm.conf in some
+   Install this file, run_web_txn.pl and build-farm.conf in some
    directory together. Edit build-farm.conf to match
    your setup. Create the buildroot directory.
    Run "perl -cw build-farm.conf" to make sure it
@@ -44,18 +36,20 @@
    There is provision in the conf file for support of 
    ccache. This is highly recommended.
 
+   For more extensive information, see docs and mailing list
+   at the pgfoundry site: http://pgfoundry.org/projects/pgbuildfarm/
+
+   See the results of our labors at 
+   http://www.pgbuildfarm.org/cgi-bin/show_status.pl 
+
 =cut
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.19 2005/01/18 16:24:29 andrewd Exp $
+	q$Id: run_build.pl,v 1.20 2005/01/18 23:47:40 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
-use LWP;
-use HTTP::Request::Common;
-use MIME::Base64;
-use Digest::SHA1  qw(sha1_hex);
 use Fcntl qw(:flock);
 use Getopt::Long;
 use POSIX qw(:signal_h);
@@ -77,6 +71,12 @@ foreach my $sig (qw(INT TERM HUP QUIT))
 {
 	$SIG{$sig}=\&interrupt_exit;
 }
+
+# copy command line before processing - so we can later report it
+# unmunged
+
+my @invocation_args = (@ARGV);
+
 
 #
 # process command line
@@ -113,18 +113,54 @@ print_help() if ($help);
 require $buildconf ;
 
 # get the config data into some local variables
-my ($buildroot,$target,$animal, $print_success, $trigger_filter,
+my ($buildroot,$target,$animal, $print_success, $aux_path, $trigger_filter,
 	$secret, $keep_errs, $force_every, $make, $cvs_timeout_secs) = 
 	@PGBuild::conf{
-		qw(build_root target animal print_success trigger_filter
+		qw(build_root target animal print_success aux_path trigger_filter
 		   secret keep_error_builds force_every make cvs_timeout_secs)
 		};
+
 my @config_opts = @{$PGBuild::conf{config_opts}};
-my $cvsserver = $PGBuild::conf{cvsrepo} ||
+my $cvsserver = $PGBuild::conf{cvsrepo} || 
 	":pserver:anoncvs\@anoncvs.postgresql.org:/projects/cvsroot";
 my $buildport = $PGBuild::conf{branch_ports}->{$branch} || 5999;
 
 my $cvsmethod = $PGBuild::conf{cvsmethod} || 'export';
+
+# sanity checks
+# several people have run into these
+
+die "no aux_path in config file" unless $aux_path;
+
+die "cannot run as root/Administrator" unless ($> > 0);
+
+if ($cvsserver =~ /^:pserver:/)
+{
+	# this is NOT a perfect check, because we don't want to
+	# catch the  port which might or might not be there
+	# but it will warn most people if necessary, and it's not
+	# worth any extra work.
+	my $cvspass;
+	my $loginfound = 0;
+	my $srvr;
+	(undef,,undef,$srvr,undef) = split(/:/,$cvsserver);
+	$srvr = quotemeta($srvr);
+	if (open($cvspass,glob("~/.cvspass")))
+	{
+		while (my $line = <$cvspass>)
+		{
+			if ($line =~ /:pserver:$srvr:/)
+			{
+				$loginfound=1;
+				last;
+			}
+
+		}
+		close($cvspass);
+	}
+	die "Need to login to :pserver:$srvr first" 
+		unless $loginfound;
+}
 
 # special prefix for last.* if running multiroot, 
 # so they don't clobber each other
@@ -472,10 +508,15 @@ sub start_db
 	# must use -w here or we get horrid FATAL errors from trying to
 	# connect before the db is ready
 	# clear log file each time we start
+	# seem to need an intermediate file here to get round Windows bogosity
 	my $cmd = "cd $installdir && rm -f logfile && ".
-		"bin/pg_ctl -D data -l logfile -w start 2>&1";
-	my @ctlout = `$cmd`;
+		"bin/pg_ctl -D data -l logfile -w start >startlog 2>&1";
+	system($cmd);
 	my $status = $? >>8;
+	my $handle;
+	open($handle,"$installdir/startlog");
+	my @ctlout = <$handle>;
+	close($handle);
 	writelog("startdb-$started_times",\@ctlout);
 	print "======== start db : $started_times log ===========\n",@ctlout 
 		if ($verbose > 1);
@@ -572,6 +613,7 @@ sub make_check
 
 sub configure
 {
+
 	my @quoted_opts;
 	foreach my $c_opt (@config_opts)
 	{
@@ -732,43 +774,36 @@ sub send_result
 	print "======== log passed to send_result ===========\n",@$log
 		if ($verbose > 1);
 	
-	my $log_data = encode_base64(join("",@$log),"");
+	my $log_data = join("",@$log);
 	my $confsum = "" ;
 	my $changed_this_run = "";
 	my $changed_since_success = "";
-	$changed_this_run = encode_base64(join("!",@changed_files))
+	$changed_this_run = join("!",@changed_files)
 		if @changed_files;
-	$changed_since_success = encode_base64(join("!",@changed_since_success)) 
+	$changed_since_success = join("!",@changed_since_success)
 		if ($stage ne 'OK' && @changed_since_success);
 	if ($stage eq 'OK')
 	{
-		$confsum= encode_base64($saved_config,"");
+		$confsum= $saved_config;
 	}
 	elsif ($stage ne 'CVS')
 	{
-		$confsum = encode_base64(get_config_summary(),"");
+		$confsum = get_config_summary();
 	}
 
-	# make the base64 data escape-proof; = is probably ok but no harm done
-	# this ensures that what is seen at the other end is EXACTLY what we
-	# see when we calculate the signature
-
-	map 
-	{ tr/+=/$@/ } 
-	($log_data,$confsum,$changed_this_run,$changed_since_success);
+	my $savedata = Data::Dumper->Dump
+		(
+		 [$changed_this_run, $changed_since_success, $branch, $status,$stage,
+		  $animal, $ts, $log_data, $confsum, $target, $verbose, $secret],
+		 [qw(changed_this_run changed_since_success branch status stage
+			 animal ts log_data confsum target verbose secret)]);
 	
+	my $txfname = "lastrun-logs/web-txn.data";
+	my $txdhandle;
+	open($txdhandle,">$txfname");
+	print $txdhandle $savedata;
+	close($txdhandle);
 
-    my $content = 
-		"changed_files=$changed_this_run&".
-		"changed_since_success=$changed_since_success&".
-		"branch=$branch&res=$status&stage=$stage&animal=$animal&ts=$ts".
-		"&log=$log_data&conf=$confsum";
-	my $sig= sha1_hex($content,$secret);
-	my $ua = new LWP::UserAgent;
-	$ua->agent("Postgres Build Farm Reporter");
-	my $request=HTTP::Request->new(POST => "$target/$sig");
-    $request->content_type("application/x-www-form-urlencoded");
-	$request->content($content);
 	if ($nosend)
 	{
 		print "Branch: $branch\n";
@@ -783,19 +818,18 @@ sub send_result
 		}
 		exit(0);
 	}
-    my $response=$ua->request($request);
-	unless ($response->is_success)
+
+	system("$aux_path/run_web_txn.pl");
+
+	my $txstatus = $? >> 8;
+
+	if ($txstatus)
 	{
-		print 
-			"Query for: stage=$stage&animal=$animal&ts=$ts\n",
-			"Target: $target/$sig\n";
-		print "Status Line: ",$response->status_line,"\n";
-		print "Content: \n", $response->content,"\n" 
-			if ($verbose && $response->content);
-		exit 1;
+		# web txn failed
 	}
-	print "Success!\n",$response->content 
-		if $print_success;
+
+#	print "Success!\n",$response->content 
+#		if $print_success;
 
 	set_last('success',$now) if ($stage eq 'OK' && ! $nostatus);
 
@@ -832,7 +866,10 @@ sub get_config_summary
 		$config .= $_;
 	}
 	close($handle);
-	my $conf = {%PGBuild::conf, script_version => $VERSION}; # shallow copy
+	my $conf = {%PGBuild::conf,  # shallow copy
+				script_version => $VERSION,
+				invocation_args => \@invocation_args,
+			};
 	delete $conf->{secret};
 	$config .= "\n========================================================\n";
 	$config .= Data::Dumper->Dump([$conf],['Script_Config']);
