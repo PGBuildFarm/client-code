@@ -48,7 +48,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.17 2004/12/20 23:17:24 andrewd Exp $
+	q$Id: run_build.pl,v 1.18 2005/01/09 22:11:24 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -113,10 +113,10 @@ print_help() if ($help);
 require $buildconf ;
 
 # get the config data into some local variables
-my ($buildroot,$target,$animal, $print_success,
+my ($buildroot,$target,$animal, $print_success, $trigger_filter,
 	$secret, $keep_errs, $force_every, $make, $cvs_timeout_secs) = 
 	@PGBuild::conf{
-		qw(build_root target animal print_success
+		qw(build_root target animal print_success trigger_filter
 		   secret keep_error_builds force_every make cvs_timeout_secs)
 		};
 my @config_opts = @{$PGBuild::conf{config_opts}};
@@ -246,8 +246,19 @@ $last_status = 0 if $forcerun;
 # see what's changed since the last time we did work
 File::Find::find({wanted => \&find_changed}, 'pgsql') if $last_status;
 
+#ignore changes to files specified by the trigger filter, if any
+my @filtered_files;
+if (defined($trigger_filter))
+{
+	@filtered_files = grep { ! m[$trigger_filter] } @changed_files;
+}
+else
+{
+	@filtered_files = @changed_files;
+}
+
 # if no build required do nothing
-if ($last_status && ! @changed_files)
+if ($last_status && ! @filtered_files)
 {
 	system("rm -rf $pgsql");
 	exit 0;
@@ -273,7 +284,7 @@ if ($cvsmethod eq 'update')
 
 # start working
 
-set_last('status') unless $nostatus;
+set_last('status',$now) unless $nostatus;
 
 my $started_times = 0;
 
