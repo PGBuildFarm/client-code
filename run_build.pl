@@ -47,6 +47,8 @@
 =cut
 ###################################################
 
+# $Id: run_build.pl,v 1.2 2004/09/28 12:30:35 andrewd Exp $
+
 use strict;
 use LWP;
 use HTTP::Request::Common;
@@ -115,6 +117,7 @@ my $cvsserver = $PGBuild::conf{cvsrepo} ||
 my $buildport = $PGBuild::conf{branchports}->{$branch} || 5999;
 
 my $cvsmethod = $PGBuild::conf{cvsmethod} || 'export';
+
 
 my $pgsql = $cvsmethod eq 'export' ? "pgsql" : "pgsql.$$";
 
@@ -268,6 +271,12 @@ print "running make installcheck ...\n" if $verbose;
 
 make_install_check();
 
+# restart the db to clear the log file
+print "restarting db ...\n" if $verbose;
+
+stop_db();
+start_db();
+
 print "running make contrib install ...\n" if $verbose;
 
 make_contrib_install();
@@ -368,8 +377,10 @@ sub start_db
 {
 	# must use -w here or we get horrid FATAL errors from trying to
 	# connect before the db is ready
-	my @ctlout = 
-		`cd $installdir && bin/pg_ctl -D data -l logfile -w start 2>&1`;
+	# clear log file each time we start
+	my $cmd = "cd $installdir && rm -f logfile && ".
+		"bin/pg_ctl -D data -l logfile -w start 2>&1";
+	my @ctlout = `$cmd`;
 	my $status = $? >>8;
 	print "======== start db log ===========\n",@ctlout if ($verbose > 1);
 	send_result('Startdb',$status,\@ctlout) if $status;
@@ -389,10 +400,13 @@ sub make_install_check
 {
 	my @checkout = `cd $pgsql/src/test/regress && $make installcheck 2>&1`;
 	my $status = $? >>8;
-	my $logfile = "$pgsql/src/test/regress/regression.diffs";
-	if (-e $logfile )
+	my @logfiles = ("$pgsql/src/test/regress/regression.diffs",
+					"$installdir/logfile");
+	foreach my $logfile(@logfiles)
 	{
-		push(@checkout,"\n\n================== $logfile ==================\n");
+		next unless (-e $logfile );
+		push(@checkout,
+			 "\n\n================== $logfile ==================\n");
 		my $handle;
 		open($handle,$logfile);
 		while(<$handle>)
@@ -411,8 +425,10 @@ sub make_contrib_install_check
 	my @checkout = `cd $pgsql/contrib && $make installcheck 2>&1`;
 	my $status = $? >>8;
 	my @logs = glob ('$pgsql/contrib/*/regression.diffs');
+	push (@logs,"$installdir/logfile");
 	foreach my $logfile (@logs)
 	{
+		next unless (-e $logfile);
 		push(@checkout,"\n\n================= $logfile ===================\n");
 		my $handle;
 		open($handle,$logfile);
