@@ -47,7 +47,7 @@
 =cut
 ###################################################
 
-# $Id: run_build.pl,v 1.3 2004/10/01 13:24:12 andrewd Exp $
+# $Id: run_build.pl,v 1.4 2004/10/01 14:24:45 andrewd Exp $
 
 use strict;
 use LWP;
@@ -222,6 +222,8 @@ if ($last_status && ! @changed_files)
 	exit 0;
 }
 
+cleanlogs();
+
 # copy over if using update method
 
 if ($cvsmethod eq 'update')
@@ -334,10 +336,29 @@ sub interrupt_exit
 	exit(1);
 }
 
+
+sub cleanlogs
+{
+	system("rm -rf lastrun-logs");
+	mkdir "lastrun-logs" || die "can't make lastrun-logs dir: $!";
+}
+
+sub writelog
+{
+	my $stage = shift;
+	my $loglines = shift;
+	my $handle;
+	open($handle,">lastrun-logs/$stage.log");
+	print $handle @$loglines;
+	close($handle);
+}
+
+
 sub make
 {
 	my @makeout = `cd $pgsql && $make 2>&1`;
 	my $status = $? >>8;
+	writelog('make',\@makeout);
 	print "======== make log ===========\n",@makeout if ($verbose > 1);
 	send_result('Make',$status,\@makeout) if $status;
 }
@@ -346,6 +367,7 @@ sub make_install
 {
 	my @makeout = `cd $pgsql && $make install 2>&1`;
 	my $status = $? >>8;
+	writelog('make-install',\@makeout);
 	print "======== make install log ===========\n",@makeout if ($verbose > 1);
 	send_result('Install',$status,\@makeout) if $status;
 }
@@ -354,6 +376,7 @@ sub make_contrib
 {
 	my @makeout = `cd $pgsql/contrib && $make 2>&1`;
 	my $status = $? >>8;
+	writelog('make-contrib',\@makeout);
 	print "======== make contrib log ===========\n",@makeout if ($verbose > 1);
 	send_result('Contrib',$status,\@makeout) if $status;
 }
@@ -362,6 +385,7 @@ sub make_contrib_install
 {
 	my @makeout = `cd $pgsql/contrib && $make install 2>&1`;
 	my $status = $? >>8;
+	writelog('make',\@makeout);
 	print "======== make contrib install log ===========\n",@makeout 
 		if ($verbose > 1);
 	send_result('ContribInstall',$status,\@makeout) if $status;
@@ -371,6 +395,7 @@ sub initdb
 {
 	my @initout = `cd $installdir && bin/initdb data 2>&1`;
 	my $status = $? >>8;
+	writelog('initdb',\@initout);
 	print "======== initdb log ===========\n",@initout if ($verbose > 1);
 	send_result('Initdb',$status,\@initout) if $status;
 }
@@ -384,6 +409,7 @@ sub start_db
 		"bin/pg_ctl -D data -l logfile -w start 2>&1";
 	my @ctlout = `$cmd`;
 	my $status = $? >>8;
+	writelog('startdb',\@ctlout);
 	print "======== start db log ===========\n",@ctlout if ($verbose > 1);
 	send_result('Startdb',$status,\@ctlout) if $status;
 	$dbstarted=1;
@@ -393,6 +419,7 @@ sub stop_db
 {
 	my @ctlout = `cd $installdir && bin/pg_ctl -D data stop 2>&1`;
 	my $status = $? >>8;
+	writelog('stopdb',\@ctlout);
 	print "======== stop db log ===========\n",@ctlout if ($verbose > 1);
 	send_result('InstallStart',$status,\@ctlout) if $status;
 	$dbstarted=undef;
@@ -417,6 +444,7 @@ sub make_install_check
 		}
 		close($handle);	
 	}
+	writelog('install-check',\@checkout);
 	print "======== make installcheck log ===========\n",@checkout 
 		if ($verbose > 1);
 	send_result('InstallCheck',$status,\@checkout) if $status;	
@@ -440,6 +468,7 @@ sub make_contrib_install_check
 		}
 		close($handle);
 	}
+	writelog('contrib-install-check',\@checkout);
 	print "======== make contrib installcheck log ===========\n",@checkout 
 		if ($verbose > 1);
 	send_result('ContribCheck',$status,\@checkout) if $status;
@@ -465,6 +494,7 @@ sub make_check
 		}
 		close($handle);
 	}
+	writelog('check',\@makeout);
 	print "======== make check logs ===========\n",@makeout 
 		if ($verbose > 1);
 
@@ -493,6 +523,8 @@ sub configure
 	print "======== configure output ===========\n",@confout 
 		if ($verbose > 1);
 
+	writelog('configure',\@confout) unless $status;
+
 	return unless $status;
 
 	my $handle;
@@ -507,6 +539,8 @@ sub configure
 		close($handle);
 	}
 	
+	writelog('configure',\@confout);
+
 	send_result('Configure',$status,\@confout);
 	
 }
@@ -563,6 +597,11 @@ sub checkout
 	my $status = $? >>8;
 	print "======== cvs $cvsmethod log ===========\n",@cvslog
 		if ($verbose > 1);
+	# can't call writelog here because we call cleanlogs after the
+	# cvs stage, since we only clear out the logs if we find we need to
+	# do a build run.
+	# consequence - we don't save the cvs log
+	# doesn't matter too much because if CVS fails we exit anyway.
 	send_result('CVS',$status,\@cvslog)	if ($status);
 }
 
