@@ -47,7 +47,7 @@
 =cut
 ###################################################
 
-# $Id: run_build.pl,v 1.11 2004/11/13 20:17:55 andrewd Exp $
+# $Id: run_build.pl,v 1.12 2004/12/07 15:06:49 andrewd Exp $
 
 use strict;
 use LWP;
@@ -115,7 +115,7 @@ my ($buildroot,$target,$animal, $print_success,
 		};
 my @config_opts = @{$PGBuild::conf{config_opts}};
 my $cvsserver = $PGBuild::conf{cvsrepo} ||
-	":pserver:anoncvs\@anoncvs.postgresql.org:2401/projects/cvsroot";
+	":pserver:anoncvs\@anoncvs.postgresql.org:/projects/cvsroot";
 my $buildport = $PGBuild::conf{branch_ports}->{$branch} || 5999;
 
 my $cvsmethod = $PGBuild::conf{cvsmethod} || 'export';
