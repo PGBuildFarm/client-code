@@ -47,7 +47,7 @@
 =cut
 ###################################################
 
-# $Id: run_build.pl,v 1.6 2004/10/04 22:10:46 andrewd Exp $
+# $Id: run_build.pl,v 1.7 2004/10/05 19:57:21 andrewd Exp $
 
 use strict;
 use LWP;
@@ -141,6 +141,10 @@ chdir $buildroot || die "chdir to $buildroot: $!";
 mkdir $branch unless -d $branch;
 
 chdir $branch || die "chdir to $buildroot/$branch";
+
+# make sure we are using GNU make
+
+die "$make is not GNU Make - please fix config file" unless check_make();
 
 # acquire the lock
 
@@ -371,6 +375,13 @@ sub writelog
 	open($handle,">lastrun-logs/$stage.log");
 	print $handle @$loglines;
 	close($handle);
+}
+
+sub check_make
+{
+	my @out = `$make -v 2>&1`;
+	return undef unless ($? == 0 && grep {/GNU Make/} @out);
+	return 'OK';
 }
 
 
