@@ -47,7 +47,7 @@
 =cut
 ###################################################
 
-# $Id: run_build.pl,v 1.2 2004/09/28 12:30:35 andrewd Exp $
+# $Id: run_build.pl,v 1.3 2004/10/01 13:24:12 andrewd Exp $
 
 use strict;
 use LWP;
@@ -200,8 +200,10 @@ checkout();
 print "checking if build run needed ...\n" if $verbose;
 
 my @changed_files;
+my @changed_since_success;
 
-my $last_status = find_last_status() || 0;
+my $last_status = find_last('status') || 0;
+my $last_success = find_last('success');
 
 # see if we need to force a build
 $last_status = 0
@@ -233,7 +235,7 @@ if ($cvsmethod eq 'update')
 
 # start working
 
-set_last_status() unless $nostatus;
+set_last('status') unless $nostatus;
 
 # each of these routines will call send_result, which calls exit,
 # on any error, so each step depends on success in the previous
@@ -424,7 +426,7 @@ sub make_contrib_install_check
 {
 	my @checkout = `cd $pgsql/contrib && $make installcheck 2>&1`;
 	my $status = $? >>8;
-	my @logs = glob ('$pgsql/contrib/*/regression.diffs');
+	my @logs = glob ("$pgsql/contrib/*/regression.diffs");
 	push (@logs,"$installdir/logfile");
 	foreach my $logfile (@logs)
 	{
@@ -520,13 +522,20 @@ sub find_changed
 	else
 	{
 		my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,
-        $size,$atime,$mtime,$ctime,$blksize,$blocks);
+        $size,$atime,$mtime,$ctime,$blksize,$blocks) = lstat($_);
 
-		(($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size, 
-		  $atime,$mtime,$ctime,$blksize,$blocks) = lstat($_)) && 
-			  -f _ && 
-			  ($mtime > $last_status) && 
-			  push(@changed_files,$name) ;
+		if (-f _)
+		{
+			  if ($mtime > $last_status)
+			  {
+				  push(@changed_files,$name);
+			  }
+			  elsif ($last_success && $mtime > $last_success)
+			  {
+				  push(@changed_since_success,$name);
+			  }
+		  }
+		
 	}
 }
 
@@ -557,21 +566,23 @@ sub checkout
 	send_result('CVS',$status,\@cvslog)	if ($status);
 }
 
-sub find_last_status
+sub find_last
 {
+	my $which = shift;
 	my $handle;
-	open($handle,"last.status") or return undef;
+	open($handle,"last.$which") or return undef;
 	my $time = <$handle>;
 	close($handle);
 	chomp $time;
 	return $time + 0;
 }
 
-sub set_last_status
+sub set_last
 {
+	my $which = shift;
+	my $st_now = shift || time;
 	my $handle;
-	open($handle,">last.status") or die "opening last.status: $!";
-	my $st_now = time;
+	open($handle,">last.$which") or die "opening last.$which: $!";
 	print $handle "$st_now\n";
 	close($handle);
 }
@@ -587,6 +598,12 @@ sub send_result
 	
 	my $log_data = encode_base64(join("",@$log),"");
 	my $confsum = "" ;
+	my $changed_this_run = "";
+	my $changed_since_success = "";
+	$changed_this_run = encode_base64(join("!",@changed_files))
+		if @changed_files;
+	$changed_since_success = encode_base64(join("!",@changed_since_success)) 
+		if ($stage ne 'OK' && @changed_since_success);
 	if ($stage eq 'OK')
 	{
 		$confsum= encode_base64($saved_config,"");
@@ -600,10 +617,14 @@ sub send_result
 	# this ensures that what is seen at the other end is EXACTLY what we
 	# see when we calculate the signature
 
-	$log_data =~ tr/+=/$@/;
-	$confsum =~ tr/+=/$@/;
+	map 
+	{ tr/+=/$@/ } 
+	($log_data,$confsum,$changed_this_run,$changed_since_success);
+	
 
     my $content = 
+		"changed_files=$changed_this_run&".
+		"changed_since_success=$changed_since_success&".
 		"branch=$branch&res=$status&stage=$stage&animal=$animal&ts=$ts".
 		"&log=$log_data&conf=$confsum";
 	my $sig= sha1_hex($content,$secret);
@@ -618,6 +639,7 @@ sub send_result
 		if ($stage eq 'OK')
 		{
 			print "All stages succeeded\n";
+			set_last('success',$now) unless $nostatus;
 		}
 		else
 		{
@@ -632,11 +654,15 @@ sub send_result
 			"Query for: stage=$stage&animal=$animal&ts=$ts\n",
 			"Target: $target/$sig\n";
 		print "Status Line: ",$response->status_line,"\n";
-		# print "Content: \n", $response->content,"\n" if $response->content;
+		print "Content: \n", $response->content,"\n" 
+			if ($verbose && $response->content);
 		exit 1;
 	}
 	print "Success!\n",$response->content 
 		if $print_success;
+
+	set_last('success',$now) if ($stage eq 'OK' && ! $nostatus);
+
 	exit 0;
 }
 
