@@ -47,7 +47,7 @@
 =cut
 ###################################################
 
-# $Id: run_build.pl,v 1.4 2004/10/01 14:24:45 andrewd Exp $
+# $Id: run_build.pl,v 1.5 2004/10/04 16:25:13 andrewd Exp $
 
 use strict;
 use LWP;
@@ -239,6 +239,8 @@ if ($cvsmethod eq 'update')
 
 set_last('status') unless $nostatus;
 
+my $started_times = 0;
+
 # each of these routines will call send_result, which calls exit,
 # on any error, so each step depends on success in the previous
 # steps.
@@ -385,7 +387,7 @@ sub make_contrib_install
 {
 	my @makeout = `cd $pgsql/contrib && $make install 2>&1`;
 	my $status = $? >>8;
-	writelog('make',\@makeout);
+	writelog('install-contrib',\@makeout);
 	print "======== make contrib install log ===========\n",@makeout 
 		if ($verbose > 1);
 	send_result('ContribInstall',$status,\@makeout) if $status;
@@ -402,6 +404,7 @@ sub initdb
 
 sub start_db
 {
+	$started_times++;
 	# must use -w here or we get horrid FATAL errors from trying to
 	# connect before the db is ready
 	# clear log file each time we start
@@ -409,9 +412,10 @@ sub start_db
 		"bin/pg_ctl -D data -l logfile -w start 2>&1";
 	my @ctlout = `$cmd`;
 	my $status = $? >>8;
-	writelog('startdb',\@ctlout);
-	print "======== start db log ===========\n",@ctlout if ($verbose > 1);
-	send_result('Startdb',$status,\@ctlout) if $status;
+	writelog("startdb-$started_times",\@ctlout);
+	print "======== start db : $started_times log ===========\n",@ctlout 
+		if ($verbose > 1);
+	send_result("StartDb:$started_times",$status,\@ctlout) if $status;
 	$dbstarted=1;
 }
 
@@ -419,9 +423,10 @@ sub stop_db
 {
 	my @ctlout = `cd $installdir && bin/pg_ctl -D data stop 2>&1`;
 	my $status = $? >>8;
-	writelog('stopdb',\@ctlout);
-	print "======== stop db log ===========\n",@ctlout if ($verbose > 1);
-	send_result('InstallStart',$status,\@ctlout) if $status;
+	writelog("stopdb-$started_times",\@ctlout);
+	print "======== stop db : $started_times log ===========\n",@ctlout 
+		if ($verbose > 1);
+	send_result("StopDb:$started_times",$status,\@ctlout) if $status;
 	$dbstarted=undef;
 }
 
