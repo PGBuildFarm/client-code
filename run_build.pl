@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.20 2005/01/18 23:47:40 andrewd Exp $
+	q$Id: run_build.pl,v 1.21 2005/02/20 16:44:31 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -97,7 +97,8 @@ GetOptions('nosend' => \$nosend,
 		   'verbose:i' => \$verbose,
 		   'nostatus' => \$nostatus,
 		   'help' => \$help,
-		   'multiroot' => \$multiroot);
+		   'multiroot' => \$multiroot)
+	|| die "bad command line";
 
 $verbose=1 if (defined($verbose) && $verbose==0);
 
@@ -269,8 +270,16 @@ print "checking if build run needed ...\n" if $verbose;
 my @changed_files;
 my @changed_since_success;
 
+# transition to new time processing
+unlink "last.success";
+
+# get the timestamp data
 my $last_status = find_last('status') || 0;
-my $last_success = find_last('success');
+my $last_run_snap = find_last('run.snap');
+my $last_success_snap = find_last('success.snap');
+
+# updated by find_changed to last mtime of any file in the repo
+my $current_snap=0;
 
 # see if we need to force a build
 $last_status = 0
@@ -278,9 +287,8 @@ $last_status = 0
 		$last_status+($force_every*3600) < $now);
 $last_status = 0 if $forcerun;
 
-
 # see what's changed since the last time we did work
-File::Find::find({wanted => \&find_changed}, 'pgsql') if $last_status;
+File::Find::find({wanted => \&find_changed}, 'pgsql');
 
 #ignore changes to files specified by the trigger filter, if any
 my @filtered_files;
@@ -321,6 +329,7 @@ if ($cvsmethod eq 'update')
 # start working
 
 set_last('status',$now) unless $nostatus;
+set_last('run.snap',$current_snap) unless $nostatus;
 
 my $started_times = 0;
 
@@ -674,15 +683,19 @@ sub find_changed
 		my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,
 			$size,$atime,$mtime,$ctime,$blksize,$blocks) = lstat($_);
 
-		if (-f _)
+		if (-f _ )
 		{
+			$current_snap = $mtime  if ($mtime > $current_snap);
+
+			return unless $last_status;
+
 			my $sname = $name;
-			if ($mtime > $last_status)
+			if ($last_run_snap && $mtime > $last_run_snap)
 			{
 				$sname =~ s!^pgsql/!!;
 				push(@changed_files,$sname);
 			}
-			elsif ($last_success && $mtime > $last_success)
+			elsif ($last_success_snap && $mtime > $last_success_snap)
 			{
 				$sname =~ s!^pgsql/!!;
 				push(@changed_since_success,$sname);
@@ -774,6 +787,11 @@ sub send_result
 	print "======== log passed to send_result ===========\n",@$log
 		if ($verbose > 1);
 	
+	unshift (@$log,
+		  "Last file mtime in snapshot: ",
+		  scalar(gmtime($current_snap))," GMT\n",
+		  "===================================================\n");
+
 	my $log_data = join("",@$log);
 	my $confsum = "" ;
 	my $changed_this_run = "";
@@ -810,7 +828,7 @@ sub send_result
 		if ($stage eq 'OK')
 		{
 			print "All stages succeeded\n";
-			set_last('success',$now) unless $nostatus;
+			set_last('success.snap',$current_snap) unless $nostatus;
 		}
 		else
 		{
@@ -819,19 +837,26 @@ sub send_result
 		exit(0);
 	}
 
+	unless (-x "$aux_path/run_web_txn.pl")
+	{
+		print "Could not locate $aux_path/run_web_txn.pl\n";
+		exit(1);
+	}
+
 	system("$aux_path/run_web_txn.pl");
 
 	my $txstatus = $? >> 8;
 
 	if ($txstatus)
 	{
-		# web txn failed
+		print "Web txn failed with status: $txstatus\n";
+		exit($txstatus);
 	}
 
 #	print "Success!\n",$response->content 
 #		if $print_success;
 
-	set_last('success',$now) if ($stage eq 'OK' && ! $nostatus);
+	set_last('success.snap',$current_snap) if ($stage eq 'OK' && ! $nostatus);
 
 	exit 0;
 }
