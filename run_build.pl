@@ -46,11 +46,12 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.23 2005/03/19 14:22:53 andrewd Exp $
+	q$Id: run_build.pl,v 1.24 2005/04/29 12:54:09 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
 use Fcntl qw(:flock);
+use File::Path;
 use Getopt::Long;
 use POSIX qw(:signal_h);
 use Data::Dumper;
@@ -130,6 +131,16 @@ my $cvsmethod = $PGBuild::conf{cvsmethod} || 'export';
 
 # sanity checks
 # several people have run into these
+
+
+if ( my $ccachedir = $PGBuild::conf{build_env}->{CCACHE_DIR} )
+{
+    # ccache is smart enough to create what you tell it is the cache dir, but
+    # not smart enough to build the whole path. mkpath croaks on error, so
+	# we just let it.
+
+	mkpath $ccachedir;
+}
 
 die "no aux_path in config file" unless $aux_path;
 
@@ -315,7 +326,7 @@ if ($last_status && ! @filtered_files)
 # get CVS version info on both changed files sets
 # skip if in export mode
 
-unless ($method eq "export")
+unless ($cvsmethod eq "export")
 {
 	get_cvs_versions(\@changed_files);
 	get_cvs_versions(\@changed_since_success);
