@@ -28,7 +28,7 @@
 use strict;
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_web_txn.pl,v 1.1 2005/01/18 23:47:40 andrewd Exp $
+	q$Id: run_web_txn.pl,v 1.2 2005/05/01 01:03:04 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use LWP;
@@ -67,8 +67,15 @@ my $content =
 	"branch=$branch&res=$status&stage=$stage&animal=$animal&ts=$ts".
 	"&log=$log_data&conf=$confsum";
 my $sig= sha1_hex($content,$secret);
+
 my $ua = new LWP::UserAgent;
 $ua->agent("Postgres Build Farm Reporter");
+if (my $proxy = $ENV{BF_PROXY})
+{
+	$ua->proxy('http',$proxy);
+}
+
+
 my $request=HTTP::Request->new(POST => "$target/$sig");
 $request->content_type("application/x-www-form-urlencoded");
 $request->content($content);
