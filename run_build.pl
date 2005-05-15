@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.24 2005/04/29 12:54:09 andrewd Exp $
+	q$Id: run_build.pl,v 1.25 2005/05/15 15:35:20 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -388,6 +388,24 @@ print "running make installcheck ...\n" if $verbose;
 
 make_install_check();
 
+# releases 8.0 and earlier don't support the standard method for testing PLs
+# so only check them for later versions
+
+if ($branch eq 'HEAD' || $branch gt 'REL8_1' )
+{
+
+    # restart the db to clear the log file
+	print "restarting db ...\n" if $verbose;
+
+	stop_db();
+	start_db();
+
+	print "running make PL installcheck ...\n" if $verbose;
+
+	make_pl_install_check();
+
+}
+
 # restart the db to clear the log file
 print "restarting db ...\n" if $verbose;
 
@@ -610,6 +628,30 @@ sub make_contrib_install_check
 	print "======== make contrib installcheck log ===========\n",@checkout 
 		if ($verbose > 1);
 	send_result('ContribCheck',$status,\@checkout) if $status;
+}
+
+sub make_pl_install_check
+{
+	my @checkout = `cd $pgsql/src/pl && $make installcheck 2>&1`;
+	my $status = $? >>8;
+	my @logs = glob ("$pgsql/src/pl/*/regression.diffs");
+	push (@logs,"$installdir/logfile");
+	foreach my $logfile (@logs)
+	{
+		next unless (-e $logfile);
+		push(@checkout,"\n\n================= $logfile ===================\n");
+		my $handle;
+		open($handle,$logfile);
+		while(<$handle>)
+		{
+			push(@checkout,$_);
+		}
+		close($handle);
+	}
+	writelog('pl-install-check',\@checkout);
+	print "======== make pl installcheck log ===========\n",@checkout 
+		if ($verbose > 1);
+	send_result('PLCheck',$status,\@checkout) if $status;
 }
 
 sub make_check
