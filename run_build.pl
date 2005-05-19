@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.25 2005/05/15 15:35:20 andrewd Exp $
+	q$Id: run_build.pl,v 1.26 2005/05/19 19:19:10 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -251,6 +251,8 @@ END
 	}
 }
 
+
+my $steps_completed = "";
 
 
 # see if we need to run the tests (i.e. if either something has changed or
@@ -501,6 +503,7 @@ sub make
 	writelog('make',\@makeout);
 	print "======== make log ===========\n",@makeout if ($verbose > 1);
 	send_result('Make',$status,\@makeout) if $status;
+	$steps_completed .= " Make";
 }
 
 sub make_install
@@ -518,6 +521,7 @@ sub make_install
 	{
 		system("cp $dll $installdir/bin");
 	}
+	$steps_completed .= " Install";
 }
 
 sub make_contrib
@@ -527,6 +531,7 @@ sub make_contrib
 	writelog('make-contrib',\@makeout);
 	print "======== make contrib log ===========\n",@makeout if ($verbose > 1);
 	send_result('Contrib',$status,\@makeout) if $status;
+	$steps_completed .= " Contrib";
 }
 
 sub make_contrib_install
@@ -537,6 +542,7 @@ sub make_contrib_install
 	print "======== make contrib install log ===========\n",@makeout 
 		if ($verbose > 1);
 	send_result('ContribInstall',$status,\@makeout) if $status;
+	$steps_completed .= " ContribInstall";
 }
 
 sub initdb
@@ -546,6 +552,7 @@ sub initdb
 	writelog('initdb',\@initout);
 	print "======== initdb log ===========\n",@initout if ($verbose > 1);
 	send_result('Initdb',$status,\@initout) if $status;
+	$steps_completed .= " Initdb";
 }
 
 sub start_db
@@ -604,6 +611,7 @@ sub make_install_check
 	print "======== make installcheck log ===========\n",@checkout 
 		if ($verbose > 1);
 	send_result('InstallCheck',$status,\@checkout) if $status;	
+	$steps_completed .= " InstallCheck";
 }
 
 sub make_contrib_install_check
@@ -628,6 +636,7 @@ sub make_contrib_install_check
 	print "======== make contrib installcheck log ===========\n",@checkout 
 		if ($verbose > 1);
 	send_result('ContribCheck',$status,\@checkout) if $status;
+	$steps_completed .= " ContribCheck";
 }
 
 sub make_pl_install_check
@@ -652,6 +661,8 @@ sub make_pl_install_check
 	print "======== make pl installcheck log ===========\n",@checkout 
 		if ($verbose > 1);
 	send_result('PLCheck',$status,\@checkout) if $status;
+	# only report PLCheck as a step if it actually tried to do anything
+	$steps_completed .= " PLCheck" if (grep {/pg_regress/} @checkout) ;
 }
 
 sub make_check
@@ -679,6 +690,7 @@ sub make_check
 		if ($verbose > 1);
 
 	send_result('Check',$status,\@makeout) if $status;
+	$steps_completed .= " Check";
 }
 
 sub configure
@@ -729,6 +741,7 @@ sub configure
 
 	send_result('Configure',$status,\@confout);
 	
+	$steps_completed .= " Configure";
 }
 
 
@@ -795,6 +808,7 @@ sub checkout
 	# consequence - we don't save the cvs log
 	# doesn't matter too much because if CVS fails we exit anyway.
 	send_result('CVS',$status,\@cvslog)	if ($status);
+	$steps_completed = "CVS";
 }
 
 sub get_cvs_versions
@@ -954,6 +968,7 @@ sub get_config_summary
 	my $conf = {%PGBuild::conf,  # shallow copy
 				script_version => $VERSION,
 				invocation_args => \@invocation_args,
+				steps_completed => $steps_completed,
 			};
 	delete $conf->{secret};
 	$config .= "\n========================================================\n";
