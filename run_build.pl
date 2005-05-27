@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.27 2005/05/27 00:49:22 andrewd Exp $
+	q$Id: run_build.pl,v 1.28 2005/05/27 02:25:30 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -180,7 +180,7 @@ if ($cvsserver =~ /^:pserver:/)
 # so they don't clobber each other
 my $mr_prefix = $multiroot ? "$animal." : ""; 
 
-my $pgsql = ($cvsmethod eq 'export' || $use_vpath) ? "pgsql" : "pgsql.$$";
+my $pgsql = ($cvsmethod eq 'export' && not $use_vpath) ? "pgsql" : "pgsql.$$";
 
 # set environment from config
 while (my ($envkey,$envval) = each %{$PGBuild::conf{build_env}})
