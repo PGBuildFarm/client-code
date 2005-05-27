@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.26 2005/05/19 19:19:10 andrewd Exp $
+	q$Id: run_build.pl,v 1.27 2005/05/27 00:49:22 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -116,10 +116,12 @@ require $buildconf ;
 
 # get the config data into some local variables
 my ($buildroot,$target,$animal, $print_success, $aux_path, $trigger_filter,
-	$secret, $keep_errs, $force_every, $make, $cvs_timeout_secs) = 
+	$secret, $keep_errs, $force_every, $make, $cvs_timeout_secs,
+	$use_vpath ) = 
 	@PGBuild::conf{
 		qw(build_root target animal print_success aux_path trigger_filter
-		   secret keep_error_builds force_every make cvs_timeout_secs)
+		   secret keep_error_builds force_every make cvs_timeout_secs
+		   use_vpath )
 		};
 
 my @config_opts = @{$PGBuild::conf{config_opts}};
@@ -178,7 +180,7 @@ if ($cvsserver =~ /^:pserver:/)
 # so they don't clobber each other
 my $mr_prefix = $multiroot ? "$animal." : ""; 
 
-my $pgsql = $cvsmethod eq 'export' ? "pgsql" : "pgsql.$$";
+my $pgsql = ($cvsmethod eq 'export' || $use_vpath) ? "pgsql" : "pgsql.$$";
 
 # set environment from config
 while (my ($envkey,$envval) = each %{$PGBuild::conf{build_env}})
@@ -336,9 +338,14 @@ unless ($cvsmethod eq "export")
 
 cleanlogs();
 
-# copy over if using update method
+# copy/create according to vpath/cvsmethod settings
 
-if ($cvsmethod eq 'update')
+if ($use_vpath)
+{
+    print "creating vpath build dir $pgsql ...\n" if $verbose;
+	mkdir $pgsql || die "making $pgsql: $!";
+}
+elsif ($cvsmethod eq 'update')
 {
 	print "copying source to $pgsql ...\n" if $verbose;
 
@@ -713,8 +720,10 @@ sub configure
 	{
 		$envstr .= "$key='$val' ";
 	}
+
+	my $conf_path = $use_vpath ? "../pgsql/configure" : "./configure";
 	
-	my @confout = `cd $pgsql && $envstr ./configure $confstr 2>&1`;
+	my @confout = `cd $pgsql && $envstr $conf_path $confstr 2>&1`;
 	
 	my $status = $? >> 8;
 
