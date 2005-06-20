@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.28 2005/05/27 02:25:30 andrewd Exp $
+	q$Id: run_build.pl,v 1.29 2005/06/20 09:19:25 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -905,19 +905,20 @@ sub send_result
 	print $txdhandle $savedata;
 	close($txdhandle);
 
-	if ($nosend)
+	if ($nosend || $stage ~ /CVS/ )
 	{
 		print "Branch: $branch\n";
 		if ($stage eq 'OK')
 		{
 			print "All stages succeeded\n";
 			set_last('success.snap',$current_snap) unless $nostatus;
+			exit(0);
 		}
 		else
 		{
 			print "Stage $stage failed with status $status\n";
+			exit(1);
 		}
-		exit(0);
 	}
 
 	unless (-x "$aux_path/run_web_txn.pl")
