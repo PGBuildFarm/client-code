@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.29 2005/06/20 09:19:25 andrewd Exp $
+	q$Id: run_build.pl,v 1.30 2005/06/20 22:15:53 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -456,8 +456,8 @@ usage: $0 [options] [branch]
  where options are one or more of:
 
   --nosend                = don't send results
-  --nostatus              = don't set last.status file
-  --force                 = force a build run
+  --nostatus              = don't set status files
+  --force                 = force a build run (ignore status files)
   --config=/path/to/file  = alternative location for config file
   --keepall               = keep directories if an error occurs
   --verbose[=n]           = verbosity (default 1) 2 or more = huge output.
@@ -905,7 +905,7 @@ sub send_result
 	print $txdhandle $savedata;
 	close($txdhandle);
 
-	if ($nosend || $stage ~ /CVS/ )
+	if ($nosend || $stage =~ m/CVS/ )
 	{
 		print "Branch: $branch\n";
 		if ($stage eq 'OK')
