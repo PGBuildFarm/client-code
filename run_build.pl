@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.30 2005/06/20 22:15:53 andrewd Exp $
+	q$Id: run_build.pl,v 1.31 2005/07/04 18:53:47 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -302,6 +302,11 @@ $last_status = 0
 	if ($last_status && $force_every && 
 		$last_status+($force_every*3600) < $now);
 $last_status = 0 if $forcerun;
+
+# get a hash of the files listed in .cvsignore files
+my %ignore_file = ();
+
+File::Find::find({wanted => \&find_ignore}, 'pgsql');
 
 # see what's changed since the last time we did work
 File::Find::find({wanted => \&find_changed}, 'pgsql');
@@ -753,6 +758,25 @@ sub configure
 	$steps_completed .= " Configure";
 }
 
+sub find_ignore
+{
+	# skip CVS dirs if using update
+	if ($cvsmethod eq 'update' && $_ eq 'CVS' && -d $_)
+	{
+		$File::Find::prune = 1;
+	}
+	elsif (-f $_ && $_ eq '.cvsignore')
+	{
+		my $ fh;
+		open($fh,$_) || die "cannot open $name for reading";
+		my @names = (<$fh>);
+		close($fh);
+		chomp @names;
+		map { s!^!$File::Find::dir/!; } @names;
+		@ignore_file{@names} = (1) x @names;
+	}
+}
+
 
 sub find_changed 
 {
@@ -760,6 +784,11 @@ sub find_changed
 	if ($cvsmethod eq 'update' && $_ eq 'CVS' && -d $_)
 	{
 		$File::Find::prune = 1;
+	}
+	elsif ($ignore_file{$name})
+	{
+		# do nothing
+		# print "Ignoring $name\n";
 	}
 	else
 	{
