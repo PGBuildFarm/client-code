@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.32 2005/07/04 20:43:30 andrewd Exp $
+	q$Id: run_build.pl,v 1.33 2005/07/04 20:53:54 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -216,6 +216,8 @@ my $have_lock;
 open($lockfile, ">builder.LCK") || die "opening lockfile: $!";
 
 # only one builder at a time allowed per branch
+# having another build running is not a failure, and so we do not output
+# a failure message under this condition.
 exit(0) unless flock($lockfile,LOCK_EX|LOCK_NB);
 
 die "$buildroot/$branch has $pgsql or inst directories!" 
@@ -306,6 +308,7 @@ $last_status = 0
 $last_status = 0 if $forcerun;
 
 # get a hash of the files listed in .cvsignore files
+# find_changed will skip these files
 my %ignore_file = ();
 
 File::Find::find({wanted => \&find_ignore}, 'pgsql');
