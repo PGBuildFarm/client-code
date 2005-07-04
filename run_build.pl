@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.31 2005/07/04 18:53:47 andrewd Exp $
+	q$Id: run_build.pl,v 1.32 2005/07/04 20:43:30 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -90,6 +90,7 @@ my $nostatus;
 my $verbose;
 my $help;
 my $multiroot;
+my $quiet;
 
 GetOptions('nosend' => \$nosend, 
 		   'config=s' => \$buildconf,
@@ -98,6 +99,7 @@ GetOptions('nosend' => \$nosend,
 		   'verbose:i' => \$verbose,
 		   'nostatus' => \$nostatus,
 		   'help' => \$help,
+		   'quiet' => \$quiet,
 		   'multiroot' => \$multiroot)
 	|| die "bad command line";
 
@@ -466,6 +468,7 @@ usage: $0 [options] [branch]
   --config=/path/to/file  = alternative location for config file
   --keepall               = keep directories if an error occurs
   --verbose[=n]           = verbosity (default 1) 2 or more = huge output.
+  --quiet                 = suppress normal error message 
   --multiroot             = allow several members to use same build root
 
 Default branch is HEAD. Usually only the --config option should be necessary.
@@ -964,6 +967,11 @@ sub send_result
 	{
 		print "Web txn failed with status: $txstatus\n";
 		exit($txstatus);
+	}
+
+	unless ($stage eq 'OK' || $quiet)
+	{
+		print "Buildfarm member $animal failed on $branch stage $stage\n";
 	}
 
 #	print "Success!\n",$response->content 
