@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.33 2005/07/04 20:53:54 andrewd Exp $
+	q$Id: run_build.pl,v 1.34 2005/07/07 21:21:55 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -565,7 +565,7 @@ sub make_contrib_install
 
 sub initdb
 {
-	my @initout = `cd $installdir && LANG= LC_ALL= bin/initdb data 2>&1`;
+	my @initout = `cd $installdir && LANG= LC_ALL= bin/initdb --no-locale data 2>&1`;
 	my $status = $? >>8;
 	writelog('initdb',\@initout);
 	print "======== initdb log ===========\n",@initout if ($verbose > 1);
