@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.35 2005/07/17 12:33:49 andrewd Exp $
+	q$Id: run_build.pl,v 1.36 2005/07/23 14:40:23 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -272,7 +272,7 @@ my $timeout_pid;
 $timeout_pid = spawn(\&cvs_timeout,$cvs_timeout_secs) 
 	if $cvs_timeout_secs; 
 
-checkout();
+my $savecvslog = checkout();
 
 if ($timeout_pid)
 {
@@ -347,6 +347,8 @@ unless ($cvsmethod eq "export")
 }
 
 cleanlogs();
+
+writelog('CVS',$savecvslog);
 
 # copy/create according to vpath/cvsmethod settings
 
@@ -744,25 +746,29 @@ sub configure
 	print "======== configure output ===========\n",@confout 
 		if ($verbose > 1);
 
-	writelog('configure',\@confout) unless $status;
+	writelog('configure',\@confout);
 
-	return unless $status;
-
-	my $handle;
+	my ($handle,@config);
 
 	if (open($handle,"$pgsql/config.log"))
 	{
-		push(@confout,"\n\n================= config.log ================\n\n");
 		while(<$handle>)
 		{
-			push(@confout,$_);
+			push(@config,$_);
 		}
 		close($handle);
+		writelog('config',\@config);
 	}
 	
-	writelog('configure',\@confout);
+	if ($status)
+	{
 
-	send_result('Configure',$status,\@confout);
+		push(@confout,
+			 "\n\n================= config.log ================\n\n",
+			 @config);
+
+		send_result('Configure',$status,\@confout);
+	}
 	
 	$steps_completed .= " Configure";
 }
@@ -852,10 +858,15 @@ sub checkout
 	# can't call writelog here because we call cleanlogs after the
 	# cvs stage, since we only clear out the logs if we find we need to
 	# do a build run.
-	# consequence - we don't save the cvs log
+	# consequence - we don't save the cvs log if we don't do a run
 	# doesn't matter too much because if CVS fails we exit anyway.
+	
 	send_result('CVS',$status,\@cvslog)	if ($status);
 	$steps_completed = "CVS";
+
+	# if we were successful, however, we return the info so that 
+	# we can put it in the newly cleaned logdir  later on.
+	return \@cvslog;
 }
 
 sub get_cvs_versions
