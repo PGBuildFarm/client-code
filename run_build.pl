@@ -46,12 +46,13 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.36 2005/07/23 14:40:23 andrewd Exp $
+	q$Id: run_build.pl,v 1.37 2005/07/25 18:45:08 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
 use Fcntl qw(:flock);
 use File::Path;
+use File::Basename;
 use Getopt::Long;
 use POSIX qw(:signal_h);
 use Data::Dumper;
@@ -119,11 +120,11 @@ require $buildconf ;
 # get the config data into some local variables
 my ($buildroot,$target,$animal, $print_success, $aux_path, $trigger_filter,
 	$secret, $keep_errs, $force_every, $make, $cvs_timeout_secs,
-	$use_vpath ) = 
+	$use_vpath, $tar_log_cmd ) = 
 	@PGBuild::conf{
 		qw(build_root target animal print_success aux_path trigger_filter
 		   secret keep_error_builds force_every make cvs_timeout_secs
-		   use_vpath )
+		   use_vpath tar_log_cmd )
 		};
 
 my @config_opts = @{$PGBuild::conf{config_opts}};
@@ -132,6 +133,8 @@ my $cvsserver = $PGBuild::conf{cvsrepo} ||
 my $buildport = $PGBuild::conf{branch_ports}->{$branch} || 5999;
 
 my $cvsmethod = $PGBuild::conf{cvsmethod} || 'export';
+
+$tar_log_cmd ||= "tar -z -cf runlogs.tgz *.log";
 
 # sanity checks
 # several people have run into these
@@ -970,13 +973,25 @@ sub send_result
 		}
 	}
 
+	my $lrname = $mr_prefix . "lastrun-logs";
+
+	my @logfiles = glob("$lrname/*.log");
+	my %mtimes = map { $_ => (stat $_)[9] } @logfiles;
+	@logfiles =  map { basename $_ } 
+		( sort { $mtimes{$a} <=> $mtimes{$b} } @logfiles );
+	my $logfiles = join (' ',@logfiles);
+	$tar_log_cmd =~ s/\*\.log/$logfiles/;
+	
+
+	system("cd $lrname && $tar_log_cmd 2>&1 ");
+
 	unless (-x "$aux_path/run_web_txn.pl")
 	{
 		print "Could not locate $aux_path/run_web_txn.pl\n";
 		exit(1);
 	}
 
-	system("$aux_path/run_web_txn.pl");
+	system("$aux_path/run_web_txn.pl $lrname");
 
 	my $txstatus = $? >> 8;
 

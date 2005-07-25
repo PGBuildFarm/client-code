@@ -28,7 +28,7 @@
 use strict;
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_web_txn.pl,v 1.2 2005/05/01 01:03:04 andrewd Exp $
+	q$Id: run_web_txn.pl,v 1.3 2005/07/25 18:45:08 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use LWP;
@@ -36,18 +36,29 @@ use HTTP::Request::Common;
 use MIME::Base64;
 use Digest::SHA1  qw(sha1_hex);
 
+my $lrname = $ARGV[0] || 'lastrun-logs' ;
+
 
 use vars qw($changed_this_run $changed_since_success $branch $status $stage
 	$animal $ts $log_data $confsum $target $verbose $secret);
 
-my $txfname = "lastrun-logs/web-txn.data";
+my $txfname = "$lrname/web-txn.data";
 my $txdhandle;
-open($txdhandle,"$txfname") or die "opening $txfname: $!";
 $/=undef;
+open($txdhandle,"$txfname") or die "opening $txfname: $!";
 my $txdata = <$txdhandle>;
 close($txdhandle);
 
 eval $txdata; die $@ if $@;
+
+my $tarname = "$lrname/runlogs.tgz";
+my $tardata="";
+if (open($txdhandle,$tarname))
+{
+	binmode $txdhandle;
+	$tardata=<$txdhandle>;
+	close($txdhandle);
+}
 
 # add our own version string
 my $scriptline = "((.*)'script_version' => '\\d+\\.\\d+',\n)";
@@ -59,7 +70,7 @@ $confsum =~ s/$scriptline/$1$2'web_script_version' => '$VERSION',\n/;
 
 map 
 { $_=encode_base64($_,""); tr/+=/$@/; } 
-($log_data,$confsum,$changed_this_run,$changed_since_success);
+($log_data,$confsum,$changed_this_run,$changed_since_success,$tardata);
 
 my $content = 
 	"changed_files=$changed_this_run&".
@@ -67,6 +78,11 @@ my $content =
 	"branch=$branch&res=$status&stage=$stage&animal=$animal&ts=$ts".
 	"&log=$log_data&conf=$confsum";
 my $sig= sha1_hex($content,$secret);
+
+if ($tardata)
+{
+	$content .= "&logtar=$tardata";
+}
 
 my $ua = new LWP::UserAgent;
 $ua->agent("Postgres Build Farm Reporter");
