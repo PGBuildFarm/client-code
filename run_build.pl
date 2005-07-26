@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.37 2005/07/25 18:45:08 andrewd Exp $
+	q$Id: run_build.pl,v 1.38 2005/07/26 21:45:25 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -951,7 +951,9 @@ sub send_result
 		 [qw(changed_this_run changed_since_success branch status stage
 			 animal ts log_data confsum target verbose secret)]);
 	
-	my $txfname = "lastrun-logs/web-txn.data";
+	my $lrname = $mr_prefix . "lastrun-logs";
+
+	my $txfname = "$lrname/web-txn.data";
 	my $txdhandle;
 	open($txdhandle,">$txfname");
 	print $txdhandle $savedata;
@@ -972,8 +974,6 @@ sub send_result
 			exit(1);
 		}
 	}
-
-	my $lrname = $mr_prefix . "lastrun-logs";
 
 	my @logfiles = glob("$lrname/*.log");
 	my %mtimes = map { $_ => (stat $_)[9] } @logfiles;
