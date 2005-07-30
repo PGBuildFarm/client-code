@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.38 2005/07/26 21:45:25 andrewd Exp $
+	q$Id: run_build.pl,v 1.39 2005/07/30 18:28:18 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -243,13 +243,13 @@ END
 	# success.
 	if ( $have_lock && -d "$pgsql")
 	{
-		if ($keep_errs) 
-		{ 
-			system("mv $pgsql pgsqlkeep.$now") ;
-		}
 		if ($dbstarted)
 		{
 			system ("cd inst && bin/pg_ctl -D data stop >/dev/null 2>&1");
+		}
+		if ($keep_errs) 
+		{ 
+			system("mv $pgsql pgsqlkeep.$now && mv inst instkeep.$now") ;
 		}
 		system("rm -rf $pgsql inst") unless $keepall;
 	}
