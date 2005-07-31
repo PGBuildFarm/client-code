@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.39 2005/07/30 18:28:18 andrewd Exp $
+	q$Id: run_build.pl,v 1.40 2005/07/31 00:17:45 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -92,9 +92,11 @@ my $verbose;
 my $help;
 my $multiroot;
 my $quiet;
+my $from_source;
 
 GetOptions('nosend' => \$nosend, 
 		   'config=s' => \$buildconf,
+		   'from-source=s' => \$from_source,
 		   'force' => \$forcerun,
 		   'keepall' => \$keepall,
 		   'verbose:i' => \$verbose,
@@ -107,7 +109,8 @@ GetOptions('nosend' => \$nosend,
 $verbose=1 if (defined($verbose) && $verbose==0);
 
 use vars qw($branch);
-$branch = shift || 'HEAD';
+my $explicit_branch = shift;
+$branch = $explicit_branch || 'HEAD';
 
 print_help() if ($help);
 
@@ -136,6 +139,22 @@ my $cvsmethod = $PGBuild::conf{cvsmethod} || 'export';
 
 $tar_log_cmd ||= "tar -z -cf runlogs.tgz *.log";
 
+my $logdirname = "lastrun-logs";
+
+if ($from_source)
+{
+	die "sourceroot $from_source not absolute" 
+		unless $from_source =~ m!^/! ;	
+	# we need to know where the lock should go, so unless the path
+	# contains HEAD we require it to be specified.
+	die "must specify branch explicitly with from_source"
+		unless ($explicit_branch || $from_source =~ m!/HEAD/!);
+	$verbose ||= 1;
+	$nosend=$nostatus=1;
+	$use_vpath = undef;
+	$logdirname = "fromsource-logs";
+}
+
 # sanity checks
 # several people have run into these
 
@@ -153,7 +172,7 @@ die "no aux_path in config file" unless $aux_path;
 
 die "cannot run as root/Administrator" unless ($> > 0);
 
-if ($cvsserver =~ /^:pserver:/)
+if (!$from_source && $cvsserver =~ /^:pserver:/)
 {
 	# this is NOT a perfect check, because we don't want to
 	# catch the  port which might or might not be there
@@ -185,7 +204,8 @@ if ($cvsserver =~ /^:pserver:/)
 # so they don't clobber each other
 my $mr_prefix = $multiroot ? "$animal." : ""; 
 
-my $pgsql = ($cvsmethod eq 'export' && not $use_vpath) ? "pgsql" : "pgsql.$$";
+my $pgsql = $from_source  || 
+   ( ($cvsmethod eq 'export' && not $use_vpath) ? "pgsql" : "pgsql.$$" );
 
 # set environment from config
 while (my ($envkey,$envval) = each %{$PGBuild::conf{build_env}})
@@ -221,10 +241,18 @@ open($lockfile, ">builder.LCK") || die "opening lockfile: $!";
 # only one builder at a time allowed per branch
 # having another build running is not a failure, and so we do not output
 # a failure message under this condition.
-exit(0) unless flock($lockfile,LOCK_EX|LOCK_NB);
+if ($from_source)
+{
+	die "acquiring lock in $buildroot/$branch/builder.LCK" 
+		unless flock($lockfile,LOCK_EX|LOCK_NB);
+}
+else
+{
+	exit(0) unless flock($lockfile,LOCK_EX|LOCK_NB);
+}
 
 die "$buildroot/$branch has $pgsql or inst directories!" 
-	if (-d $pgsql || -d "inst");
+	if ((!$from_source && -d $pgsql) || -d "inst");
 
 # we are OK to run if we get here
 $have_lock = 1;
@@ -247,11 +275,12 @@ END
 		{
 			system ("cd inst && bin/pg_ctl -D data stop >/dev/null 2>&1");
 		}
-		if ($keep_errs) 
+		if ( !$from_source && $keep_errs) 
 		{ 
 			system("mv $pgsql pgsqlkeep.$now && mv inst instkeep.$now") ;
 		}
-		system("rm -rf $pgsql inst") unless $keepall;
+		system("rm -rf inst") unless $keepall;
+		system("rm -rf $pgsql") unless ($from_source || $keepall);
 	}
 	if ($have_lock)
 	{
@@ -264,90 +293,105 @@ END
 my $steps_completed = "";
 
 
-# see if we need to run the tests (i.e. if either something has changed or
-# we have gone over the force_every heartbeat time)
-
-print "checking out source ...\n" if $verbose;
-
-
-my $timeout_pid;
-
-$timeout_pid = spawn(\&cvs_timeout,$cvs_timeout_secs) 
-	if $cvs_timeout_secs; 
-
-my $savecvslog = checkout();
-
-if ($timeout_pid)
-{
-    # don't kill me, I finished in time
-	if (kill (SIGTERM, $timeout_pid))
-	{
-		# reap the zombie
-		waitpid($timeout_pid,0); 
-	}
-}
-
-print "checking if build run needed ...\n" if $verbose;
 
 my @changed_files;
 my @changed_since_success;
-
-# transition to new time processing
-unlink "last.success";
-
-# get the timestamp data
-my $last_status = find_last('status') || 0;
-my $last_run_snap = find_last('run.snap');
-my $last_success_snap = find_last('success.snap');
-$forcerun = 1 unless (defined($last_run_snap));
-
-# updated by find_changed to last mtime of any file in the repo
-my $current_snap=0;
-
-# see if we need to force a build
-$last_status = 0
-	if ($last_status && $force_every && 
-		$last_status+($force_every*3600) < $now);
-$last_status = 0 if $forcerun;
-
-# get a hash of the files listed in .cvsignore files
-# find_changed will skip these files
+my $last_status;
+my $last_run_snap;
+my $last_success_snap;
+my $current_snap;
 my %ignore_file = ();
-
-File::Find::find({wanted => \&find_ignore}, 'pgsql');
-
-# see what's changed since the last time we did work
-File::Find::find({wanted => \&find_changed}, 'pgsql');
-
-#ignore changes to files specified by the trigger filter, if any
 my @filtered_files;
-if (defined($trigger_filter))
+my $savecvslog = "" ;
+
+if ($from_source)
 {
-	@filtered_files = grep { ! m[$trigger_filter] } @changed_files;
+	print "cleaning source in $pgsql ...\n";
+	clean_from_source();
 }
 else
 {
-	@filtered_files = @changed_files;
-}
+    # see if we need to run the tests (i.e. if either something has changed or
+    # we have gone over the force_every heartbeat time)
 
-# if no build required do nothing
-if ($last_status && ! @filtered_files)
-{
-	print "No build required: last status = ",scalar(gmtime($last_status)),
-	" GMT, current snapshot = ",scalar(gmtime($current_snap))," GMT,",
-	" changed files = ",scalar(@filtered_files),"\n" if $verbose;
-	system("rm -rf $pgsql");
-	exit 0;
-}
+	print "checking out source ...\n" if $verbose;
 
-# get CVS version info on both changed files sets
-# skip if in export mode
 
-unless ($cvsmethod eq "export")
-{
-	get_cvs_versions(\@changed_files);
-	get_cvs_versions(\@changed_since_success);
-}
+	my $timeout_pid;
+
+	$timeout_pid = spawn(\&cvs_timeout,$cvs_timeout_secs) 
+		if $cvs_timeout_secs; 
+
+	$savecvslog = checkout();
+
+	if ($timeout_pid)
+	{
+		# don't kill me, I finished in time
+		if (kill (SIGTERM, $timeout_pid))
+		{
+			# reap the zombie
+			waitpid($timeout_pid,0); 
+		}
+	}
+
+	print "checking if build run needed ...\n" if $verbose;
+
+    # transition to new time processing
+	unlink "last.success";
+
+    # get the timestamp data
+	$last_status = find_last('status') || 0;
+	$last_run_snap = find_last('run.snap');
+	$last_success_snap = find_last('success.snap');
+	$forcerun = 1 unless (defined($last_run_snap));
+
+    # updated by find_changed to last mtime of any file in the repo
+	$current_snap=0;
+
+    # see if we need to force a build
+	$last_status = 0
+		if ($last_status && $force_every && 
+			$last_status+($force_every*3600) < $now);
+	$last_status = 0 if $forcerun;
+
+    # get a hash of the files listed in .cvsignore files
+    # find_changed will skip these files
+
+	File::Find::find({wanted => \&find_ignore}, 'pgsql');
+
+    # see what's changed since the last time we did work
+	File::Find::find({wanted => \&find_changed}, 'pgsql');
+
+    #ignore changes to files specified by the trigger filter, if any
+	if (defined($trigger_filter))
+	{
+		@filtered_files = grep { ! m[$trigger_filter] } @changed_files;
+	}
+	else
+	{
+		@filtered_files = @changed_files;
+	}
+
+    # if no build required do nothing
+	if ($last_status && ! @filtered_files)
+	{
+		print "No build required: last status = ",scalar(gmtime($last_status)),
+		" GMT, current snapshot = ",scalar(gmtime($current_snap))," GMT,",
+		" changed files = ",scalar(@filtered_files),"\n" if $verbose;
+		system("rm -rf $pgsql");
+		exit 0;
+	}
+	
+    # get CVS version info on both changed files sets
+    # skip if in export mode
+
+	unless ($cvsmethod eq "export")
+	{
+		get_cvs_versions(\@changed_files);
+		get_cvs_versions(\@changed_since_success);
+	}
+
+} # end of unless ($from_source)
 
 cleanlogs();
 
@@ -360,7 +404,7 @@ if ($use_vpath)
     print "creating vpath build dir $pgsql ...\n" if $verbose;
 	mkdir $pgsql || die "making $pgsql: $!";
 }
-elsif ($cvsmethod eq 'update')
+elsif (!$from_source && $cvsmethod eq 'update')
 {
 	print "copying source to $pgsql ...\n" if $verbose;
 
@@ -453,7 +497,8 @@ stop_db();
 
 my $saved_config = get_config_summary();
 
-system("rm -rf $pgsql inst"); # only keep failures
+system("rm -rf inst"); # only keep failures
+system("rm -rf $pgsql") unless $from_source;
 
 print("OK\n") if $verbose;
 
@@ -473,6 +518,7 @@ usage: $0 [options] [branch]
   --nosend                = don't send results
   --nostatus              = don't set status files
   --force                 = force a build run (ignore status files)
+  --from-source=/path     = use source in path, not from cvs
   --config=/path/to/file  = alternative location for config file
   --keepall               = keep directories if an error occurs
   --verbose[=n]           = verbosity (default 1) 2 or more = huge output.
@@ -485,6 +531,19 @@ Default branch is HEAD. Usually only the --config option should be necessary.
 	exit(0);
 }
 
+sub clean_from_source
+{
+	if (-e "$pgsql/GNUmakefile")
+	{
+		my @makeout = `cd $pgsql && $make distclean 2>&1`;
+		my $status = $? >>8;
+		writelog('distclean',\@makeout);
+		print "======== distclean log ===========\n",
+		  @makeout if ($verbose > 1);
+		send_result('distclean',$status,\@makeout) if $status;
+	}
+}
+
 sub interrupt_exit
 {
 	my $signame = shift;
@@ -495,7 +554,7 @@ sub interrupt_exit
 
 sub cleanlogs
 {
-	my $lrname = $mr_prefix . "lastrun-logs";
+	my $lrname = $mr_prefix . $logdirname;
 	system("rm -rf $lrname");
 	mkdir "$lrname" || die "can't make $lrname dir: $!";
 }
@@ -505,7 +564,7 @@ sub writelog
 	my $stage = shift;
 	my $loglines = shift;
 	my $handle;
-	my $lrname = $mr_prefix . "lastrun-logs";
+	my $lrname = $mr_prefix . $logdirname;
 	open($handle,">$lrname/$stage.log");
 	print $handle @$loglines;
 	close($handle);
@@ -951,7 +1010,7 @@ sub send_result
 		 [qw(changed_this_run changed_since_success branch status stage
 			 animal ts log_data confsum target verbose secret)]);
 	
-	my $lrname = $mr_prefix . "lastrun-logs";
+	my $lrname = $mr_prefix . $logdirname;
 
 	my $txfname = "$lrname/web-txn.data";
 	my $txdhandle;
