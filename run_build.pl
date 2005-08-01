@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.41 2005/08/01 18:40:09 andrewd Exp $
+	q$Id: run_build.pl,v 1.42 2005/08/01 18:46:34 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -395,7 +395,7 @@ else
 
 cleanlogs();
 
-writelog('CVS',$savecvslog) unless %from_source;
+writelog('CVS',$savecvslog) unless $from_source;
 
 # copy/create according to vpath/cvsmethod settings
 
