@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.43 2005/08/02 00:10:11 andrewd Exp $
+	q$Id: run_build.pl,v 1.44 2005/08/02 00:22:53 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -927,8 +927,12 @@ sub checkout
 	# do a build run.
 	# consequence - we don't save the cvs log if we don't do a run
 	# doesn't matter too much because if CVS fails we exit anyway.
+
+	my $merge_conflicts = grep {/^C/} @cvslog;
+	
 	
 	send_result('CVS',$status,\@cvslog)	if ($status);
+	send_result('CVS-Merge',$merge_conflicts,\@cvslog) if ($merge_conflicts);
 	$steps_completed = "CVS";
 
 	# if we were successful, however, we return the info so that 
