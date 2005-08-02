@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.42 2005/08/01 18:46:34 andrewd Exp $
+	q$Id: run_build.pl,v 1.43 2005/08/02 00:10:11 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -158,6 +158,11 @@ if ($from_source)
 # sanity checks
 # several people have run into these
 
+if ( `uname -s 2>&1 ` =~ /CYGWIN/i )
+{
+	my @procs = `ps -ef`;
+	die "cygserver not running" unless(grep {/cygserver/} @procs);
+}
 
 if ( my $ccachedir = $PGBuild::conf{build_env}->{CCACHE_DIR} )
 {
