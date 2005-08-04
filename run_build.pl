@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.44 2005/08/02 00:22:53 andrewd Exp $
+	q$Id: run_build.pl,v 1.45 2005/08/04 15:29:35 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -929,10 +929,12 @@ sub checkout
 	# doesn't matter too much because if CVS fails we exit anyway.
 
 	my $merge_conflicts = grep {/^C/} @cvslog;
-	
+	my $modfiles = grep { /^M/ } @cvslog;
 	
 	send_result('CVS',$status,\@cvslog)	if ($status);
 	send_result('CVS-Merge',$merge_conflicts,\@cvslog) if ($merge_conflicts);
+	send_result('CVS-Dirty',$modfiles,\@cvslog) 
+		if ($modfiles && !($nosend && $nostatus ));
 	$steps_completed = "CVS";
 
 	# if we were successful, however, we return the info so that 
