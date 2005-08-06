@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.45 2005/08/04 15:29:35 andrewd Exp $
+	q$Id: run_build.pl,v 1.46 2005/08/06 23:19:39 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -93,10 +93,12 @@ my $help;
 my $multiroot;
 my $quiet;
 my $from_source;
+my $from_source_clean;
 
 GetOptions('nosend' => \$nosend, 
 		   'config=s' => \$buildconf,
 		   'from-source=s' => \$from_source,
+		   'from-source-clean=s' => \$from_source_clean,
 		   'force' => \$forcerun,
 		   'keepall' => \$keepall,
 		   'verbose:i' => \$verbose,
@@ -105,6 +107,9 @@ GetOptions('nosend' => \$nosend,
 		   'quiet' => \$quiet,
 		   'multiroot' => \$multiroot)
 	|| die "bad command line";
+
+die "only one of --from-source and --from-source-clean allowed"
+	if ($from_source && $from_source_clean);
 
 $verbose=1 if (defined($verbose) && $verbose==0);
 
@@ -141,8 +146,9 @@ $tar_log_cmd ||= "tar -z -cf runlogs.tgz *.log";
 
 my $logdirname = "lastrun-logs";
 
-if ($from_source)
+if ($from_source || $from_source_clean)
 {
+	$from_source ||= $from_source_clean;
 	die "sourceroot $from_source not absolute" 
 		unless $from_source =~ m!^/! ;	
 	# we need to know where the lock should go, so unless the path
@@ -309,12 +315,12 @@ my %ignore_file = ();
 my @filtered_files;
 my $savecvslog = "" ;
 
-if ($from_source)
+if ($from_source_clean)
 {
 	print "cleaning source in $pgsql ...\n";
 	clean_from_source();
 }
-else
+elsif (! $from_source)
 {
     # see if we need to run the tests (i.e. if either something has changed or
     # we have gone over the force_every heartbeat time)
@@ -520,15 +526,17 @@ usage: $0 [options] [branch]
 
  where options are one or more of:
 
-  --nosend                = don't send results
-  --nostatus              = don't set status files
-  --force                 = force a build run (ignore status files)
-  --from-source=/path     = use source in path, not from cvs
-  --config=/path/to/file  = alternative location for config file
-  --keepall               = keep directories if an error occurs
-  --verbose[=n]           = verbosity (default 1) 2 or more = huge output.
-  --quiet                 = suppress normal error message 
-  --multiroot             = allow several members to use same build root
+  --nosend                  = don't send results
+  --nostatus                = don't set status files
+  --force                   = force a build run (ignore status files)
+  --from-source=/path       = use source in path, not from cvs
+  or
+  --from-source-clean=/path = same as --from-source, run make distclean first
+  --config=/path/to/file    = alternative location for config file
+  --keepall                 = keep directories if an error occurs
+  --verbose[=n]             = verbosity (default 1) 2 or more = huge output.
+  --quiet                   = suppress normal error message 
+  --multiroot               = allow several members to use same build root
 
 Default branch is HEAD. Usually only the --config option should be necessary.
 
