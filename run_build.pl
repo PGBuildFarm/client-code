@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.46 2005/08/06 23:19:39 andrewd Exp $
+	q$Id: run_build.pl,v 1.47 2005/08/17 21:59:41 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -288,7 +288,8 @@ END
 		}
 		if ( !$from_source && $keep_errs) 
 		{ 
-			system("mv $pgsql pgsqlkeep.$now && mv inst instkeep.$now") ;
+			system("mv $pgsql pgsqlkeep.$now && " .
+				   "test -d inst && mv inst instkeep.$now") ;
 		}
 		system("rm -rf inst") unless $keepall;
 		system("rm -rf $pgsql") unless ($from_source || $keepall);
