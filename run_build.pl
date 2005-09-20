@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.47 2005/08/17 21:59:41 andrewd Exp $
+	q$Id: run_build.pl,v 1.48 2005/09/20 00:29:45 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -54,7 +54,7 @@ use Fcntl qw(:flock);
 use File::Path;
 use File::Basename;
 use Getopt::Long;
-use POSIX qw(:signal_h);
+use POSIX qw(:signal_h strftime);
 use Data::Dumper;
 
 use File::Find ();
@@ -288,8 +288,9 @@ END
 		}
 		if ( !$from_source && $keep_errs) 
 		{ 
-			system("mv $pgsql pgsqlkeep.$now && " .
-				   "test -d inst && mv inst instkeep.$now") ;
+			my $timestr = strftime "%Y-%m-%d-%H:%M:%S", localtime($now);
+			system("mv $pgsql pgsqlkeep.$timestr && " .
+				   "test -d inst && mv inst instkeep.$timestr") ;
 		}
 		system("rm -rf inst") unless $keepall;
 		system("rm -rf $pgsql") unless ($from_source || $keepall);
