@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.48 2005/09/20 00:29:45 andrewd Exp $
+	q$Id: run_build.pl,v 1.49 2005/09/25 14:39:10 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -273,6 +273,8 @@ my $now=time;
 my $installdir = "$buildroot/$branch/inst";
 my $dbstarted;
 
+my %ignore_file = ();
+
 # cleanup handler for all exits
 END
 {
@@ -297,6 +299,12 @@ END
 	}
 	if ($have_lock)
 	{
+		if ($use_vpath)
+		{
+			# vpath builds leave some stuff lying around in the
+			# source dir, unfortunately. This should clean it up.
+			unlink (keys %ignore_file);
+		}
 		close($lockfile);
 		unlink("builder.LCK");
 	}
@@ -305,15 +313,12 @@ END
 
 my $steps_completed = "";
 
-
-
 my @changed_files;
 my @changed_since_success;
 my $last_status;
 my $last_run_snap;
 my $last_success_snap;
 my $current_snap;
-my %ignore_file = ();
 my @filtered_files;
 my $savecvslog = "" ;
 
@@ -939,12 +944,19 @@ sub checkout
 	# doesn't matter too much because if CVS fails we exit anyway.
 
 	my $merge_conflicts = grep {/^C/} @cvslog;
-	my $modfiles = grep { /^M/ } @cvslog;
+	my $mod_files = grep { /^M/ } @cvslog;
+	my $unknown_files = grep {/^\?/ } @cvslog;
 	
 	send_result('CVS',$status,\@cvslog)	if ($status);
-	send_result('CVS-Merge',$merge_conflicts,\@cvslog) if ($merge_conflicts);
-	send_result('CVS-Dirty',$modfiles,\@cvslog) 
-		if ($modfiles && !($nosend && $nostatus ));
+	send_result('CVS-Merge',$merge_conflicts,\@cvslog) 
+		if ($merge_conflicts);
+	unless ($nosend && $nostatus)
+	{
+		send_result('CVS-Dirty',$mod_files,\@cvslog) 
+			if ($mod_files);
+		send_result('CVS-Unknown',$unknown_files,\@cvslog)
+			if ($unknown_files);
+	}
 	$steps_completed = "CVS";
 
 	# if we were successful, however, we return the info so that 
