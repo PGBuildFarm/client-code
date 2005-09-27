@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.49 2005/09/25 14:39:10 andrewd Exp $
+	q$Id: run_build.pl,v 1.50 2005/09/27 13:30:40 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -1031,7 +1031,7 @@ sub send_result
 	{
 		$confsum= $saved_config;
 	}
-	elsif ($stage ne 'CVS')
+	elsif ($stage !~ /CVS/ )
 	{
 		$confsum = get_config_summary();
 	}
@@ -1051,7 +1051,7 @@ sub send_result
 	print $txdhandle $savedata;
 	close($txdhandle);
 
-	if ($nosend || $stage =~ m/CVS/ )
+	if ($nosend || $stage eq 'CVS' || $stage eq 'CVS-status' )
 	{
 		print "Branch: $branch\n";
 		if ($stage eq 'OK')
