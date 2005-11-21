@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.50 2005/09/27 13:30:40 andrewd Exp $
+	q$Id: run_build.pl,v 1.51 2005/11/21 12:34:37 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -1067,12 +1067,23 @@ sub send_result
 		}
 	}
 
-	my @logfiles = glob("$lrname/*.log");
-	my %mtimes = map { $_ => (stat $_)[9] } @logfiles;
-	@logfiles =  map { basename $_ } 
+	if ($stage !~ /CVS/ )
+	{
+
+		my @logfiles = glob("$lrname/*.log");
+		my %mtimes = map { $_ => (stat $_)[9] } @logfiles;
+		@logfiles =  map { basename $_ } 
 		( sort { $mtimes{$a} <=> $mtimes{$b} } @logfiles );
-	my $logfiles = join (' ',@logfiles);
-	$tar_log_cmd =~ s/\*\.log/$logfiles/;
+		my $logfiles = join (' ',@logfiles);
+		$tar_log_cmd =~ s/\*\.log/$logfiles/;
+	}
+	else
+	{
+		# these would be from an earlier run, since we
+		# do cleanlogs() after the cvs stage
+		# so don't send them.
+		unlink "$lrname/runlogs.tgz";
+	}
 	
 
 	system("cd $lrname && $tar_log_cmd 2>&1 ");
