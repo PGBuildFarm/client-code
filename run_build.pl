@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.51 2005/11/21 12:34:37 andrewd Exp $
+	q$Id: run_build.pl,v 1.52 2005/11/21 12:46:10 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -1076,6 +1076,9 @@ sub send_result
 		( sort { $mtimes{$a} <=> $mtimes{$b} } @logfiles );
 		my $logfiles = join (' ',@logfiles);
 		$tar_log_cmd =~ s/\*\.log/$logfiles/;
+
+		system("cd $lrname && $tar_log_cmd 2>&1 ");
+
 	}
 	else
 	{
@@ -1085,8 +1088,6 @@ sub send_result
 		unlink "$lrname/runlogs.tgz";
 	}
 	
-
-	system("cd $lrname && $tar_log_cmd 2>&1 ");
 
 	unless (-x "$aux_path/run_web_txn.pl")
 	{
