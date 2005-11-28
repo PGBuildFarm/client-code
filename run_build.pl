@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.52 2005/11/21 12:46:10 andrewd Exp $
+	q$Id: run_build.pl,v 1.53 2005/11/28 00:54:10 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -864,7 +864,7 @@ sub find_ignore
 	}
 	elsif (-f $_ && $_ eq '.cvsignore')
 	{
-		my $ fh;
+		my $fh;
 		open($fh,$_) || die "cannot open $name for reading";
 		my @names = (<$fh>);
 		close($fh);
@@ -895,8 +895,7 @@ sub find_changed
 		if (-f _ )
 		{
 			$current_snap = $mtime  if ($mtime > $current_snap);
-			return unless $last_status;
-
+			
 			my $sname = $name;
 			if ($last_run_snap && ($mtime > $last_run_snap))
 			{
