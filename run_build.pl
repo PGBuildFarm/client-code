@@ -46,10 +46,11 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.53 2005/11/28 00:54:10 andrewd Exp $
+	q$Id: run_build.pl,v 1.54 2005/12/19 19:37:21 turnstep Exp $
 	=~ /(\d+)/g; 
 
 use strict;
+use warnings;
 use Fcntl qw(:flock);
 use File::Path;
 use File::Basename;
