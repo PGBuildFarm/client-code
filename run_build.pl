@@ -46,12 +46,12 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.54 2005/12/19 19:37:21 turnstep Exp $
+	q$Id: run_build.pl,v 1.55 2005/12/23 16:55:53 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
 use warnings;
-use Fcntl qw(:flock);
+use Fcntl qw(:flock :seek);
 use File::Path;
 use File::Basename;
 use Getopt::Long;
@@ -113,6 +113,7 @@ die "only one of --from-source and --from-source-clean allowed"
 	if ($from_source && $from_source_clean);
 
 $verbose=1 if (defined($verbose) && $verbose==0);
+$verbose ||= 0; # stop complaints about undefined var in numeric comparison
 
 use vars qw($branch);
 my $explicit_branch = shift;
@@ -663,6 +664,7 @@ sub initdb
 
 sub start_db
 {
+
 	$started_times++;
 	# must use -w here or we get horrid FATAL errors from trying to
 	# connect before the db is ready
@@ -676,6 +678,12 @@ sub start_db
 	open($handle,"$installdir/startlog");
 	my @ctlout = <$handle>;
 	close($handle);
+	if (open($handle,"$installdir/logfile"))
+	{
+		my @loglines = <$handle>;
+		close($handle);
+		push(@ctlout,"=========== db log file ==========\n",@loglines);
+	}
 	writelog("startdb-$started_times",\@ctlout);
 	print "======== start db : $started_times log ===========\n",@ctlout 
 		if ($verbose > 1);
@@ -685,8 +693,18 @@ sub start_db
 
 sub stop_db
 {
+	my $logpos = -s "$installdir/logfile" || 0;
 	my @ctlout = `cd $installdir && bin/pg_ctl -D data stop 2>&1`;
 	my $status = $? >>8;
+	my $handle;
+	if (open($handle,"$installdir/logfile"))
+	{
+		# go to where the log file ended before we tried to shut down.
+		seek($handle,SEEK_SET,$logpos);
+		my @loglines = <$handle>;
+		close($handle);
+		push(@ctlout,"=========== db log file ==========\n",@loglines);
+	}
 	writelog("stopdb-$started_times",\@ctlout);
 	print "======== stop db : $started_times log ===========\n",@ctlout 
 		if ($verbose > 1);
@@ -773,7 +791,7 @@ sub make_pl_install_check
 
 sub make_check
 {
-	my @makeout = `cd $pgsql/src/test/regress && $make check 2>&1`;
+	my @makeout = `cd $pgsql/src/test/regress && $make NO_LOCALE=1 check 2>&1`;
 	my $status = $? >>8;
 
 	# get the log files and the regression diffs
