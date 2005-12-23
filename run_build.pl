@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.55 2005/12/23 16:55:53 andrewd Exp $
+	q$Id: run_build.pl,v 1.56 2005/12/23 18:26:14 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -700,7 +700,7 @@ sub stop_db
 	if (open($handle,"$installdir/logfile"))
 	{
 		# go to where the log file ended before we tried to shut down.
-		seek($handle,SEEK_SET,$logpos);
+		seek($handle, $logpos, SEEK_SET);
 		my @loglines = <$handle>;
 		close($handle);
 		push(@ctlout,"=========== db log file ==========\n",@loglines);
