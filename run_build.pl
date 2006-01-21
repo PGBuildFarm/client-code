@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.56 2005/12/23 18:26:14 andrewd Exp $
+	q$Id: run_build.pl,v 1.57 2006/01/21 14:07:25 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -90,6 +90,7 @@ my $buildconf = "build-farm.conf"; # default value
 my $keepall;
 my $nostatus;
 my $verbose;
+my $ipcclean;
 my $help;
 my $multiroot;
 my $quiet;
@@ -102,6 +103,7 @@ GetOptions('nosend' => \$nosend,
 		   'from-source-clean=s' => \$from_source_clean,
 		   'force' => \$forcerun,
 		   'keepall' => \$keepall,
+		   'ipcclean' => \$ipcclean,
 		   'verbose:i' => \$verbose,
 		   'nostatus' => \$nostatus,
 		   'help' => \$help,
@@ -295,6 +297,10 @@ END
 			my $timestr = strftime "%Y-%m-%d-%H:%M:%S", localtime($now);
 			system("mv $pgsql pgsqlkeep.$timestr && " .
 				   "test -d inst && mv inst instkeep.$timestr") ;
+		}
+		if ($ipcclean && -x "$pgsql/src/bin/ipcclean/ipcclean")
+		{
+			system("$pgsql/src/bin/ipcclean/ipcclean >/dev/null 2>&1");
 		}
 		system("rm -rf inst") unless $keepall;
 		system("rm -rf $pgsql") unless ($from_source || $keepall);
@@ -546,6 +552,7 @@ usage: $0 [options] [branch]
   --verbose[=n]             = verbosity (default 1) 2 or more = huge output.
   --quiet                   = suppress normal error message 
   --multiroot               = allow several members to use same build root
+  --ipcclean                = clean up shared memory on failure
 
 Default branch is HEAD. Usually only the --config option should be necessary.
 
@@ -621,10 +628,35 @@ sub make_install
 	# On Windows and Cygwin avoid path problems associated with DLLs
 	# by copying them to the bin dir where the system will pick them
 	# up regardless.
+
 	foreach my $dll (glob("$installdir/lib/*pq.dll"))
 	{
 		system("cp $dll $installdir/bin");
 	}
+
+	# make sure the installed libraries come first in dynamic load paths
+	# this won;t have any effect under Windows, but the DLL copy above 
+	# achieves the same thing there anyway.
+	# DYLD_LIBRARY_PATH is for darwin.
+	# this is exactly what pg_regress does for its temp installs.
+
+	if (my $ldpath = $ENV{LD_LIBRARY_PATH})
+	{
+		$ENV{LD_LIBRARY_PATH}="$installdir/lib:$ldpath";
+	}
+	else
+	{
+		$ENV{LD_LIBRARY_PATH}="$installdir/lib";
+	}
+	if (my $ldpath = $ENV{DYLD_LIBRARY_PATH})
+	{
+		$ENV{DYLD_LIBRARY_PATH}="$installdir/lib:$ldpath";
+	}
+	else
+	{
+		$ENV{DYLD_LIBRARY_PATH}="$installdir/lib";
+	}
+
 	$steps_completed .= " Install";
 }
 
@@ -1033,9 +1065,10 @@ sub send_result
 		if ($verbose > 1);
 	
 	unshift (@$log,
-		  "Last file mtime in snapshot: ",
-		  scalar(gmtime($current_snap))," GMT\n",
-		  "===================================================\n");
+			 "Last file mtime in snapshot: ",
+			 scalar(gmtime($current_snap))," GMT\n",
+			 "===================================================\n")
+		unless ($from_source);
 
 	my $log_data = join("",@$log);
 	my $confsum = "" ;
