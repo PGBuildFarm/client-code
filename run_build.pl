@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.57 2006/01/21 14:07:25 andrewd Exp $
+	q$Id: run_build.pl,v 1.58 2006/04/09 15:13:32 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -1018,11 +1018,19 @@ sub get_cvs_versions
 {
 	my $flist = shift;
 	return unless @$flist;
-	my @cvs_status = `cd pgsql && cvs status @$flist 2>&1` ;
-	my $status = $? >>8;
-	print "======== cvs status log ===========\n",@cvs_status
-		if ($verbose > 1);
-	send_result('CVS-status',$status,\@cvs_status)	if ($status);
+	my @cvs_status;
+	# some shells (e.g cygwin::bash ) choke on very long command lines
+	# so do this in batches.
+	while (@$flist)
+	{
+		my @chunk = splice(@$flist,0,200);
+		my @res = `cd pgsql && cvs status @chunk 2>&1` ;
+		push(@cvs_status,@res);
+		my $status = $? >>8;
+		print "======== cvs status log ===========\n",@cvs_status
+			if ($verbose > 1);
+		send_result('CVS-status',$status,\@cvs_status)	if ($status);
+	}
 	my @repolines = grep {/Repository revision:/} @cvs_status;
 	foreach (@repolines)
 	{
