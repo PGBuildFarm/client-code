@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.58 2006/04/09 15:13:32 andrewd Exp $
+	q$Id: run_build.pl,v 1.59 2006/06/02 18:22:24 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -978,11 +978,11 @@ sub checkout
 	}
 	elsif (-d 'pgsql')
 	{
-		@cvslog = `cd pgsql && cvs -d $cvsserver update -d -P $rtag 2>&1`;
+		@cvslog = `cd pgsql && cvs -d $cvsserver update -d $rtag 2>&1`;
 	}
 	else
 	{
-		@cvslog = `cvs -d $cvsserver co -P $rtag pgsql 2>&1`;
+		@cvslog = `cvs -d $cvsserver co $rtag pgsql 2>&1`;
 	}
 	my $status = $? >>8;
 	print "======== cvs $cvsmethod log ===========\n",@cvslog
@@ -1004,7 +1004,7 @@ sub checkout
 	{
 		send_result('CVS-Dirty',$mod_files,\@cvslog) 
 			if ($mod_files);
-		send_result('CVS-Unknown',$unknown_files,\@cvslog)
+		send_result('CVS-Extraneous-Files',$unknown_files,\@cvslog)
 			if ($unknown_files);
 	}
 	$steps_completed = "CVS";
