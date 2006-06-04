@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.59 2006/06/02 18:22:24 andrewd Exp $
+	q$Id: run_build.pl,v 1.60 2006/06/04 17:55:10 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -996,6 +996,15 @@ sub checkout
 	my $merge_conflicts = grep {/^C/} @cvslog;
 	my $mod_files = grep { /^M/ } @cvslog;
 	my $unknown_files = grep {/^\?/ } @cvslog;
+
+	if ( $cvsmethod ne 'export' && $unknown_files && 
+		! ($nosend && $nostatus ) )
+	{
+		sleep 20;
+		my @statout = `cd pgsql && cvs -d $cvsserver status 2>&1`;
+		$unknown_files = grep { /^\?/ } @statout;
+	}
+		
 	
 	send_result('CVS',$status,\@cvslog)	if ($status);
 	send_result('CVS-Merge',$merge_conflicts,\@cvslog) 
@@ -1076,7 +1085,7 @@ sub send_result
 			 "Last file mtime in snapshot: ",
 			 scalar(gmtime($current_snap))," GMT\n",
 			 "===================================================\n")
-		unless ($from_source);
+		unless ($from_source || ! $current_snap);
 
 	my $log_data = join("",@$log);
 	my $confsum = "" ;
