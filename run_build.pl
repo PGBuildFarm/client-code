@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.60 2006/06/04 17:55:10 andrewd Exp $
+	q$Id: run_build.pl,v 1.61 2006/06/10 14:04:03 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -271,6 +271,14 @@ die "$buildroot/$branch has $pgsql or inst directories!"
 
 # we are OK to run if we get here
 $have_lock = 1;
+
+# check if file present for forced run
+my $forcefile = $mr_prefix . "force-one-run";
+if (-e $forcefile)
+{
+	$forcerun = 1;
+	unlink $forcefile;
+}
 
 # the time we take the snapshot
 my $now=time;
