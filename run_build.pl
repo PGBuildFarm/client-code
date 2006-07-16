@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.63 2006/07/16 21:16:12 andrewd Exp $
+	q$Id: run_build.pl,v 1.64 2006/07/16 21:18:57 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -718,7 +718,7 @@ sub start_db
 	# clear log file each time we start
 	# seem to need an intermediate file here to get round Windows bogosity
 	unlink "$installdir/logfile";
-	my $cmd = "cd $installdir &&"
+	my $cmd = "cd $installdir && " . 
 		"bin/pg_ctl -D data -l logfile -w start >startlog 2>&1";
 	system($cmd);
 	my $status = $? >>8;
