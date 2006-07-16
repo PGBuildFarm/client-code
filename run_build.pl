@@ -46,17 +46,19 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.62 2006/06/17 02:29:04 andrewd Exp $
+	q$Id: run_build.pl,v 1.63 2006/07/16 21:16:12 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
 use warnings;
 use Fcntl qw(:flock :seek);
 use File::Path;
+use File::Copy;
 use File::Basename;
 use Getopt::Long;
 use POSIX qw(:signal_h strftime);
 use Data::Dumper;
+use Cwd qw(abs_path);
 
 use File::Find ();
 use vars qw/*name *dir *prune/;
@@ -173,14 +175,15 @@ if ( `uname -s 2>&1 ` =~ /CYGWIN/i )
 	my @procs = `ps -ef`;
 	die "cygserver not running" unless(grep {/cygserver/} @procs);
 }
-
-if ( my $ccachedir = $PGBuild::conf{build_env}->{CCACHE_DIR} )
+my $ccachedir;
+if ( $ccachedir = $PGBuild::conf{build_env}->{CCACHE_DIR} )
 {
     # ccache is smart enough to create what you tell it is the cache dir, but
     # not smart enough to build the whole path. mkpath croaks on error, so
 	# we just let it.
 
 	mkpath $ccachedir;
+	$ccachedir = abs_path($ccachedir);
 }
 
 die "no aux_path in config file" unless $aux_path;
@@ -197,12 +200,12 @@ if (!$from_source && $cvsserver =~ /^:pserver:/)
 	my $loginfound = 0;
 	my $srvr;
 	(undef,,undef,$srvr,undef) = split(/:/,$cvsserver);
-	$srvr = quotemeta($srvr);
+	my $qsrvr = quotemeta($srvr);
 	if (open($cvspass,glob("~/.cvspass")))
 	{
 		while (my $line = <$cvspass>)
 		{
-			if ($line =~ /:pserver:$srvr:/)
+			if ($line =~ /:pserver:$qsrvr:/)
 			{
 				$loginfound=1;
 				last;
@@ -303,15 +306,17 @@ END
 		if ( !$from_source && $keep_errs) 
 		{ 
 			my $timestr = strftime "%Y-%m-%d-%H:%M:%S", localtime($now);
-			system("mv $pgsql pgsqlkeep.$timestr && " .
-				   "test -d inst && mv inst instkeep.$timestr") ;
+			move("$pgsql", "pgsqlkeep.$timestr");
+			move("inst", "instkeep.$timestr")	if (-d "inst") ;
 		}
 		if ($ipcclean && -x "$pgsql/src/bin/ipcclean/ipcclean")
 		{
 			system("$pgsql/src/bin/ipcclean/ipcclean >/dev/null 2>&1");
 		}
-		system("rm -rf inst") unless $keepall;
-		system("rm -rf $pgsql") unless ($from_source || $keepall);
+		rmtree("inst") unless $keepall;
+		rmtree("$pgsql") unless ($from_source || $keepall);
+		# only keep the cache in cases of success
+		rmtree("$ccachedir") if $ccachedir;
 	}
 	if ($have_lock)
 	{
@@ -412,7 +417,7 @@ elsif (! $from_source)
 		print "No build required: last status = ",scalar(gmtime($last_status)),
 		" GMT, current snapshot = ",scalar(gmtime($current_snap))," GMT,",
 		" changed files = ",scalar(@filtered_files),"\n" if $verbose;
-		system("rm -rf $pgsql");
+		rmtree("$pgsql");
 		exit 0;
 	}
 	
@@ -442,6 +447,8 @@ elsif (!$from_source && $cvsmethod eq 'update')
 {
 	print "copying source to $pgsql ...\n" if $verbose;
 
+	# annoyingly, there isn't a standard perl module to do a recursive copy
+	# and I don't want to require use of the non-standard File::Copy::Recursive
 	system("cp -r pgsql $pgsql 2>&1");
 	my $status = $? >> 8;
 	die "copying directories: $status" if $status;
@@ -531,8 +538,8 @@ stop_db();
 
 my $saved_config = get_config_summary();
 
-system("rm -rf inst"); # only keep failures
-system("rm -rf $pgsql") unless $from_source;
+rmtree("inst"); # only keep failures
+rmtree("$pgsql") unless $from_source;
 
 print("OK\n") if $verbose;
 
@@ -592,7 +599,7 @@ sub interrupt_exit
 sub cleanlogs
 {
 	my $lrname = $mr_prefix . $logdirname;
-	system("rm -rf $lrname");
+	rmtree("$lrname");
 	mkdir "$lrname" || die "can't make $lrname dir: $!";
 }
 
@@ -639,7 +646,7 @@ sub make_install
 
 	foreach my $dll (glob("$installdir/lib/*pq.dll"))
 	{
-		system("cp $dll $installdir/bin");
+		copy("$dll", "$installdir/bin");
 	}
 
 	# make sure the installed libraries come first in dynamic load paths
@@ -710,7 +717,8 @@ sub start_db
 	# connect before the db is ready
 	# clear log file each time we start
 	# seem to need an intermediate file here to get round Windows bogosity
-	my $cmd = "cd $installdir && rm -f logfile && ".
+	unlink "$installdir/logfile";
+	my $cmd = "cd $installdir &&"
 		"bin/pg_ctl -D data -l logfile -w start >startlog 2>&1";
 	system($cmd);
 	my $status = $? >>8;
