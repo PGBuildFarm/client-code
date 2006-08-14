@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.64 2006/07/16 21:18:57 andrewd Exp $
+	q$Id: run_build.pl,v 1.65 2006/08/14 20:59:14 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -1128,6 +1128,9 @@ sub send_result
 			 animal ts log_data confsum target verbose secret)]);
 	
 	my $lrname = $mr_prefix . $logdirname;
+
+	# might happen if there is a CVS failure and have never got further
+	mkdir $lrname unless -d $lrname;
 
 	my $txfname = "$lrname/web-txn.data";
 	my $txdhandle;
