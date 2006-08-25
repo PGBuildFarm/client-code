@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.65 2006/08/14 20:59:14 andrewd Exp $
+	q$Id: run_build.pl,v 1.66 2006/08/25 13:06:40 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -98,6 +98,7 @@ my $multiroot;
 my $quiet;
 my $from_source;
 my $from_source_clean;
+my $testmode;
 
 GetOptions('nosend' => \$nosend, 
 		   'config=s' => \$buildconf,
@@ -108,6 +109,7 @@ GetOptions('nosend' => \$nosend,
 		   'ipcclean' => \$ipcclean,
 		   'verbose:i' => \$verbose,
 		   'nostatus' => \$nostatus,
+		   'test' => \$testmode,
 		   'help' => \$help,
 		   'quiet' => \$quiet,
 		   'multiroot' => \$multiroot)
@@ -118,6 +120,15 @@ die "only one of --from-source and --from-source-clean allowed"
 
 $verbose=1 if (defined($verbose) && $verbose==0);
 $verbose ||= 0; # stop complaints about undefined var in numeric comparison
+
+if ($testmode)
+{
+	$verbose=1 unless $verbose;
+	$forcerun = 1;
+	$nostatus = 1;
+	$nosend = 1;
+	
+}
 
 use vars qw($branch);
 my $explicit_branch = shift;
@@ -477,6 +488,15 @@ print "running make check ...\n" if $verbose;
 
 make_check();
 
+# ecpg checks are not supported in 8.1 and earlier
+if ($branch eq 'HEAD' || $branch gt 'REL8_2' )
+{
+
+	print "running make ecpg check ...\n" if $verbose;
+
+	make_ecpg_check();
+}
+
 print "running make contrib ...\n" if $verbose;
 
 make_contrib();
@@ -568,6 +588,7 @@ usage: $0 [options] [branch]
   --quiet                   = suppress normal error message 
   --multiroot               = allow several members to use same build root
   --ipcclean                = clean up shared memory on failure
+  --test                    = short for --nosend --nostatus --verbose --force
 
 Default branch is HEAD. Usually only the --config option should be necessary.
 
@@ -863,6 +884,35 @@ sub make_check
 
 	send_result('Check',$status,\@makeout) if $status;
 	$steps_completed .= " Check";
+}
+
+sub make_ecpg_check
+{
+	my $ecpg_dir = "$pgsql/src/interfaces/ecpg";
+	my @makeout = `cd  $ecpg_dir && $make NO_LOCALE=1 check 2>&1`;
+	my $status = $? >>8;
+
+	# get the log files and the regression diffs
+	my @logs = glob("$ecpg_dir/test/log/*.log");
+	unshift(@logs,"$ecpg_dir/test/regression.diffs")
+		if (-e "$ecpg_dir/test/regression.diffs");
+	foreach my $logfile (@logs)
+	{
+		push(@makeout,"\n\n================== $logfile ===================\n");
+		my $handle;
+		open($handle,$logfile);
+		while(<$handle>)
+		{
+			push(@makeout,$_);
+		}
+		close($handle);
+	}
+	writelog('ecpg-check',\@makeout);
+	print "======== make ecpg check logs ===========\n",@makeout 
+		if ($verbose > 1);
+
+	send_result('ECPG-Check',$status,\@makeout) if $status;
+	$steps_completed .= " ECPG-Check";
 }
 
 sub configure
