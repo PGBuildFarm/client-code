@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.66 2006/08/25 13:06:40 andrewd Exp $
+	q$Id: run_build.pl,v 1.67 2006/08/27 17:04:31 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -356,7 +356,7 @@ my $savecvslog = "" ;
 
 if ($from_source_clean)
 {
-	print "cleaning source in $pgsql ...\n";
+	print time_str(),"cleaning source in $pgsql ...\n";
 	clean_from_source();
 }
 elsif (! $from_source)
@@ -364,7 +364,7 @@ elsif (! $from_source)
     # see if we need to run the tests (i.e. if either something has changed or
     # we have gone over the force_every heartbeat time)
 
-	print "checking out source ...\n" if $verbose;
+	print time_str(),"checking out source ...\n" if $verbose;
 
 
 	my $timeout_pid;
@@ -384,7 +384,7 @@ elsif (! $from_source)
 		}
 	}
 
-	print "checking if build run needed ...\n" if $verbose;
+	print time_str(),"checking if build run needed ...\n" if $verbose;
 
     # transition to new time processing
 	unlink "last.success";
@@ -425,7 +425,8 @@ elsif (! $from_source)
     # if no build required do nothing
 	if ($last_status && ! @filtered_files)
 	{
-		print "No build required: last status = ",scalar(gmtime($last_status)),
+		print time_str(),
+		"No build required: last status = ",scalar(gmtime($last_status)),
 		" GMT, current snapshot = ",scalar(gmtime($current_snap))," GMT,",
 		" changed files = ",scalar(@filtered_files),"\n" if $verbose;
 		rmtree("$pgsql");
@@ -451,12 +452,12 @@ writelog('CVS',$savecvslog) unless $from_source;
 
 if ($use_vpath)
 {
-    print "creating vpath build dir $pgsql ...\n" if $verbose;
+    print time_str(),"creating vpath build dir $pgsql ...\n" if $verbose;
 	mkdir $pgsql || die "making $pgsql: $!";
 }
 elsif (!$from_source && $cvsmethod eq 'update')
 {
-	print "copying source to $pgsql ...\n" if $verbose;
+	print time_str(),"copying source to $pgsql ...\n" if $verbose;
 
 	# annoyingly, there isn't a standard perl module to do a recursive copy
 	# and I don't want to require use of the non-standard File::Copy::Recursive
@@ -476,15 +477,15 @@ my $started_times = 0;
 # on any error, so each step depends on success in the previous
 # steps.
 
-print "running configure ...\n" if $verbose;
+print time_str(),"running configure ...\n" if $verbose;
 
 configure();
 
-print "running make ...\n" if $verbose;
+print time_str(),"running make ...\n" if $verbose;
 
 make();
 
-print "running make check ...\n" if $verbose;
+print time_str(),"running make check ...\n" if $verbose;
 
 make_check();
 
@@ -492,28 +493,28 @@ make_check();
 if ($branch eq 'HEAD' || $branch gt 'REL8_2' )
 {
 
-	print "running make ecpg check ...\n" if $verbose;
+	print time_str(),"running make ecpg check ...\n" if $verbose;
 
 	make_ecpg_check();
 }
 
-print "running make contrib ...\n" if $verbose;
+print time_str(),"running make contrib ...\n" if $verbose;
 
 make_contrib();
 
-print "running make install ...\n" if $verbose;
+print time_str(),"running make install ...\n" if $verbose;
 
 make_install();
 
-print "setting up db cluster ...\n" if $verbose;
+print time_str(),"setting up db cluster ...\n" if $verbose;
 
 initdb();
 
-print "starting db ...\n" if $verbose;
+print time_str(),"starting db ...\n" if $verbose;
 
 start_db();
 
-print "running make installcheck ...\n" if $verbose;
+print time_str(),"running make installcheck ...\n" if $verbose;
 
 make_install_check();
 
@@ -524,32 +525,32 @@ if ($branch eq 'HEAD' || $branch gt 'REL8_1' )
 {
 
     # restart the db to clear the log file
-	print "restarting db ...\n" if $verbose;
+	print time_str(),"restarting db ...\n" if $verbose;
 
 	stop_db();
 	start_db();
 
-	print "running make PL installcheck ...\n" if $verbose;
+	print time_str(),"running make PL installcheck ...\n" if $verbose;
 
 	make_pl_install_check();
 
 }
 
 # restart the db to clear the log file
-print "restarting db ...\n" if $verbose;
+print time_str(),"restarting db ...\n" if $verbose;
 
 stop_db();
 start_db();
 
-print "running make contrib install ...\n" if $verbose;
+print time_str(),"running make contrib install ...\n" if $verbose;
 
 make_contrib_install();
 
-print "running make contrib installcheck ...\n" if $verbose;
+print time_str(),"running make contrib installcheck ...\n" if $verbose;
 
 make_contrib_install_check();
 
-print "stopping db ...\n" if $verbose;
+print time_str(),"stopping db ...\n" if $verbose;
 
 stop_db();
 
@@ -561,7 +562,7 @@ my $saved_config = get_config_summary();
 rmtree("inst"); # only keep failures
 rmtree("$pgsql") unless $from_source;
 
-print("OK\n") if $verbose;
+print(time_str(),"OK\n") if $verbose;
 
 send_result("OK");
 
@@ -594,6 +595,12 @@ Default branch is HEAD. Usually only the --config option should be necessary.
 
 !;
 	exit(0);
+}
+
+sub time_str
+{
+	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+	return sprintf("[%.2d:%.2d:%.2d] ",$hour, $min, $sec);
 }
 
 sub clean_from_source
