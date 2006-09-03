@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.67 2006/08/27 17:04:31 andrewd Exp $
+	q$Id: run_build.pl,v 1.68 2006/09/03 15:28:55 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -405,9 +405,10 @@ elsif (! $from_source)
 	$last_status = 0 if $forcerun;
 
     # get a hash of the files listed in .cvsignore files
-    # find_changed will skip these files
+    # They will be removed if a vpath build puts them in the repo.
 
-	File::Find::find({wanted => \&find_ignore}, 'pgsql');
+	File::Find::find({wanted => \&find_ignore}, 'pgsql') 
+		if $use_vpath;
 
     # see what's changed since the last time we did work
 	File::Find::find({wanted => \&find_changed}, 'pgsql');
@@ -1005,11 +1006,6 @@ sub find_changed
 	if ($cvsmethod eq 'update' && $_ eq 'CVS' && -d $_)
 	{
 		$File::Find::prune = 1;
-	}
-	elsif ($ignore_file{$name})
-	{
-		# do nothing
-		# print "Ignoring $name\n";
 	}
 	else
 	{
