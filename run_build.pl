@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.68 2006/09/03 15:28:55 andrewd Exp $
+	q$Id: run_build.pl,v 1.69 2006/09/08 09:30:47 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -490,15 +490,6 @@ print time_str(),"running make check ...\n" if $verbose;
 
 make_check();
 
-# ecpg checks are not supported in 8.1 and earlier
-if ($branch eq 'HEAD' || $branch gt 'REL8_2' )
-{
-
-	print time_str(),"running make ecpg check ...\n" if $verbose;
-
-	make_ecpg_check();
-}
-
 print time_str(),"running make contrib ...\n" if $verbose;
 
 make_contrib();
@@ -554,6 +545,15 @@ make_contrib_install_check();
 print time_str(),"stopping db ...\n" if $verbose;
 
 stop_db();
+
+# ecpg checks are not supported in 8.1 and earlier
+if ($branch eq 'HEAD' || $branch gt 'REL8_2' )
+{
+
+	print time_str(),"running make ecpg check ...\n" if $verbose;
+
+	make_ecpg_check();
+}
 
 
 # if we get here everything went fine ...
