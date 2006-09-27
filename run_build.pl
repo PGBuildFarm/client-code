@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.69 2006/09/08 09:30:47 andrewd Exp $
+	q$Id: run_build.pl,v 1.70 2006/09/27 19:42:12 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -407,8 +407,7 @@ elsif (! $from_source)
     # get a hash of the files listed in .cvsignore files
     # They will be removed if a vpath build puts them in the repo.
 
-	File::Find::find({wanted => \&find_ignore}, 'pgsql') 
-		if $use_vpath;
+	File::Find::find({wanted => \&find_ignore}, 'pgsql') ;
 
     # see what's changed since the last time we did work
 	File::Find::find({wanted => \&find_changed}, 'pgsql');
@@ -1065,6 +1064,12 @@ sub checkout
 	my $merge_conflicts = grep {/^C/} @cvslog;
 	my $mod_files = grep { /^M/ } @cvslog;
 	my $unknown_files = grep {/^\?/ } @cvslog;
+	my @bad_ignore = ();
+	foreach my $ignore (keys %ignore_file)
+	{
+		push (@bad_ignore,"X $ignore\n") 
+			if -e $ignore;
+	}
 
 	if ( $cvsmethod ne 'export' && $unknown_files && 
 		! ($nosend && $nostatus ) )
@@ -1084,6 +1089,8 @@ sub checkout
 			if ($mod_files);
 		send_result('CVS-Extraneous-Files',$unknown_files,\@cvslog)
 			if ($unknown_files);
+		send_result('CVS-Extraneous-Ignore',scalar(@bad_ignore),\@bad_ignore)
+			if (@bad_ignore);
 	}
 	$steps_completed = "CVS";
 
