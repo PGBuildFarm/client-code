@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.70 2006/09/27 19:42:12 andrewd Exp $
+	q$Id: run_build.pl,v 1.71 2006/09/27 19:51:17 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -151,6 +151,11 @@ my ($buildroot,$target,$animal, $print_success, $aux_path, $trigger_filter,
 		   secret keep_error_builds force_every make cvs_timeout_secs
 		   use_vpath tar_log_cmd )
 		};
+
+if (ref($force_every) eq 'HASH')
+{
+	$force_every = $force_every->{$branch};
+}
 
 my @config_opts = @{$PGBuild::conf{config_opts}};
 my $cvsserver = $PGBuild::conf{cvsrepo} || 
