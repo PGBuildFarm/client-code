@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.71 2006/09/27 19:51:17 andrewd Exp $
+	q$Id: run_build.pl,v 1.72 2006/12/10 13:16:10 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -679,7 +679,9 @@ sub make_install
 
 	foreach my $dll (glob("$installdir/lib/*pq.dll"))
 	{
-		copy("$dll", "$installdir/bin");
+		my $dest = "$installdir/bin/" . basename($dll);
+		copy($dll,$dest);
+		chmod 0755, $dest;
 	}
 
 	# make sure the installed libraries come first in dynamic load paths
