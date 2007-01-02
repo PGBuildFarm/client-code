@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.72 2006/12/10 13:16:10 andrewd Exp $
+	q$Id: run_build.pl,v 1.73 2007/01/02 19:10:33 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -298,6 +298,20 @@ if (-e $forcefile)
 	$forcerun = 1;
 	unlink $forcefile;
 }
+
+# try to allow core files to be produced.
+# another way would be for the calling environment
+# to call ulimit. We do this in an eval so failure is
+# not fatal.
+eval
+{
+	require BSD::Resource;
+	BSD::Resource->import();
+	# explicit sub calls here. using & keeps compiler happy
+	my $coreok = setrlimit(&RLIMIT_CORE,&RLIM_INFINITY,&RLIM_INFINITY);
+	die "setrlimit" unless $coreok;
+};
+warn "failed to unlimit core size: $@" if $@;
 
 # the time we take the snapshot
 my $now=time;
@@ -795,6 +809,34 @@ sub stop_db
 	$dbstarted=undef;
 }
 
+
+sub get_stack_trace
+{
+	my $bindir = shift;
+	my $pgdata = shift;
+
+	# no core = no result
+	my @cores = glob("$pgdata/core*");
+	return () unless @cores;
+
+	# no gdb = no result
+	system "gdb --version > /dev/null 2>&1";
+	my $status = $? >>8;
+	return () if $status; 
+
+	my @trace;
+
+	foreach my $core (@cores)
+	{
+		my @onetrace = `gdb -ex bt --batch $bindir/postgres $core 2>&1`;
+		push(@trace,
+			"\n\n================== stack trace: $core ==================\n",
+			 @onetrace);
+	}
+
+	return @trace;
+}
+
 sub make_install_check
 {
 	my @checkout = `cd $pgsql/src/test/regress && $make installcheck 2>&1`;
@@ -813,6 +855,11 @@ sub make_install_check
 			push(@checkout,$_);
 		}
 		close($handle);	
+	}
+	if ($status)
+	{
+		my @trace = get_stack_trace("$installdir/bin","$installdir/data");
+		push(@checkout,@trace);
 	}
 	writelog('install-check',\@checkout);
 	print "======== make installcheck log ===========\n",@checkout 
@@ -839,6 +886,11 @@ sub make_contrib_install_check
 		}
 		close($handle);
 	}
+	if ($status)
+	{
+		my @trace = get_stack_trace("$installdir/bin","$installdir/data");
+		push(@checkout,@trace);
+	}
 	writelog('contrib-install-check',\@checkout);
 	print "======== make contrib installcheck log ===========\n",@checkout 
 		if ($verbose > 1);
@@ -863,6 +915,11 @@ sub make_pl_install_check
 			push(@checkout,$_);
 		}
 		close($handle);
+	}
+	if ($status)
+	{
+		my @trace = get_stack_trace("$installdir/bin","$installdir/data");
+		push(@checkout,@trace);
 	}
 	writelog('pl-install-check',\@checkout);
 	print "======== make pl installcheck log ===========\n",@checkout 
@@ -892,6 +949,13 @@ sub make_check
 		}
 		close($handle);
 	}
+	if ($status)
+	{
+		my $base = "$pgsql/src/test/regress/tmp_check";
+		my @trace = 
+			get_stack_trace("$base/install$installdir/bin",	"$base/data");
+		push(@makeout,@trace);
+	}
 	writelog('check',\@makeout);
 	print "======== make check logs ===========\n",@makeout 
 		if ($verbose > 1);
@@ -920,6 +984,13 @@ sub make_ecpg_check
 			push(@makeout,$_);
 		}
 		close($handle);
+	}
+	if ($status)
+	{
+		my $base = "$ecpg_dir/test/regress/tmp_check";
+		my @trace = 
+			get_stack_trace("$base/install$installdir/bin",	"$base/data");
+		push(@makeout,@trace);
 	}
 	writelog('ecpg-check',\@makeout);
 	print "======== make ecpg check logs ===========\n",@makeout 
