@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.73 2007/01/02 19:10:33 andrewd Exp $
+	q$Id: run_build.pl,v 1.74 2007/02/25 23:23:21 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -58,7 +58,7 @@ use File::Basename;
 use Getopt::Long;
 use POSIX qw(:signal_h strftime);
 use Data::Dumper;
-use Cwd qw(abs_path);
+use Cwd qw(abs_path getcwd);
 
 use File::Find ();
 use vars qw/*name *dir *prune/;
@@ -145,19 +145,23 @@ require $buildconf ;
 # get the config data into some local variables
 my ($buildroot,$target,$animal, $print_success, $aux_path, $trigger_filter,
 	$secret, $keep_errs, $force_every, $make, $cvs_timeout_secs,
-	$use_vpath, $tar_log_cmd ) = 
+	$use_vpath, $tar_log_cmd, $using_msvc ) = 
 	@PGBuild::conf{
 		qw(build_root target animal print_success aux_path trigger_filter
 		   secret keep_error_builds force_every make cvs_timeout_secs
-		   use_vpath tar_log_cmd )
+		   use_vpath tar_log_cmd using_msvc)
 		};
+
+die "cannot use vpath with MSVC" 
+	if ($using_msvc and $use_vpath);
+
 
 if (ref($force_every) eq 'HASH')
 {
 	$force_every = $force_every->{$branch};
 }
 
-my @config_opts = @{$PGBuild::conf{config_opts}};
+my $config_opts = $PGBuild::conf{config_opts};
 my $cvsserver = $PGBuild::conf{cvsrepo} || 
 	":pserver:anoncvs\@anoncvs.postgresql.org:/projects/cvsroot";
 my $buildport = $PGBuild::conf{branch_ports}->{$branch} || 5999;
@@ -204,10 +208,13 @@ if ( $ccachedir = $PGBuild::conf{build_env}->{CCACHE_DIR} )
 
 die "no aux_path in config file" unless $aux_path;
 
-die "cannot run as root/Administrator" unless ($> > 0);
+die "cannot run as root/Administrator" unless ($using_msvc or $> > 0);
 
-if (!$from_source && $cvsserver =~ /^:pserver:/)
+if (!$from_source && $cvsserver =~ /^:pserver:/ && ! $using_msvc)
 {
+	# we can't do this when using cvsnt (for msvc) because it
+	# stores the passwords in the registry, damn it
+
 	# this is NOT a perfect check, because we don't want to
 	# catch the  port which might or might not be there
 	# but it will warn most people if necessary, and it's not
@@ -251,7 +258,13 @@ while (my ($envkey,$envval) = each %{$PGBuild::conf{build_env}})
 
 die "no buildroot" unless $buildroot;
 
-die "buildroot $buildroot not absolute" unless $buildroot =~ m!^/! ;
+unless ($buildroot =~ m!^/! or 
+		($using_msvc and $buildroot =~ m![a-z]:[/\\]!i ))
+{
+	die "buildroot $buildroot not absolute" ;
+}
+
+
 
 die "$buildroot does not exist or is not a directory" unless -d $buildroot;
 
@@ -261,9 +274,14 @@ mkdir $branch unless -d $branch;
 
 chdir $branch || die "chdir to $buildroot/$branch";
 
-# make sure we are using GNU make
+my $branch_root = getcwd();
 
-die "$make is not GNU Make - please fix config file" unless check_make();
+# make sure we are using GNU make (except for MSVC)
+unless ($using_msvc)
+{
+	die "$make is not GNU Make - please fix config file" 
+		unless check_make();
+}
 
 # acquire the lock
 
@@ -303,15 +321,18 @@ if (-e $forcefile)
 # another way would be for the calling environment
 # to call ulimit. We do this in an eval so failure is
 # not fatal.
-eval
+unless ($using_msvc)
 {
-	require BSD::Resource;
-	BSD::Resource->import();
-	# explicit sub calls here. using & keeps compiler happy
-	my $coreok = setrlimit(&RLIMIT_CORE,&RLIM_INFINITY,&RLIM_INFINITY);
-	die "setrlimit" unless $coreok;
-};
-warn "failed to unlimit core size: $@" if $@;
+	eval
+	{
+		require BSD::Resource;
+		BSD::Resource->import();
+		# explicit sub calls here. using & keeps compiler happy
+		my $coreok = setrlimit(&RLIMIT_CORE,&RLIM_INFINITY,&RLIM_INFINITY);
+		die "setrlimit" unless $coreok;
+	};
+	warn "failed to unlimit core size: $@" if $@;
+}
 
 # the time we take the snapshot
 my $now=time;
@@ -331,7 +352,9 @@ END
 	{
 		if ($dbstarted)
 		{
-			system ("cd inst && bin/pg_ctl -D data stop >/dev/null 2>&1");
+			chdir 'inst';
+			system ("bin/pg_ctl -D data stop >/dev/null 2>&1");
+			chdir '..';
 		}
 		if ( !$from_source && $keep_errs) 
 		{ 
@@ -480,7 +503,14 @@ elsif (!$from_source && $cvsmethod eq 'update')
 
 	# annoyingly, there isn't a standard perl module to do a recursive copy
 	# and I don't want to require use of the non-standard File::Copy::Recursive
-	system("cp -r pgsql $pgsql 2>&1");
+	if ($using_msvc)
+	{
+		system("xcopy /I /Q /E pgsql $pgsql 2>&1");
+	}
+	else
+	{
+		system("cp -r pgsql $pgsql 2>&1");
+	}
 	my $status = $? >> 8;
 	die "copying directories: $status" if $status;
 }
@@ -626,6 +656,7 @@ sub clean_from_source
 {
 	if (-e "$pgsql/GNUmakefile")
 	{
+		# fixme for MSVC
 		my @makeout = `cd $pgsql && $make distclean 2>&1`;
 		my $status = $? >>8;
 		writelog('distclean',\@makeout);
@@ -671,7 +702,17 @@ sub check_make
 
 sub make
 {
-	my @makeout = `cd $pgsql && $make 2>&1`;
+	my (@makeout);
+	unless ($using_msvc)
+	{
+		@makeout = `cd $pgsql && $make 2>&1`;
+	}
+	else
+	{
+		chdir "$pgsql/src/tools/msvc";
+		@makeout = `build 2>&1`;
+		chdir $branch_root;
+	}
 	my $status = $? >>8;
 	writelog('make',\@makeout);
 	print "======== make log ===========\n",@makeout if ($verbose > 1);
@@ -1003,8 +1044,34 @@ sub make_ecpg_check
 sub configure
 {
 
+	if ($using_msvc)
+	{
+		my $conf = Data::Dumper->Dump([$config_opts],['config']);
+		my @text = (
+					"# Configuration arguments for vcbuild.\n",
+					"# written bu buildfarm client \n",
+					"use strict; \n",
+					"use warnings;\n",
+					"our $conf \n",
+					"1;\n"
+					);
+
+		my $handle;
+		open($handle,">$pgsql/src/tools/msvc/config.pl");
+		print $handle @text;
+		close($handle);
+
+		push(@text, "# no configure step for MSCV - config file shown\n");
+
+		writelog('config',\@text);
+
+		$steps_completed .= " Configure";
+
+		return;
+	} 
+
 	my @quoted_opts;
-	foreach my $c_opt (@config_opts)
+	foreach my $c_opt (@$config_opts)
 	{
 		push(@quoted_opts,"'$c_opt'");
 	}
@@ -1124,7 +1191,9 @@ sub checkout
 	}
 	elsif (-d 'pgsql')
 	{
-		@cvslog = `cd pgsql && cvs -d $cvsserver update -d $rtag 2>&1`;
+		chdir 'pgsql';
+		@cvslog = `cvs -d $cvsserver update -d $rtag 2>&1`;
+		chdir '..';
 	}
 	else
 	{
