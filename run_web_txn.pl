@@ -28,7 +28,7 @@
 use strict;
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_web_txn.pl,v 1.3 2005/07/25 18:45:08 andrewd Exp $
+	q$Id: run_web_txn.pl,v 1.4 2007/03/19 19:34:09 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use LWP;
@@ -60,9 +60,13 @@ if (open($txdhandle,$tarname))
 	close($txdhandle);
 }
 
-# add our own version string
+# add our own version string and time
+my $current_ts = time;
+my $webscriptversion = "'web_script_version' => '$VERSION',\n" ;
+my $cts	= "'current_ts' => $current_ts,\n";
+# $2 here helps us to preserve the nice spacing from Data::Dumper
 my $scriptline = "((.*)'script_version' => '\\d+\\.\\d+',\n)";
-$confsum =~ s/$scriptline/$1$2'web_script_version' => '$VERSION',\n/;
+$confsum =~ s/$scriptline/$1$2$webscriptversion$2$cts/;
 
 # make the base64 data escape-proof; = is probably ok but no harm done
 # this ensures that what is seen at the other end is EXACTLY what we
