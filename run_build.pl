@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.74 2007/02/25 23:23:21 andrewd Exp $
+	q$Id: run_build.pl,v 1.75 2007/03/21 02:48:16 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -210,6 +210,8 @@ die "no aux_path in config file" unless $aux_path;
 
 die "cannot run as root/Administrator" unless ($using_msvc or $> > 0);
 
+my $devnull = $using_msvc ? "nul" : "/dev/null";
+
 if (!$from_source && $cvsserver =~ /^:pserver:/ && ! $using_msvc)
 {
 	# we can't do this when using cvsnt (for msvc) because it
@@ -352,9 +354,9 @@ END
 	{
 		if ($dbstarted)
 		{
-			chdir 'inst';
-			system ("bin/pg_ctl -D data stop >/dev/null 2>&1");
-			chdir '..';
+			chdir $installdir;
+			system ('"bin/pg_ctl" -D data stop >$devnull 2>&1');
+			chdir $branch_root;
 		}
 		if ( !$from_source && $keep_errs) 
 		{ 
@@ -364,7 +366,7 @@ END
 		}
 		if ($ipcclean && -x "$pgsql/src/bin/ipcclean/ipcclean")
 		{
-			system("$pgsql/src/bin/ipcclean/ipcclean >/dev/null 2>&1");
+			system("$pgsql/src/bin/ipcclean/ipcclean >$devnull 2>&1");
 		}
 		rmtree("inst") unless $keepall;
 		rmtree("$pgsql") unless ($from_source || $keepall);
@@ -538,9 +540,12 @@ print time_str(),"running make check ...\n" if $verbose;
 
 make_check();
 
-print time_str(),"running make contrib ...\n" if $verbose;
-
-make_contrib();
+unless ($using_msvc)
+{
+	print time_str(),"running make contrib ...\n" if $verbose;
+	
+	make_contrib();
+}
 
 print time_str(),"running make install ...\n" if $verbose;
 
@@ -561,9 +566,10 @@ make_install_check();
 # releases 8.0 and earlier don't support the standard method for testing PLs
 # so only check them for later versions
 
-if ($branch eq 'HEAD' || $branch gt 'REL8_1' )
-{
+# XX no support yet for pl cjhecks with MSVC
 
+if (!$using_msvc && ($branch eq 'HEAD' || $branch gt 'REL8_1') )
+{
     # restart the db to clear the log file
 	print time_str(),"restarting db ...\n" if $verbose;
 
@@ -573,34 +579,44 @@ if ($branch eq 'HEAD' || $branch gt 'REL8_1' )
 	print time_str(),"running make PL installcheck ...\n" if $verbose;
 
 	make_pl_install_check();
-
 }
 
-# restart the db to clear the log file
-print time_str(),"restarting db ...\n" if $verbose;
+# contrib is installed under standard install for msvc
+# XX no support yet for contrib_install_check or ecpg_check under msvc
 
-stop_db();
-start_db();
-
-print time_str(),"running make contrib install ...\n" if $verbose;
-
-make_contrib_install();
-
-print time_str(),"running make contrib installcheck ...\n" if $verbose;
-
-make_contrib_install_check();
-
-print time_str(),"stopping db ...\n" if $verbose;
-
-stop_db();
-
-# ecpg checks are not supported in 8.1 and earlier
-if ($branch eq 'HEAD' || $branch gt 'REL8_2' )
+unless ($using_msvc)
 {
+	# restart the db to clear the log file
+	print time_str(),"restarting db ...\n" if $verbose;
 
-	print time_str(),"running make ecpg check ...\n" if $verbose;
+	stop_db();
+	start_db();
 
-	make_ecpg_check();
+	print time_str(),"running make contrib install ...\n" if $verbose;
+
+	make_contrib_install();
+
+	print time_str(),"running make contrib installcheck ...\n" if $verbose;
+
+	make_contrib_install_check();
+
+	print time_str(),"stopping db ...\n" if $verbose;
+
+	stop_db();
+
+	# ecpg checks are not supported in 8.1 and earlier
+	if ($branch eq 'HEAD' || $branch gt 'REL8_2' )
+	{
+		print time_str(),"running make ecpg check ...\n" if $verbose;
+
+		make_ecpg_check();
+	}
+}
+else
+{
+	print time_str(),"stopping db ...\n" if $verbose;
+
+	stop_db();
 }
 
 
@@ -722,7 +738,17 @@ sub make
 
 sub make_install
 {
-	my @makeout = `cd $pgsql && $make install 2>&1`;
+	my @makeout;
+	unless ($using_msvc)
+	{
+		my @makeout = `cd $pgsql && $make install 2>&1`;
+	}
+	else
+	{
+		chdir "$pgsql/src/tools/msvc";
+		@makeout = `perl install.pl "$installdir" 2>&1`;
+		chdir $branch_root;
+	}
 	my $status = $? >>8;
 	writelog('make-install',\@makeout);
 	print "======== make install log ===========\n",@makeout if ($verbose > 1);
@@ -788,10 +814,22 @@ sub make_contrib_install
 
 sub initdb
 {
-	# --no-locale switch only came in with 7.3
-	my $noloc = "--no-locale";
-	$noloc = "" if ($branch ne 'HEAD' && $branch lt 'REL7_3');
-	my @initout = `cd $installdir && LANG= LC_ALL= bin/initdb $noloc data 2>&1`;
+	my @initout;
+	if ($using_msvc)
+	{
+		chdir $installdir;
+		@initout = `"bin/initdb" --no-locale data 2>&1`;
+		chdir $branch_root;
+	}
+	else
+	{       
+		# --no-locale switch only came in with 7.3
+		my $noloc = "--no-locale";
+		$noloc = "" if ($branch ne 'HEAD' && $branch lt 'REL7_3');
+		@initout = 
+			`cd $installdir && LANG= LC_ALL= bin/initdb $noloc data 2>&1`;
+	}
+
 	my $status = $? >>8;
 	writelog('initdb',\@initout);
 	print "======== initdb log ===========\n",@initout if ($verbose > 1);
@@ -808,10 +846,11 @@ sub start_db
 	# clear log file each time we start
 	# seem to need an intermediate file here to get round Windows bogosity
 	unlink "$installdir/logfile";
-	my $cmd = "cd $installdir && " . 
-		"bin/pg_ctl -D data -l logfile -w start >startlog 2>&1";
+	chdir($installdir);
+	my $cmd = '"bin/pg_ctl" -D data -l logfile -w start >startlog 2>&1';
 	system($cmd);
 	my $status = $? >>8;
+	chdir($branch_root);
 	my $handle;
 	open($handle,"$installdir/startlog");
 	my @ctlout = <$handle>;
@@ -832,8 +871,10 @@ sub start_db
 sub stop_db
 {
 	my $logpos = -s "$installdir/logfile" || 0;
-	my @ctlout = `cd $installdir && bin/pg_ctl -D data stop 2>&1`;
+	chdir($installdir);
+	my @ctlout = `"bin/pg_ctl" -D data stop 2>&1`;
 	my $status = $? >>8;
+	chdir($branch_root);
 	my $handle;
 	if (open($handle,"$installdir/logfile"))
 	{
@@ -861,7 +902,7 @@ sub get_stack_trace
 	return () unless @cores;
 
 	# no gdb = no result
-	system "gdb --version > /dev/null 2>&1";
+	system "gdb --version > $devnull 2>&1";
 	my $status = $? >>8;
 	return () if $status; 
 
@@ -880,7 +921,17 @@ sub get_stack_trace
 
 sub make_install_check
 {
-	my @checkout = `cd $pgsql/src/test/regress && $make installcheck 2>&1`;
+	my @checkout;
+	unless ($using_msvc)
+	{
+		@checkout = `cd $pgsql/src/test/regress && $make installcheck 2>&1`;
+	}
+	else
+	{
+		chdir "$pgsql/src/tools/msvc";
+		@checkout = `vcregress installcheck 2>&1`;
+		chdir $branch_root;
+	}
 	my $status = $? >>8;
 	my @logfiles = ("$pgsql/src/test/regress/regression.diffs",
 					"$installdir/logfile");
@@ -972,7 +1023,19 @@ sub make_pl_install_check
 
 sub make_check
 {
-	my @makeout = `cd $pgsql/src/test/regress && $make NO_LOCALE=1 check 2>&1`;
+	my @makeout;
+	unless ($using_msvc)
+	{
+		@makeout = 
+			`cd $pgsql/src/test/regress && $make NO_LOCALE=1 check 2>&1`;
+	}
+	else
+	{
+		chdir "$pgsql/src/tools/msvc";
+		@makeout = `vcregress check 2>&1`;
+		chdir $branch_root;
+	}
+ 
 	my $status = $? >>8;
 
 	# get the log files and the regression diffs
