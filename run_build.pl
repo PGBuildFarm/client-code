@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.75 2007/03/21 02:48:16 andrewd Exp $
+	q$Id: run_build.pl,v 1.76 2007/03/22 11:25:01 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -566,9 +566,7 @@ make_install_check();
 # releases 8.0 and earlier don't support the standard method for testing PLs
 # so only check them for later versions
 
-# XX no support yet for pl cjhecks with MSVC
-
-if (!$using_msvc && ($branch eq 'HEAD' || $branch gt 'REL8_1') )
+if ($branch eq 'HEAD' || $branch gt 'REL8_1')
 {
     # restart the db to clear the log file
 	print time_str(),"restarting db ...\n" if $verbose;
@@ -992,7 +990,17 @@ sub make_contrib_install_check
 
 sub make_pl_install_check
 {
-	my @checkout = `cd $pgsql/src/pl && $make installcheck 2>&1`;
+	my @checkout;
+	unless ($using_msvc)
+	{
+		@checkout = `cd $pgsql/src/pl && $make installcheck 2>&1`;
+	}
+	else
+	{
+		chdir("$pgsql/src/tools/msvc");
+		@checkout = `vcregress plcheck 2>&1`;
+		chdir($branch_root);
+	}
 	my $status = $? >>8;
 	my @logs = glob ("$pgsql/src/pl/*/regression.diffs");
 	push (@logs,"$installdir/logfile");
@@ -1433,8 +1441,9 @@ sub send_result
 		( sort { $mtimes{$a} <=> $mtimes{$b} } @logfiles );
 		my $logfiles = join (' ',@logfiles);
 		$tar_log_cmd =~ s/\*\.log/$logfiles/;
-
-		system("cd $lrname && $tar_log_cmd 2>&1 ");
+		chdir($lrname);
+		system("$tar_log_cmd 2>&1 ");
+		chdir($branch_root);
 
 	}
 	else
@@ -1446,13 +1455,22 @@ sub send_result
 	}
 	
 
-	unless (-x "$aux_path/run_web_txn.pl")
+	unless (-x "$aux_path/run_web_txn.pl" || 
+		($using_msvc && -f "$aux_path/run_web_txn.pl"))
 	{
 		print "Could not locate $aux_path/run_web_txn.pl\n";
 		exit(1);
 	}
 
-	system("$aux_path/run_web_txn.pl $lrname");
+	if ($using_msvc)
+	{
+		# no shebang line for windows, but perl is in the path
+		system("perl \"$aux_path/run_web_txn.pl\" $lrname");
+	}
+	else
+	{
+		system("$aux_path/run_web_txn.pl $lrname");
+	}
 
 	my $txstatus = $? >> 8;
 
