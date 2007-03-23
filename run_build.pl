@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.76 2007/03/22 11:25:01 andrewd Exp $
+	q$Id: run_build.pl,v 1.77 2007/03/23 00:20:08 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -1134,7 +1134,7 @@ sub configure
 
 		push(@text, "# no configure step for MSCV - config file shown\n");
 
-		writelog('config',\@text);
+		writelog('configure',\@text);
 
 		$steps_completed .= " Configure";
 
@@ -1497,39 +1497,43 @@ sub get_config_summary
 {
 	my $handle;
 	my $config = "";
-	open($handle,"$pgsql/config.log") || return undef;
-	my $start = undef;
-	while (<$handle>)
+	unless ($using_msvc)
 	{
-		if (!$start && /created by PostgreSQL configure/)
+		open($handle,"$pgsql/config.log") || return undef;
+		my $start = undef;
+		while (<$handle>)
 		{
-			$start=1;
-			s/It was/This file was/;
+			if (!$start && /created by PostgreSQL configure/)
+			{
+				$start=1;
+				s/It was/This file was/;
+			}
+			next unless $start;
+			last if /Core tests/;
+			next if /^\#/;
+			next if /= <?unknown>?/;
+			# split up long configure line
+			if (m!\$.*configure.*--with! && length > 70)
+			{
+				my $pos = index($_," ",70);
+				substr($_,$pos+1,0,"\\\n        ") if ($pos > 0);
+				$pos = index($_," ",140);
+				substr($_,$pos+1,0,"\\\n        ") if ($pos > 0);
+				$pos = index($_," ",210);
+				substr($_,$pos+1,0,"\\\n        ") if ($pos > 0);
+			}
+			$config .= $_;
 		}
-		next unless $start;
-		last if /Core tests/;
-		next if /^\#/;
-		next if /= <?unknown>?/;
-		# split up long configure line
-		if (m!\$.*configure.*--with! && length > 70)
-		{
-			my $pos = index($_," ",70);
-			substr($_,$pos+1,0,"\\\n        ") if ($pos > 0);
-			$pos = index($_," ",140);
-			substr($_,$pos+1,0,"\\\n        ") if ($pos > 0);
-			$pos = index($_," ",210);
-			substr($_,$pos+1,0,"\\\n        ") if ($pos > 0);
-		}
-		$config .= $_;
+		close($handle);
+		$config .= 
+			"\n========================================================\n";
 	}
-	close($handle);
 	my $conf = {%PGBuild::conf,  # shallow copy
 				script_version => $VERSION,
 				invocation_args => \@invocation_args,
 				steps_completed => $steps_completed,
 			};
 	delete $conf->{secret};
-	$config .= "\n========================================================\n";
 	$config .= Data::Dumper->Dump([$conf],['Script_Config']);
 	return $config;
 }
