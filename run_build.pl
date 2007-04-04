@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.77 2007/03/23 00:20:08 andrewd Exp $
+	q$Id: run_build.pl,v 1.78 2007/04/04 15:38:47 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -579,44 +579,35 @@ if ($branch eq 'HEAD' || $branch gt 'REL8_1')
 	make_pl_install_check();
 }
 
-# contrib is installed under standard install for msvc
-# XX no support yet for contrib_install_check or ecpg_check under msvc
+# restart the db to clear the log file
+print time_str(),"restarting db ...\n" if $verbose;
 
+stop_db();
+start_db();
+
+# contrib is installed under standard install for msvc
 unless ($using_msvc)
 {
-	# restart the db to clear the log file
-	print time_str(),"restarting db ...\n" if $verbose;
-
-	stop_db();
-	start_db();
-
 	print time_str(),"running make contrib install ...\n" if $verbose;
 
 	make_contrib_install();
-
-	print time_str(),"running make contrib installcheck ...\n" if $verbose;
-
-	make_contrib_install_check();
-
-	print time_str(),"stopping db ...\n" if $verbose;
-
-	stop_db();
-
-	# ecpg checks are not supported in 8.1 and earlier
-	if ($branch eq 'HEAD' || $branch gt 'REL8_2' )
-	{
-		print time_str(),"running make ecpg check ...\n" if $verbose;
-
-		make_ecpg_check();
-	}
 }
-else
+
+print time_str(),"running make contrib installcheck ...\n" if $verbose;
+
+make_contrib_install_check();
+
+print time_str(),"stopping db ...\n" if $verbose;
+
+stop_db();
+
+# ecpg checks are not supported in 8.1 and earlier, or currently on msvc
+if ($branch eq 'HEAD' || $branch gt 'REL8_2' || ! $using_msvc)
 {
-	print time_str(),"stopping db ...\n" if $verbose;
-
-	stop_db();
+	print time_str(),"running make ecpg check ...\n" if $verbose;
+	
+	make_ecpg_check();
 }
-
 
 # if we get here everything went fine ...
 
@@ -960,7 +951,17 @@ sub make_install_check
 
 sub make_contrib_install_check
 {
-	my @checkout = `cd $pgsql/contrib && $make installcheck 2>&1`;
+	my @checkout ;
+	unless ($using_msvc)
+	{
+		@checkout = `cd $pgsql/contrib && $make installcheck 2>&1`;
+	}
+	else
+	{
+		chdir "$pgsql/src/tools/msvc";
+		@checkout = `vcregress contribcheck 2>&1`;
+		chdir $branch_root;
+	}
 	my $status = $? >>8;
 	my @logs = glob ("$pgsql/contrib/*/regression.diffs");
 	push (@logs,"$installdir/logfile");
