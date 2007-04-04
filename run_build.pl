@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.78 2007/04/04 15:38:47 andrewd Exp $
+	q$Id: run_build.pl,v 1.79 2007/04/04 19:57:57 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -602,7 +602,7 @@ print time_str(),"stopping db ...\n" if $verbose;
 stop_db();
 
 # ecpg checks are not supported in 8.1 and earlier, or currently on msvc
-if ($branch eq 'HEAD' || $branch gt 'REL8_2' || ! $using_msvc)
+if (($branch eq 'HEAD' || $branch gt 'REL8_2') && ! $using_msvc)
 {
 	print time_str(),"running make ecpg check ...\n" if $verbose;
 	
