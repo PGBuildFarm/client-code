@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.79 2007/04/04 19:57:57 andrewd Exp $
+	q$Id: run_build.pl,v 1.80 2007/05/14 16:01:15 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -358,18 +358,33 @@ END
 			system ('"bin/pg_ctl" -D data stop >$devnull 2>&1');
 			chdir $branch_root;
 		}
-		if ( !$from_source && $keep_errs) 
-		{ 
-			my $timestr = strftime "%Y-%m-%d-%H:%M:%S", localtime($now);
-			move("$pgsql", "pgsqlkeep.$timestr");
-			move("inst", "instkeep.$timestr")	if (-d "inst") ;
-		}
 		if ($ipcclean && -x "$pgsql/src/bin/ipcclean/ipcclean")
 		{
 			system("$pgsql/src/bin/ipcclean/ipcclean >$devnull 2>&1");
 		}
-		rmtree("inst") unless $keepall;
-		rmtree("$pgsql") unless ($from_source || $keepall);
+		if ( !$from_source && $keep_errs) 
+		{ 
+			print "moving kept error trees\n" if $verbose;
+			my $timestr = strftime "%Y-%m-%d_%H-%M-%S", localtime($now);
+			unless (move("$pgsql", "pgsqlkeep.$timestr"))
+			{
+				print "error renaming '$pgsql' to 'pgsqlkeep.$timestr': $!";
+			}
+			if (-d "inst")
+			{
+				unless(move("inst", "instkeep.$timestr"))
+				{
+					print 
+						"error renaming 'inst' to 'instkeep.$timestr': $!";
+				}
+			}
+		}
+		else
+		{
+			
+			rmtree("inst") unless $keepall;
+			rmtree("$pgsql") unless ($from_source || $keepall);
+		}
 		# only keep the cache in cases of success
 		rmtree("$ccachedir") if $ccachedir;
 	}
