@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.80 2007/05/14 16:01:15 andrewd Exp $
+	q$Id: run_build.pl,v 1.81 2007/05/14 19:09:38 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -243,9 +243,12 @@ if (!$from_source && $cvsserver =~ /^:pserver:/ && ! $using_msvc)
 		unless $loginfound;
 }
 
-# special prefix for last.* if running multiroot, 
-# so they don't clobber each other
-my $mr_prefix = $multiroot ? "$animal." : ""; 
+if ($multiroot)
+{
+	warn "--multi-root is no longer necessary, and is deprecated";
+}
+
+my $st_prefix = "$animal."; 
 
 my $pgsql = $from_source  || 
    ( ($cvsmethod eq 'export' && not $use_vpath) ? "pgsql" : "pgsql.$$" );
@@ -275,6 +278,12 @@ chdir $buildroot || die "chdir to $buildroot: $!";
 mkdir $branch unless -d $branch;
 
 chdir $branch || die "chdir to $buildroot/$branch";
+
+# rename legacy status files/directories
+foreach my $oldfile (glob("last*"))
+{
+	move $oldfile, "$st_prefix$oldfile";
+}
 
 my $branch_root = getcwd();
 
@@ -312,7 +321,7 @@ die "$buildroot/$branch has $pgsql or inst directories!"
 $have_lock = 1;
 
 # check if file present for forced run
-my $forcefile = $mr_prefix . "force-one-run";
+my $forcefile = $st_prefix . "force-one-run";
 if (-e $forcefile)
 {
 	$forcerun = 1;
@@ -656,7 +665,6 @@ usage: $0 [options] [branch]
   --keepall                 = keep directories if an error occurs
   --verbose[=n]             = verbosity (default 1) 2 or more = huge output.
   --quiet                   = suppress normal error message 
-  --multiroot               = allow several members to use same build root
   --ipcclean                = clean up shared memory on failure
   --test                    = short for --nosend --nostatus --verbose --force
 
@@ -696,7 +704,7 @@ sub interrupt_exit
 
 sub cleanlogs
 {
-	my $lrname = $mr_prefix . $logdirname;
+	my $lrname = $st_prefix . $logdirname;
 	rmtree("$lrname");
 	mkdir "$lrname" || die "can't make $lrname dir: $!";
 }
@@ -706,7 +714,7 @@ sub writelog
 	my $stage = shift;
 	my $loglines = shift;
 	my $handle;
-	my $lrname = $mr_prefix . $logdirname;
+	my $lrname = $st_prefix . $logdirname;
 	open($handle,">$lrname/$stage.log");
 	print $handle @$loglines;
 	close($handle);
@@ -1362,7 +1370,7 @@ sub get_cvs_versions
 sub find_last
 {
 	my $which = shift;
-	my $stname = $mr_prefix . "last.$which";
+	my $stname = $st_prefix . "last.$which";
 	my $handle;
 	open($handle,$stname) or return undef;
 	my $time = <$handle>;
@@ -1374,7 +1382,7 @@ sub find_last
 sub set_last
 {
 	my $which = shift;
-	my $stname = $mr_prefix . "last.$which";
+	my $stname = $st_prefix . "last.$which";
 	my $st_now = shift || time;
 	my $handle;
 	open($handle,">$stname") or die "opening $stname: $!";
@@ -1421,7 +1429,7 @@ sub send_result
 		 [qw(changed_this_run changed_since_success branch status stage
 			 animal ts log_data confsum target verbose secret)]);
 	
-	my $lrname = $mr_prefix . $logdirname;
+	my $lrname = $st_prefix . $logdirname;
 
 	# might happen if there is a CVS failure and have never got further
 	mkdir $lrname unless -d $lrname;
