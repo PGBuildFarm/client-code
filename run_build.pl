@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.81 2007/05/14 19:09:38 andrewd Exp $
+	q$Id: run_build.pl,v 1.82 2007/05/15 00:11:52 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -1141,7 +1141,8 @@ sub configure
 
 	if ($using_msvc)
 	{
-		my $conf = Data::Dumper->Dump([$config_opts],['config']);
+		my $lconfig = { %$config_opts, "--with-pgport" => $buildport };
+		my $conf = Data::Dumper->Dump([$lconfig],['config']);
 		my @text = (
 					"# Configuration arguments for vcbuild.\n",
 					"# written bu buildfarm client \n",
