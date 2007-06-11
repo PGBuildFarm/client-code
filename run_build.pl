@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.82 2007/05/15 00:11:52 andrewd Exp $
+	q$Id: run_build.pl,v 1.83 2007/06/11 14:08:14 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -853,11 +853,17 @@ sub start_db
 {
 
 	$started_times++;
+	if (-e "$installdir/logfile")
+	{
+		# give Windows some breathing room if necessary
+		sleep 5;
+		unlink "$installdir/logfile";
+		sleep 5;
+	}
 	# must use -w here or we get horrid FATAL errors from trying to
 	# connect before the db is ready
 	# clear log file each time we start
 	# seem to need an intermediate file here to get round Windows bogosity
-	unlink "$installdir/logfile";
 	chdir($installdir);
 	my $cmd = '"bin/pg_ctl" -D data -l logfile -w start >startlog 2>&1';
 	system($cmd);
@@ -884,10 +890,14 @@ sub stop_db
 {
 	my $logpos = -s "$installdir/logfile" || 0;
 	chdir($installdir);
-	my @ctlout = `"bin/pg_ctl" -D data stop 2>&1`;
+	my $cmd = '"bin/pg_ctl" -D data stop >stoplog 2>&1';
+	system($cmd);
 	my $status = $? >>8;
 	chdir($branch_root);
 	my $handle;
+	open($handle,"$installdir/stoplog");
+	my @ctlout = <$handle>;
+	close($handle);
 	if (open($handle,"$installdir/logfile"))
 	{
 		# go to where the log file ended before we tried to shut down.
