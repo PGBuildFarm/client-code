@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.83 2007/06/11 14:08:14 andrewd Exp $
+	q$Id: run_build.pl,v 1.84 2007/07/14 19:35:40 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -540,6 +540,10 @@ elsif (!$from_source && $cvsmethod eq 'update')
 	my $status = $? >> 8;
 	die "copying directories: $status" if $status;
 }
+
+# use XP_EXIT_FIX setting in build scripts for MSVC 
+# (exit /b doesn't work properly in some cases)
+$ENV{XP_EXIT_FIX} = 'yes' if $using_msvc;
 
 # start working
 
