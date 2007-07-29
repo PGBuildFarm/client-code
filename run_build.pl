@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.84 2007/07/14 19:35:40 andrewd Exp $
+	q$Id: run_build.pl,v 1.85 2007/07/29 19:10:11 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -757,7 +757,7 @@ sub make_install
 	my @makeout;
 	unless ($using_msvc)
 	{
-		my @makeout = `cd $pgsql && $make install 2>&1`;
+		@makeout = `cd $pgsql && $make install 2>&1`;
 	}
 	else
 	{
