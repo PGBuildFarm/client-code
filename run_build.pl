@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.85 2007/07/29 19:10:11 andrewd Exp $
+	q$Id: run_build.pl,v 1.86 2007/08/23 12:29:44 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -342,7 +342,7 @@ unless ($using_msvc)
 		my $coreok = setrlimit(&RLIMIT_CORE,&RLIM_INFINITY,&RLIM_INFINITY);
 		die "setrlimit" unless $coreok;
 	};
-	warn "failed to unlimit core size: $@" if $@;
+	warn "failed to unlimit core size: $@" if $@ && $verbose > 1;
 }
 
 # the time we take the snapshot
