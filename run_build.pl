@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.86 2007/08/23 12:29:44 andrewd Exp $
+	q$Id: run_build.pl,v 1.87 2007/08/24 21:26:54 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -151,6 +151,9 @@ my ($buildroot,$target,$animal, $print_success, $aux_path, $trigger_filter,
 		   secret keep_error_builds force_every make cvs_timeout_secs
 		   use_vpath tar_log_cmd using_msvc)
 		};
+
+print scalar(localtime()),": buildfarm run for $animal:$branch starting\n"
+	if $verbose;
 
 die "cannot use vpath with MSVC" 
 	if ($using_msvc and $use_vpath);
