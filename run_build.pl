@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.87 2007/08/24 21:26:54 andrewd Exp $
+	q$Id: run_build.pl,v 1.88 2007/09/09 23:22:46 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -55,6 +55,7 @@ use Fcntl qw(:flock :seek);
 use File::Path;
 use File::Copy;
 use File::Basename;
+use File::Temp;
 use Getopt::Long;
 use POSIX qw(:signal_h strftime);
 use Data::Dumper;
@@ -145,11 +146,11 @@ require $buildconf ;
 # get the config data into some local variables
 my ($buildroot,$target,$animal, $print_success, $aux_path, $trigger_filter,
 	$secret, $keep_errs, $force_every, $make, $cvs_timeout_secs,
-	$use_vpath, $tar_log_cmd, $using_msvc ) = 
+	$use_vpath, $tar_log_cmd, $using_msvc, $extra_config ) = 
 	@PGBuild::conf{
 		qw(build_root target animal print_success aux_path trigger_filter
 		   secret keep_error_builds force_every make cvs_timeout_secs
-		   use_vpath tar_log_cmd using_msvc)
+		   use_vpath tar_log_cmd using_msvc extra_config)
 		};
 
 print scalar(localtime()),": buildfarm run for $animal:$branch starting\n"
@@ -411,6 +412,18 @@ END
 		close($lockfile);
 		unlink("builder.LCK");
 	}
+}
+
+my $extraconf;
+if ($extra_config && $extra_config->{$branch})
+{
+	$extraconf = new File::Temp;
+	$ENV{TEMP_CONFIG} = $extraconf->filename;
+	foreach my $line (@{$extra_config->{$branch}})
+	{
+		print $extraconf "$line\n";
+	}
+	$extraconf->autoflush;
 }
 
 
