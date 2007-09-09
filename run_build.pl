@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.88 2007/09/09 23:22:46 andrewd Exp $
+	q$Id: run_build.pl,v 1.89 2007/09/09 23:36:19 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -863,6 +863,18 @@ sub initdb
 	}
 
 	my $status = $? >>8;
+
+	if ($extraconf)
+	{
+		my $handle;
+		open($handle,">>$installdir/data/postgresql.conf");
+		foreach my $line (@{$extra_config->{$branch}})
+		{
+			print $handle "$line\n";
+		}
+		close($handle);
+	}
+
 	writelog('initdb',\@initout);
 	print "======== initdb log ===========\n",@initout if ($verbose > 1);
 	send_result('Initdb',$status,\@initout) if $status;
