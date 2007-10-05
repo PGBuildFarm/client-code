@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.89 2007/09/09 23:36:19 andrewd Exp $
+	q$Id: run_build.pl,v 1.90 2007/10/05 03:53:36 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -758,7 +758,7 @@ sub make
 	else
 	{
 		chdir "$pgsql/src/tools/msvc";
-		@makeout = `build 2>&1`;
+		@makeout = `perl build.pl 2>&1`;
 		chdir $branch_root;
 	}
 	my $status = $? >>8;
@@ -825,6 +825,7 @@ sub make_install
 
 sub make_contrib
 {
+	# part of build under msvc
 	my @makeout = `cd $pgsql/contrib && $make 2>&1`;
 	my $status = $? >>8;
 	writelog('make-contrib',\@makeout);
@@ -835,6 +836,7 @@ sub make_contrib
 
 sub make_contrib_install
 {
+	# part of install under msvc
 	my @makeout = `cd $pgsql/contrib && $make install 2>&1`;
 	my $status = $? >>8;
 	writelog('install-contrib',\@makeout);
@@ -880,6 +882,7 @@ sub initdb
 	send_result('Initdb',$status,\@initout) if $status;
 	$steps_completed .= " Initdb";
 }
+
 
 sub start_db
 {
@@ -983,7 +986,7 @@ sub make_install_check
 	else
 	{
 		chdir "$pgsql/src/tools/msvc";
-		@checkout = `vcregress installcheck 2>&1`;
+		@checkout = `perl vcregress.pl installcheck 2>&1`;
 		chdir $branch_root;
 	}
 	my $status = $? >>8;
@@ -1024,7 +1027,7 @@ sub make_contrib_install_check
 	else
 	{
 		chdir "$pgsql/src/tools/msvc";
-		@checkout = `vcregress contribcheck 2>&1`;
+		@checkout = `perl vcregress.pl contribcheck 2>&1`;
 		chdir $branch_root;
 	}
 	my $status = $? >>8;
@@ -1064,7 +1067,7 @@ sub make_pl_install_check
 	else
 	{
 		chdir("$pgsql/src/tools/msvc");
-		@checkout = `vcregress plcheck 2>&1`;
+		@checkout = `perl vcregress.pl plcheck 2>&1`;
 		chdir($branch_root);
 	}
 	my $status = $? >>8;
@@ -1106,7 +1109,7 @@ sub make_check
 	else
 	{
 		chdir "$pgsql/src/tools/msvc";
-		@makeout = `vcregress check 2>&1`;
+		@makeout = `perl vcregress.pl check 2>&1`;
 		chdir $branch_root;
 	}
  
@@ -1144,8 +1147,18 @@ sub make_check
 
 sub make_ecpg_check
 {
+	my @makeout;
 	my $ecpg_dir = "$pgsql/src/interfaces/ecpg";
-	my @makeout = `cd  $ecpg_dir && $make NO_LOCALE=1 check 2>&1`;
+	if ($using_msvc)
+	{
+		chdir "$ecpg_dir";
+		@makeout = `perl vcregress.pl ecpgcheck 2>&1`;
+		chdir $branch_root;
+	}
+	else
+	{
+		@makeout = `cd  $ecpg_dir && $make NO_LOCALE=1 check 2>&1`;
+	}
 	my $status = $? >>8;
 
 	# get the log files and the regression diffs
@@ -1401,11 +1414,25 @@ sub get_cvs_versions
 			if ($verbose > 1);
 		send_result('CVS-status',$status,\@cvs_status)	if ($status);
 	}
-	my @repolines = grep {/Repository revision:/} @cvs_status;
-	foreach (@repolines)
+	my @fchunks = split(/File:/,join("",@cvs_status));
+	my @repolines;
+	foreach (@fchunks)
 	{
-		chomp;
-		s!.*Repository revision:.(\d+(\.\d+)+).*/(pgsql/.*),v.*!$3 $1!;
+		# we need to report the working revision rather than the
+		# repository revision version in case the file has been
+		# updated between the time we did the checkout/update and now.
+		next unless 
+			m!
+			Working\srevision:\s+
+			(\d+(\.\d+)+)
+			.*Repository.revision:.
+			(\d+(\.\d+)+)
+			.*
+			/(pgsql/.*)
+			,v
+			!sx ;
+
+		push(@repolines,"$5 $1");
 	}
 	@$flist = (@repolines);
 }
