@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.90 2007/10/05 03:53:36 andrewd Exp $
+	q$Id: run_build.pl,v 1.91 2007/10/07 02:20:56 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -62,10 +62,6 @@ use Data::Dumper;
 use Cwd qw(abs_path getcwd);
 
 use File::Find ();
-use vars qw/*name *dir *prune/;
-*name   = *File::Find::name;
-*dir    = *File::Find::dir;
-*prune  = *File::Find::prune;
 
 # make sure we exit nicely on any normal interrupt
 # so the cleanup handler gets called.
@@ -100,6 +96,7 @@ my $quiet;
 my $from_source;
 my $from_source_clean;
 my $testmode;
+my $skip_steps;
 
 GetOptions('nosend' => \$nosend, 
 		   'config=s' => \$buildconf,
@@ -113,6 +110,7 @@ GetOptions('nosend' => \$nosend,
 		   'test' => \$testmode,
 		   'help' => \$help,
 		   'quiet' => \$quiet,
+		   'skip-steps=s' => \$skip_steps,
 		   'multiroot' => \$multiroot)
 	|| die "bad command line";
 
@@ -129,6 +127,13 @@ if ($testmode)
 	$nostatus = 1;
 	$nosend = 1;
 	
+}
+
+my %skip_steps;
+$skip_steps ||= "";
+if ($skip_steps =~ /\S/)
+{
+   %skip_steps = map {$_ => 1} split(/\s+/,$skip_steps);
 }
 
 use vars qw($branch);
@@ -645,8 +650,8 @@ print time_str(),"stopping db ...\n" if $verbose;
 
 stop_db();
 
-# ecpg checks are not supported in 8.1 and earlier, or currently on msvc
-if (($branch eq 'HEAD' || $branch gt 'REL8_2') && ! $using_msvc)
+# ecpg checks are not supported in 8.1 and earlier
+if ($branch eq 'HEAD' || $branch gt 'REL8_2')
 {
 	print time_str(),"running make ecpg check ...\n" if $verbose;
 	
@@ -750,6 +755,7 @@ sub check_make
 
 sub make
 {
+	return if $skip_steps{make};
 	my (@makeout);
 	unless ($using_msvc)
 	{
@@ -826,6 +832,7 @@ sub make_install
 sub make_contrib
 {
 	# part of build under msvc
+	return if $skip_steps{'make-contrib'};
 	my @makeout = `cd $pgsql/contrib && $make 2>&1`;
 	my $status = $? >>8;
 	writelog('make-contrib',\@makeout);
@@ -978,6 +985,7 @@ sub get_stack_trace
 
 sub make_install_check
 {
+	return if $skip_steps{'install-check'};
 	my @checkout;
 	unless ($using_msvc)
 	{
@@ -1019,6 +1027,7 @@ sub make_install_check
 
 sub make_contrib_install_check
 {
+	return if $skip_steps{'contrib-install-check'};
 	my @checkout ;
 	unless ($using_msvc)
 	{
@@ -1059,6 +1068,7 @@ sub make_contrib_install_check
 
 sub make_pl_install_check
 {
+	return if $skip_steps{'pl-install-check'};
 	my @checkout;
 	unless ($using_msvc)
 	{
@@ -1095,11 +1105,13 @@ sub make_pl_install_check
 		if ($verbose > 1);
 	send_result('PLCheck',$status,\@checkout) if $status;
 	# only report PLCheck as a step if it actually tried to do anything
-	$steps_completed .= " PLCheck" if (grep {/pg_regress/} @checkout) ;
+	$steps_completed .= " PLCheck" 
+		if (grep {/pg_regress|Checking pl/} @checkout) ;
 }
 
 sub make_check
 {
+	return if $skip_steps{check};
 	my @makeout;
 	unless ($using_msvc)
 	{
@@ -1147,11 +1159,12 @@ sub make_check
 
 sub make_ecpg_check
 {
+	return if $skip_steps{'ecpg-check'};
 	my @makeout;
 	my $ecpg_dir = "$pgsql/src/interfaces/ecpg";
 	if ($using_msvc)
 	{
-		chdir "$ecpg_dir";
+		chdir "$pgsql/src/tools/msvc";
 		@makeout = `perl vcregress.pl ecpgcheck 2>&1`;
 		chdir $branch_root;
 	}
@@ -1285,7 +1298,7 @@ sub find_ignore
 	elsif (-f $_ && $_ eq '.cvsignore')
 	{
 		my $fh;
-		open($fh,$_) || die "cannot open $name for reading";
+		open($fh,$_) || die "cannot open $File::Find::name for reading";
 		my @names = (<$fh>);
 		close($fh);
 		chomp @names;
@@ -1311,7 +1324,7 @@ sub find_changed
 		{
 			$current_snap = $mtime  if ($mtime > $current_snap);
 			
-			my $sname = $name;
+			my $sname = $File::Find::name;
 			if ($last_run_snap && ($mtime > $last_run_snap))
 			{
 				$sname =~ s!^pgsql/!!;
