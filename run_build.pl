@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.92 2008/02/29 17:41:40 andrewd Exp $
+	q$Id: run_build.pl,v 1.93 2008/06/28 21:19:03 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -374,7 +374,7 @@ END
 		if ($dbstarted)
 		{
 			chdir $installdir;
-			system ('"bin/pg_ctl" -D data stop >$devnull 2>&1');
+			system (qq{"bin/pg_ctl" -D data stop >$devnull 2>&1});
 			chdir $branch_root;
 		}
 		if ($ipcclean && -x "$pgsql/src/bin/ipcclean/ipcclean")
