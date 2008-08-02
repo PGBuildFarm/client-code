@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.94 2008/06/28 21:59:03 andrewd Exp $
+	q$Id: run_build.pl,v 1.95 2008/08/02 18:02:06 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -98,12 +98,15 @@ my $from_source;
 my $from_source_clean;
 my $testmode;
 my $skip_steps;
+my $find_typedefs;
+
 
 GetOptions('nosend' => \$nosend, 
 		   'config=s' => \$buildconf,
 		   'from-source=s' => \$from_source,
 		   'from-source-clean=s' => \$from_source_clean,
 		   'force' => \$forcerun,
+		   'find-typedefs' => \$find_typedefs,
 		   'keepall' => \$keepall,
 		   'ipcclean' => \$ipcclean,
 		   'verbose:i' => \$verbose,
@@ -424,7 +427,7 @@ my $extraconf;
 if ($extra_config && $extra_config->{$branch})
 {
     my $tmpname;
-	($extraconf,$tmpname) = File::Temp::tempfile();
+	($extraconf,$tmpname) = File::Temp::tempfile('buildfarm-XXXXXX');
     die 'no $tmpname!' unless $tmpname;
 	$ENV{TEMP_CONFIG} = $tmpname;
 	foreach my $line (@{$extra_config->{$branch}})
@@ -655,6 +658,13 @@ if ($branch eq 'HEAD' || $branch gt 'REL8_2')
 	print time_str(),"running make ecpg check ...\n" if $verbose;
 	
 	make_ecpg_check();
+}
+
+if ($find_typedefs)
+{
+	print time_str(),"running find_typedefs ...\n" if $verbose;
+	
+	find_typedefs();
 }
 
 # if we get here everything went fine ...
@@ -1203,6 +1213,60 @@ sub make_ecpg_check
 	$steps_completed .= " ECPG-Check";
 }
 
+sub find_typedefs
+{
+	my @err = `objdump -W 2>&1`;
+	@err = () if `uname -s 2>&1` =~ /CYGWIN/i;
+	my %syms;
+	my @dumpout;
+	my @flds;
+	foreach my $bin (glob("$installdir/bin/*"),
+					 glob("$installdir/lib/*"),
+					 glob("$installdir/lib/postgresql/*"))
+	{
+		next if $bin =~ m!bin/(ipcclean|pltcl_)!;
+		next unless -f $bin;
+		if (@err == 1) # Linux
+		{
+			@dumpout = `objdump -W $bin 2>/dev/null | egrep -A3 '(DW_TAG_typedef|DW_TAG_structure_type|DW_TAG_union_type)' 2>/dev/null`;
+			foreach (@dumpout)
+			{
+				@flds = split;
+				next if ($flds[0]  ne 'DW_AT_name' || $flds[-1] =~ /^DW_FORM_str/);
+				$syms{$flds[-1]} =1;
+			}
+		}
+		else
+		{
+			@dumpout = `objdump --stabs $bin 2>/dev/null`;
+			foreach (@dumpout)
+			{
+				@flds = split;
+				next if (@flds < 7);
+				next if ($flds[1]  ne 'LSYM' || $flds[6] !~ /([^:]+):[tT]/);
+				$syms{$1} =1;
+			}			
+		}		
+	}
+	my @badsyms = grep { /\s/ } keys %syms;
+	push(@badsyms,'date','interval','timestamp','ANY');
+	delete @syms{@badsyms};
+
+	my @goodsyms = sort keys %syms;
+	my @foundsyms;
+
+	foreach my $sym (@goodsyms)
+	{
+		system("grep -r -w -q --exclude cscope.out --exclude pgtypedefs.bsdos --exclude tags $sym $branch_root/pgsql");
+        push(@foundsyms,$sym) unless ($? >> 8);
+	}
+
+	map { s/$/\n/; } @foundsyms;
+
+	writelog('typedefs',\@foundsyms);
+	$steps_completed .= " find-typedefs";    
+}
+
 sub configure
 {
 
@@ -1474,6 +1538,9 @@ sub set_last
 
 sub send_result
 {
+    # clean up temp file
+	$extraconf = undef;
+
 	my $stage = shift;
 	my $ts = $now || time;
 	my $status=shift || 0;
