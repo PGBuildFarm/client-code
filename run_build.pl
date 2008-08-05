@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.95 2008/08/02 18:02:06 andrewd Exp $
+	q$Id: run_build.pl,v 1.96 2008/08/05 18:15:13 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -56,6 +56,7 @@ use File::Path;
 use File::Copy;
 use File::Basename;
 use File::Temp;
+use File::Spec;
 use IO::Handle;
 use Getopt::Long;
 use POSIX qw(:signal_h strftime);
@@ -427,7 +428,8 @@ my $extraconf;
 if ($extra_config && $extra_config->{$branch})
 {
     my $tmpname;
-	($extraconf,$tmpname) = File::Temp::tempfile('buildfarm-XXXXXX');
+	($extraconf,$tmpname) = File::Temp::tempfile('buildfarm-XXXXXX',
+												 DIR => File::Spec->tmpdir());
     die 'no $tmpname!' unless $tmpname;
 	$ENV{TEMP_CONFIG} = $tmpname;
 	foreach my $line (@{$extra_config->{$branch}})
