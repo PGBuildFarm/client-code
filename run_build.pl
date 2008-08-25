@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.96 2008/08/05 18:15:13 andrewd Exp $
+	q$Id: run_build.pl,v 1.97 2008/08/25 15:17:56 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -366,11 +366,17 @@ my $dbstarted;
 
 my %ignore_file = ();
 
+my $extraconf;
+
 # cleanup handler for all exits
 END
 {
+
+	# clean up temp file
+    unlink $ENV{TEMP_CONFIG} if $extraconf;
+
 	# if we have the lock we must already be in the build root, so
-	# removing things should be safe.
+	# removing things there should be safe.
 	# there should only be anything to cleanup if we didn't have
 	# success.
 	if ( $have_lock && -d "$pgsql")
@@ -424,12 +430,12 @@ END
 	}
 }
 
-my $extraconf;
 if ($extra_config && $extra_config->{$branch})
 {
     my $tmpname;
 	($extraconf,$tmpname) = File::Temp::tempfile('buildfarm-XXXXXX',
-												 DIR => File::Spec->tmpdir());
+												 DIR => File::Spec->tmpdir(),
+												 UNLINK => 1);
     die 'no $tmpname!' unless $tmpname;
 	$ENV{TEMP_CONFIG} = $tmpname;
 	foreach my $line (@{$extra_config->{$branch}})
