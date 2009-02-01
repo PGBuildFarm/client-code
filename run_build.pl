@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.97 2008/08/25 15:17:56 andrewd Exp $
+	q$Id: run_build.pl,v 1.98 2009/02/01 20:30:27 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -57,6 +57,7 @@ use File::Copy;
 use File::Basename;
 use File::Temp;
 use File::Spec;
+use Tie::File;
 use IO::Handle;
 use Getopt::Long;
 use POSIX qw(:signal_h strftime);
@@ -200,6 +201,14 @@ if ($from_source || $from_source_clean)
 	$use_vpath = undef;
 	$logdirname = "fromsource-logs";
 }
+
+my @locales;
+if ($branch eq 'HEAD' || $branch ge 'REL8_4')
+{
+	# non-C locales are not regression-safe before 8.4
+	@locales = @{$PGBuild::conf{locales}};
+}
+unshift(@locales,'C') unless grep {$_ eq "C"} @locales;
 
 # sanity checks
 # several people have run into these
@@ -385,6 +394,11 @@ END
 		{
 			chdir $installdir;
 			system (qq{"bin/pg_ctl" -D data stop >$devnull 2>&1});
+			foreach my $loc (@locales)
+			{
+				next unless -d "data-$loc";
+				system (qq{"bin/pg_ctl" -D "data-$loc" stop >$devnull 2>&1});
+			}
 			chdir $branch_root;
 		}
 		if ($ipcclean && -x "$pgsql/src/bin/ipcclean/ipcclean")
@@ -403,8 +417,7 @@ END
 			{
 				unless(move("inst", "instkeep.$timestr"))
 				{
-					print 
-						"error renaming 'inst' to 'instkeep.$timestr': $!";
+					print "error renaming 'inst' to 'instkeep.$timestr': $!";
 				}
 			}
 		}
@@ -610,55 +623,63 @@ print time_str(),"running make install ...\n" if $verbose;
 
 make_install();
 
-print time_str(),"setting up db cluster ...\n" if $verbose;
-
-initdb();
-
-print time_str(),"starting db ...\n" if $verbose;
-
-start_db();
-
-print time_str(),"running make installcheck ...\n" if $verbose;
-
-make_install_check();
-
-# releases 8.0 and earlier don't support the standard method for testing PLs
-# so only check them for later versions
-
-if ($branch eq 'HEAD' || $branch gt 'REL8_1')
-{
-    # restart the db to clear the log file
-	print time_str(),"restarting db ...\n" if $verbose;
-
-	stop_db();
-	start_db();
-
-	print time_str(),"running make PL installcheck ...\n" if $verbose;
-
-	make_pl_install_check();
-}
-
-# restart the db to clear the log file
-print time_str(),"restarting db ...\n" if $verbose;
-
-stop_db();
-start_db();
-
 # contrib is installed under standard install for msvc
 unless ($using_msvc)
 {
-	print time_str(),"running make contrib install ...\n" if $verbose;
+	print time_str(),"running make contrib install ...\n" 
+		if $verbose;
 
 	make_contrib_install();
 }
 
-print time_str(),"running make contrib installcheck ...\n" if $verbose;
+foreach my $locale (@locales)
+{
 
-make_contrib_install_check();
+	print time_str(),"setting up db cluster ($locale)...\n" if $verbose;
 
-print time_str(),"stopping db ...\n" if $verbose;
+	initdb($locale);
 
-stop_db();
+	print time_str(),"starting db ($locale)...\n" if $verbose;
+
+	start_db($locale);
+
+	print time_str(),"running make installcheck ($locale)...\n" if $verbose;
+
+	make_install_check($locale);
+
+	# releases 8.0 and earlier don't support the standard method for testing 
+	# PLs so only check them for later versions
+
+	if ($branch eq 'HEAD' || $branch gt 'REL8_1')
+	{
+		# restart the db to clear the log file
+		print time_str(),"restarting db ($locale)...\n" if $verbose;
+
+		stop_db($locale);
+		start_db($locale);
+
+		print time_str(),"running make PL installcheck ($locale)...\n" 
+			if $verbose;
+
+		make_pl_install_check($locale);
+	}
+
+	# restart the db to clear the log file
+	print time_str(),"restarting db ($locale)...\n" if $verbose;
+
+	stop_db($locale);
+	start_db($locale);
+
+	print time_str(),"running make contrib installcheck ($locale)...\n" 
+		if $verbose;
+
+	make_contrib_install_check($locale);
+
+	print time_str(),"stopping db ($locale)...\n" if $verbose;
+
+	stop_db($locale);
+
+}
 
 # ecpg checks are not supported in 8.1 and earlier
 if ($branch eq 'HEAD' || $branch gt 'REL8_2')
@@ -703,6 +724,7 @@ usage: $0 [options] [branch]
   --from-source=/path       = use source in path, not from cvs
   or
   --from-source-clean=/path = same as --from-source, run make distclean first
+  --find-typedefs           = extract list of typedef symbols
   --config=/path/to/file    = alternative location for config file
   --keepall                 = keep directories if an error occurs
   --verbose[=n]             = verbosity (default 1) 2 or more = huge output.
@@ -872,28 +894,29 @@ sub make_contrib_install
 
 sub initdb
 {
+	my $locale = shift;
+	$started_times = 0;
 	my @initout;
 	if ($using_msvc)
 	{
 		chdir $installdir;
-		@initout = `"bin/initdb" --no-locale data 2>&1`;
+		@initout = `"bin/initdb" --locale=$locale data-$locale 2>&1`;
 		chdir $branch_root;
 	}
 	else
 	{       
-		# --no-locale switch only came in with 7.3
-		my $noloc = "--no-locale";
-		$noloc = "" if ($branch ne 'HEAD' && $branch lt 'REL7_3');
+		chdir $installdir;
 		@initout = 
-			`cd $installdir && LANG= LC_ALL= bin/initdb $noloc data 2>&1`;
+			`bin/initdb --locale=$locale data-$locale 2>&1`;
+		chdir $branch_root;
 	}
 
 	my $status = $? >>8;
 
-	if ($extraconf)
+	if ($extraconf && ! $status)
 	{
 		my $handle;
-		open($handle,">>$installdir/data/postgresql.conf");
+		open($handle,">>$installdir/data-$locale/postgresql.conf");
 		foreach my $line (@{$extra_config->{$branch}})
 		{
 			print $handle "$line\n";
@@ -901,16 +924,18 @@ sub initdb
 		close($handle);
 	}
 
-	writelog('initdb',\@initout);
-	print "======== initdb log ===========\n",@initout if ($verbose > 1);
-	send_result('Initdb',$status,\@initout) if $status;
-	$steps_completed .= " Initdb";
+	writelog("initdb-$locale",\@initout);
+	print "======== initdb log ($locale) ===========\n",@initout 
+		if ($verbose > 1);
+	send_result("Initdb-$locale",$status,\@initout) if $status;
+	$steps_completed .= " Initdb-$locale";
 }
 
 
 sub start_db
 {
 
+	my $locale = shift;
 	$started_times++;
 	if (-e "$installdir/logfile")
 	{
@@ -924,7 +949,8 @@ sub start_db
 	# clear log file each time we start
 	# seem to need an intermediate file here to get round Windows bogosity
 	chdir($installdir);
-	my $cmd = '"bin/pg_ctl" -D data -l logfile -w start >startlog 2>&1';
+	my $cmd = 
+		qq{"bin/pg_ctl" -D data-$locale -l logfile -w start >startlog 2>&1};
 	system($cmd);
 	my $status = $? >>8;
 	chdir($branch_root);
@@ -938,18 +964,19 @@ sub start_db
 		close($handle);
 		push(@ctlout,"=========== db log file ==========\n",@loglines);
 	}
-	writelog("startdb-$started_times",\@ctlout);
-	print "======== start db : $started_times log ===========\n",@ctlout 
+	writelog("startdb-$locale-$started_times",\@ctlout);
+	print "======== start db ($locale) : $started_times log ========\n",@ctlout
 		if ($verbose > 1);
-	send_result("StartDb:$started_times",$status,\@ctlout) if $status;
+	send_result("StartDb-$locale:$started_times",$status,\@ctlout) if $status;
 	$dbstarted=1;
 }
 
 sub stop_db
 {
+	my $locale = shift;
 	my $logpos = -s "$installdir/logfile" || 0;
 	chdir($installdir);
-	my $cmd = '"bin/pg_ctl" -D data stop >stoplog 2>&1';
+	my $cmd = qq{"bin/pg_ctl" -D data-$locale stop >stoplog 2>&1};
 	system($cmd);
 	my $status = $? >>8;
 	chdir($branch_root);
@@ -965,10 +992,10 @@ sub stop_db
 		close($handle);
 		push(@ctlout,"=========== db log file ==========\n",@loglines);
 	}
-	writelog("stopdb-$started_times",\@ctlout);
-	print "======== stop db : $started_times log ===========\n",@ctlout 
+	writelog("stopdb-$locale-$started_times",\@ctlout);
+	print "======== stop db ($locale): $started_times log ==========\n",@ctlout
 		if ($verbose > 1);
-	send_result("StopDb:$started_times",$status,\@ctlout) if $status;
+	send_result("StopDb-$locale:$started_times",$status,\@ctlout) if $status;
 	$dbstarted=undef;
 }
 
@@ -1002,16 +1029,17 @@ sub get_stack_trace
 
 sub make_install_check
 {
+	my $locale = shift;
 	return if $skip_steps{'install-check'};
-	my @checkout;
+	my @checklog;
 	unless ($using_msvc)
 	{
-		@checkout = `cd $pgsql/src/test/regress && $make installcheck 2>&1`;
+		@checklog = `cd $pgsql/src/test/regress && $make installcheck 2>&1`;
 	}
 	else
 	{
 		chdir "$pgsql/src/tools/msvc";
-		@checkout = `perl vcregress.pl installcheck 2>&1`;
+		@checklog = `perl vcregress.pl installcheck 2>&1`;
 		chdir $branch_root;
 	}
 	my $status = $? >>8;
@@ -1020,40 +1048,42 @@ sub make_install_check
 	foreach my $logfile(@logfiles)
 	{
 		next unless (-e $logfile );
-		push(@checkout,
+		push(@checklog,
 			 "\n\n================== $logfile ==================\n");
 		my $handle;
 		open($handle,$logfile);
 		while(<$handle>)
 		{
-			push(@checkout,$_);
+			push(@checklog,$_);
 		}
 		close($handle);	
 	}
 	if ($status)
 	{
-		my @trace = get_stack_trace("$installdir/bin","$installdir/data");
-		push(@checkout,@trace);
+		my @trace = get_stack_trace("$installdir/bin",
+									"$installdir/data-$locale");
+		push(@checklog,@trace);
 	}
-	writelog('install-check',\@checkout);
-	print "======== make installcheck log ===========\n",@checkout 
+	writelog("install-check-$locale",\@checklog);
+	print "======== make installcheck log ===========\n",@checklog 
 		if ($verbose > 1);
-	send_result('InstallCheck',$status,\@checkout) if $status;	
-	$steps_completed .= " InstallCheck";
+	send_result('InstallCheck',$status,\@checklog) if $status;	
+	$steps_completed .= " InstallCheck-$locale";
 }
 
 sub make_contrib_install_check
 {
+	my $locale = shift;
 	return if $skip_steps{'contrib-install-check'};
-	my @checkout ;
+	my @checklog ;
 	unless ($using_msvc)
 	{
-		@checkout = `cd $pgsql/contrib && $make installcheck 2>&1`;
+		@checklog = `cd $pgsql/contrib && $make installcheck 2>&1`;
 	}
 	else
 	{
 		chdir "$pgsql/src/tools/msvc";
-		@checkout = `perl vcregress.pl contribcheck 2>&1`;
+		@checklog = `perl vcregress.pl contribcheck 2>&1`;
 		chdir $branch_root;
 	}
 	my $status = $? >>8;
@@ -1062,39 +1092,41 @@ sub make_contrib_install_check
 	foreach my $logfile (@logs)
 	{
 		next unless (-e $logfile);
-		push(@checkout,"\n\n================= $logfile ===================\n");
+		push(@checklog,"\n\n================= $logfile ===================\n");
 		my $handle;
 		open($handle,$logfile);
 		while(<$handle>)
 		{
-			push(@checkout,$_);
+			push(@checklog,$_);
 		}
 		close($handle);
 	}
 	if ($status)
 	{
-		my @trace = get_stack_trace("$installdir/bin","$installdir/data");
-		push(@checkout,@trace);
+		my @trace = get_stack_trace("$installdir/bin",
+									"$installdir/data-$locale");
+		push(@checklog,@trace);
 	}
-	writelog('contrib-install-check',\@checkout);
-	print "======== make contrib installcheck log ===========\n",@checkout 
+	writelog("contrib-install-check-$locale",\@checklog);
+	print "======== make contrib installcheck log ===========\n",@checklog 
 		if ($verbose > 1);
-	send_result('ContribCheck',$status,\@checkout) if $status;
-	$steps_completed .= " ContribCheck";
+	send_result("ContribCheck-$locale",$status,\@checklog) if $status;
+	$steps_completed .= " ContribCheck-$locale";
 }
 
 sub make_pl_install_check
 {
+	my $locale = shift;
 	return if $skip_steps{'pl-install-check'};
-	my @checkout;
+	my @checklog;
 	unless ($using_msvc)
 	{
-		@checkout = `cd $pgsql/src/pl && $make installcheck 2>&1`;
+		@checklog = `cd $pgsql/src/pl && $make installcheck 2>&1`;
 	}
 	else
 	{
 		chdir("$pgsql/src/tools/msvc");
-		@checkout = `perl vcregress.pl plcheck 2>&1`;
+		@checklog = `perl vcregress.pl plcheck 2>&1`;
 		chdir($branch_root);
 	}
 	my $status = $? >>8;
@@ -1103,27 +1135,28 @@ sub make_pl_install_check
 	foreach my $logfile (@logs)
 	{
 		next unless (-e $logfile);
-		push(@checkout,"\n\n================= $logfile ===================\n");
+		push(@checklog,"\n\n================= $logfile ===================\n");
 		my $handle;
 		open($handle,$logfile);
 		while(<$handle>)
 		{
-			push(@checkout,$_);
+			push(@checklog,$_);
 		}
 		close($handle);
 	}
 	if ($status)
 	{
-		my @trace = get_stack_trace("$installdir/bin","$installdir/data");
-		push(@checkout,@trace);
+		my @trace = get_stack_trace("$installdir/bin",
+									"$installdir/data-$locale");
+		push(@checklog,@trace);
 	}
-	writelog('pl-install-check',\@checkout);
-	print "======== make pl installcheck log ===========\n",@checkout 
+	writelog("pl-install-check-$locale",\@checklog);
+	print "======== make pl installcheck log ===========\n",@checklog 
 		if ($verbose > 1);
-	send_result('PLCheck',$status,\@checkout) if $status;
+	send_result("PLCheck-$locale",$status,\@checklog) if $status;
 	# only report PLCheck as a step if it actually tried to do anything
-	$steps_completed .= " PLCheck" 
-		if (grep {/pg_regress|Checking pl/} @checkout) ;
+	$steps_completed .= " PLCheck-$locale" 
+		if (grep {/pg_regress|Checking pl/} @checklog) ;
 }
 
 sub make_check
@@ -1263,13 +1296,29 @@ sub find_typedefs
 	my @goodsyms = sort keys %syms;
 	my @foundsyms;
 
+	my %foundwords;
+
+	my $setfound = sub
+	{
+		return unless (-f $_ && /^.*\.[chly]\z/);
+		my @lines;
+		tie @lines, 'Tie::File', $_;
+		foreach my $line (@lines)
+		{
+			foreach my $word (split(/\W+/,$line))
+			{
+				$foundwords{$word} = 1;
+			}
+		}
+		untie @lines;
+	};
+
+	File::Find::find($setfound,"$branch_root/pgsql");
+
 	foreach my $sym (@goodsyms)
 	{
-		system("grep -r -w -q --exclude cscope.out --exclude pgtypedefs.bsdos --exclude tags $sym $branch_root/pgsql");
-        push(@foundsyms,$sym) unless ($? >> 8);
+		push(@foundsyms,"$sym\n") if exists $foundwords{$sym};
 	}
-
-	map { s/$/\n/; } @foundsyms;
 
 	writelog('typedefs',\@foundsyms);
 	$steps_completed .= " find-typedefs";    
@@ -1284,7 +1333,7 @@ sub configure
 		my $conf = Data::Dumper->Dump([$lconfig],['config']);
 		my @text = (
 					"# Configuration arguments for vcbuild.\n",
-					"# written bu buildfarm client \n",
+					"# written by buildfarm client \n",
 					"use strict; \n",
 					"use warnings;\n",
 					"our $conf \n",
