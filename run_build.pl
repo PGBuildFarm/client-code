@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.98 2009/02/01 20:30:27 andrewd Exp $
+	q$Id: run_build.pl,v 1.99 2009/02/02 01:46:54 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -57,7 +57,6 @@ use File::Copy;
 use File::Basename;
 use File::Temp;
 use File::Spec;
-use Tie::File;
 use IO::Handle;
 use Getopt::Long;
 use POSIX qw(:signal_h strftime);
@@ -1302,15 +1301,16 @@ sub find_typedefs
 	{
 		return unless (-f $_ && /^.*\.[chly]\z/);
 		my @lines;
-		tie @lines, 'Tie::File', $_;
-		foreach my $line (@lines)
+		my $handle;
+		open ($handle,$_);
+		while (my $line=<$handle>)
 		{
 			foreach my $word (split(/\W+/,$line))
 			{
 				$foundwords{$word} = 1;
 			}
 		}
-		untie @lines;
+		close($handle);
 	};
 
 	File::Find::find($setfound,"$branch_root/pgsql");
