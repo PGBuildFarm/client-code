@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.99 2009/02/02 01:46:54 andrewd Exp $
+	q$Id: run_build.pl,v 1.100 2009/02/02 15:54:31 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -1066,7 +1066,7 @@ sub make_install_check
 	writelog("install-check-$locale",\@checklog);
 	print "======== make installcheck log ===========\n",@checklog 
 		if ($verbose > 1);
-	send_result('InstallCheck',$status,\@checklog) if $status;	
+	send_result("InstallCheck-$locale",$status,\@checklog) if $status;	
 	$steps_completed .= " InstallCheck-$locale";
 }
 
