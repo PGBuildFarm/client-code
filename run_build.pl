@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.100 2009/02/02 15:54:31 andrewd Exp $
+	q$Id: run_build.pl,v 1.101 2009/02/03 07:59:32 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -205,7 +205,7 @@ my @locales;
 if ($branch eq 'HEAD' || $branch ge 'REL8_4')
 {
 	# non-C locales are not regression-safe before 8.4
-	@locales = @{$PGBuild::conf{locales}};
+	@locales = @{$PGBuild::conf{locales}} if exists $PGBuild::conf{locales};
 }
 unshift(@locales,'C') unless grep {$_ eq "C"} @locales;
 
