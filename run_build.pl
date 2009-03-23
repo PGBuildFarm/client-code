@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.101 2009/02/03 07:59:32 andrewd Exp $
+	q$Id: run_build.pl,v 1.102 2009/03/23 02:48:51 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -1272,7 +1272,7 @@ sub find_typedefs
 			foreach (@dumpout)
 			{
 				@flds = split;
-				next if ($flds[0]  ne 'DW_AT_name' || $flds[-1] =~ /^DW_FORM_str/);
+				next if (($flds[0]  ne 'DW_AT_name' && $flds[1] ne 'DW_AT_name') || $flds[-1] =~ /^DW_FORM_str/);
 				$syms{$flds[-1]} =1;
 			}
 		}
