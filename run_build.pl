@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.102 2009/03/23 02:48:51 andrewd Exp $
+	q$Id: run_build.pl,v 1.103 2009/06/10 15:11:26 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -1283,7 +1283,7 @@ sub find_typedefs
 			{
 				@flds = split;
 				next if (@flds < 7);
-				next if ($flds[1]  ne 'LSYM' || $flds[6] !~ /([^:]+):[tT]/);
+				next if ($flds[1]  ne 'LSYM' || $flds[6] !~ /([^:]+):[t]/);
 				$syms{$1} =1;
 			}			
 		}		
