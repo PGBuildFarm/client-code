@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.103 2009/06/10 15:11:26 andrewd Exp $
+	q$Id: run_build.pl,v 1.104 2009/06/10 15:19:10 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -1268,7 +1268,7 @@ sub find_typedefs
 		next unless -f $bin;
 		if (@err == 1) # Linux
 		{
-			@dumpout = `objdump -W $bin 2>/dev/null | egrep -A3 '(DW_TAG_typedef|DW_TAG_structure_type|DW_TAG_union_type)' 2>/dev/null`;
+			@dumpout = `objdump -W $bin 2>/dev/null | egrep -A3 DW_TAG_typedef' 2>/dev/null`;
 			foreach (@dumpout)
 			{
 				@flds = split;
