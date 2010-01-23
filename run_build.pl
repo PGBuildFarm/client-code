@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.105 2009/06/10 16:03:20 andrewd Exp $
+	q$Id: run_build.pl,v 1.106 2010/01/23 15:02:40 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -178,7 +178,23 @@ if (ref($force_every) eq 'HASH')
 my $config_opts = $PGBuild::conf{config_opts};
 my $cvsserver = $PGBuild::conf{cvsrepo} || 
 	":pserver:anoncvs\@anoncvs.postgresql.org:/projects/cvsroot";
-my $buildport = $PGBuild::conf{branch_ports}->{$branch} || 5999;
+
+
+my $buildport;
+
+if (exists $PGBuild::conf{base_port})
+{
+	$buildport = $PGBuild::conf{base_port};
+	if ($branch =~ /REL(\d+)_(\d+)/)
+	{
+		$buildport += (10 * ($1 - 7)) + $2;
+	}
+}
+else
+{
+	# support for legacy config style
+	$buildport = $PGBuild::conf{branch_ports}->{$branch} || 5999;
+}
 
 my $cvsmethod = $PGBuild::conf{cvsmethod} || 'export';
 
@@ -196,7 +212,8 @@ if ($from_source || $from_source_clean)
 	die "must specify branch explicitly with from_source"
 		unless ($explicit_branch || $from_source =~ m!/HEAD/!);
 	$verbose ||= 1;
-	$nosend=$nostatus=1;
+	$nosend=1;
+	$nostatus=1;
 	$use_vpath = undef;
 	$logdirname = "fromsource-logs";
 }
@@ -331,9 +348,12 @@ if ($from_source)
 	die "acquiring lock in $buildroot/$branch/builder.LCK" 
 		unless flock($lockfile,LOCK_EX|LOCK_NB);
 }
-else
+elsif ( ! flock($lockfile,LOCK_EX|LOCK_NB) )
 {
-	exit(0) unless flock($lockfile,LOCK_EX|LOCK_NB);
+	print "Another process holds the lock on " .
+		"$buildroot/$branch/builder.LCK. Exiting."
+		if ($verbose);
+	exit(0);
 }
 
 die "$buildroot/$branch has $pgsql or inst directories!" 
@@ -1257,6 +1277,8 @@ sub find_typedefs
 {
 	my @err = `objdump -W 2>&1`;
 	@err = () if `uname -s 2>&1` =~ /CYGWIN/i;
+	my @readelferr = `readelf -w 2>&1`;
+	@readelferr = () if `uname -s 2>&1` =~ /CYGWIN/i;
 	my %syms;
 	my @dumpout;
 	my @flds;
@@ -1272,7 +1294,20 @@ sub find_typedefs
 			foreach (@dumpout)
 			{
 				@flds = split;
+				next unless (1 < @flds);
 				next if (($flds[0]  ne 'DW_AT_name' && $flds[1] ne 'DW_AT_name') || $flds[-1] =~ /^DW_FORM_str/);
+				$syms{$flds[-1]} =1;
+			}
+		}
+		elsif ( @readelferr > 10 )
+		{
+		    # FreeBSD, similar output to Linux
+			@dumpout = `readelf -w $bin 2>/dev/null | egrep -A3 DW_TAG_typedef 2>/dev/null`;
+			foreach (@dumpout)
+			{
+				@flds = split;
+				next unless (1 < @flds);
+				next if ($flds[0] ne 'DW_AT_name');
 				$syms{$flds[-1]} =1;
 			}
 		}
@@ -1283,7 +1318,7 @@ sub find_typedefs
 			{
 				@flds = split;
 				next if (@flds < 7);
-				next if ($flds[1]  ne 'LSYM' || $flds[6] !~ /([^:]+):[t]/);
+				next if ($flds[1]  ne 'LSYM' || $flds[6] !~ /([^:]+):t/);
 				$syms{$1} =1;
 			}			
 		}		
