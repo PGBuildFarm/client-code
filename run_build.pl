@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.106 2010/01/23 15:02:40 andrewd Exp $
+	q$Id: run_build.pl,v 1.107 2010/05/15 23:03:37 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -62,8 +62,8 @@ use Getopt::Long;
 use POSIX qw(:signal_h strftime);
 use Data::Dumper;
 use Cwd qw(abs_path getcwd);
-
 use File::Find ();
+use PGBuild::SCM;
 
 # make sure we exit nicely on any normal interrupt
 # so the cleanup handler gets called.
@@ -155,13 +155,16 @@ require $buildconf ;
 
 # get the config data into some local variables
 my ($buildroot,$target,$animal, $print_success, $aux_path, $trigger_filter,
-	$secret, $keep_errs, $force_every, $make, $cvs_timeout_secs,
+	$secret, $keep_errs, $force_every, $make,
 	$use_vpath, $tar_log_cmd, $using_msvc, $extra_config ) = 
 	@PGBuild::conf{
 		qw(build_root target animal print_success aux_path trigger_filter
-		   secret keep_error_builds force_every make cvs_timeout_secs
+		   secret keep_error_builds force_every make
 		   use_vpath tar_log_cmd using_msvc extra_config)
 		};
+
+my  $scm_timeout_secs = 
+    $PGBuild::conf{scm_timeout_secs} || $PGBuild::conf{cvs_timeout_secs}; 
 
 print scalar(localtime()),": buildfarm run for $animal:$branch starting\n"
 	if $verbose;
@@ -176,9 +179,7 @@ if (ref($force_every) eq 'HASH')
 }
 
 my $config_opts = $PGBuild::conf{config_opts};
-my $cvsserver = $PGBuild::conf{cvsrepo} || 
-	":pserver:anoncvs\@anoncvs.postgresql.org:/projects/cvsroot";
-
+my $scm = new PGBuild::SCM \%PGBuild::conf;
 
 my $buildport;
 
@@ -195,8 +196,6 @@ else
 	# support for legacy config style
 	$buildport = $PGBuild::conf{branch_ports}->{$branch} || 5999;
 }
-
-my $cvsmethod = $PGBuild::conf{cvsmethod} || 'export';
 
 $tar_log_cmd ||= "tar -z -cf runlogs.tgz *.log";
 
@@ -251,35 +250,9 @@ die "cannot run as root/Administrator" unless ($using_msvc or $> > 0);
 
 my $devnull = $using_msvc ? "nul" : "/dev/null";
 
-if (!$from_source && $cvsserver =~ /^:pserver:/ && ! $using_msvc)
+if (!$from_source)
 {
-	# we can't do this when using cvsnt (for msvc) because it
-	# stores the passwords in the registry, damn it
-
-	# this is NOT a perfect check, because we don't want to
-	# catch the  port which might or might not be there
-	# but it will warn most people if necessary, and it's not
-	# worth any extra work.
-	my $cvspass;
-	my $loginfound = 0;
-	my $srvr;
-	(undef,,undef,$srvr,undef) = split(/:/,$cvsserver);
-	my $qsrvr = quotemeta($srvr);
-	if (open($cvspass,glob("~/.cvspass")))
-	{
-		while (my $line = <$cvspass>)
-		{
-			if ($line =~ /:pserver:$qsrvr:/)
-			{
-				$loginfound=1;
-				last;
-			}
-
-		}
-		close($cvspass);
-	}
-	die "Need to login to :pserver:$srvr first" 
-		unless $loginfound;
+    $scm->check_access($using_msvc);
 }
 
 if ($multiroot)
@@ -289,8 +262,7 @@ if ($multiroot)
 
 my $st_prefix = "$animal."; 
 
-my $pgsql = $from_source  || 
-   ( ($cvsmethod eq 'export' && not $use_vpath) ? "pgsql" : "pgsql.$$" );
+my $pgsql = $from_source  || $scm->get_build_path($use_vpath);
 
 # set environment from config
 while (my ($envkey,$envval) = each %{$PGBuild::conf{build_env}})
@@ -400,15 +372,15 @@ my $extraconf;
 END
 {
 
-	# clean up temp file
+    # clean up temp file
     unlink $ENV{TEMP_CONFIG} if $extraconf;
 
-	# if we have the lock we must already be in the build root, so
-	# removing things there should be safe.
-	# there should only be anything to cleanup if we didn't have
-	# success.
-	if ( $have_lock && -d "$pgsql")
-	{
+    # if we have the lock we must already be in the build root, so
+    # removing things there should be safe.
+    # there should only be anything to cleanup if we didn't have
+    # success.
+    if ( $have_lock && -d "$pgsql")
+    {
 		if ($dbstarted)
 		{
 			chdir $installdir;
@@ -465,16 +437,17 @@ END
 if ($extra_config && $extra_config->{$branch})
 {
     my $tmpname;
-	($extraconf,$tmpname) = File::Temp::tempfile('buildfarm-XXXXXX',
-												 DIR => File::Spec->tmpdir(),
-												 UNLINK => 1);
+	($extraconf,$tmpname) = 
+	    File::Temp::tempfile('buildfarm-XXXXXX',
+				 DIR => File::Spec->tmpdir(),
+				 UNLINK => 1);
     die 'no $tmpname!' unless $tmpname;
-	$ENV{TEMP_CONFIG} = $tmpname;
-	foreach my $line (@{$extra_config->{$branch}})
-	{
-		print $extraconf "$line\n";
-	}
-	autoflush $extraconf 1;
+    $ENV{TEMP_CONFIG} = $tmpname;
+    foreach my $line (@{$extra_config->{$branch}})
+    {
+	print $extraconf "$line\n";
+    }
+    autoflush $extraconf 1;
 }
 
 
@@ -487,125 +460,113 @@ my $last_run_snap;
 my $last_success_snap;
 my $current_snap;
 my @filtered_files;
-my $savecvslog = "" ;
+my $savescmlog = "" ;
 
 if ($from_source_clean)
 {
-	print time_str(),"cleaning source in $pgsql ...\n";
-	clean_from_source();
+    print time_str(),"cleaning source in $pgsql ...\n";
+    clean_from_source();
 }
 elsif (! $from_source)
 {
     # see if we need to run the tests (i.e. if either something has changed or
     # we have gone over the force_every heartbeat time)
 
-	print time_str(),"checking out source ...\n" if $verbose;
+    print time_str(),"checking out source ...\n" if $verbose;
 
 
-	my $timeout_pid;
+    my $timeout_pid;
 
-	$timeout_pid = spawn(\&cvs_timeout,$cvs_timeout_secs) 
-		if $cvs_timeout_secs; 
+    $timeout_pid = spawn(\&scm_timeout,$scm_timeout_secs) 
+	if $scm_timeout_secs; 
+    
+    $savescmlog = $scm->checkout($branch, \%ignore_file);
+	$steps_completed = "SCM-checkout";
 
-	$savecvslog = checkout();
-
-	if ($timeout_pid)
-	{
+    if ($timeout_pid)
+    {
 		# don't kill me, I finished in time
 		if (kill (SIGTERM, $timeout_pid))
 		{
 			# reap the zombie
 			waitpid($timeout_pid,0); 
 		}
-	}
+    }
 
-	print time_str(),"checking if build run needed ...\n" if $verbose;
+    print time_str(),"checking if build run needed ...\n" if $verbose;
 
     # transition to new time processing
-	unlink "last.success";
+    unlink "last.success";
 
     # get the timestamp data
-	$last_status = find_last('status') || 0;
-	$last_run_snap = find_last('run.snap');
-	$last_success_snap = find_last('success.snap');
-	$forcerun = 1 unless (defined($last_run_snap));
+    $last_status = find_last('status') || 0;
+    $last_run_snap = find_last('run.snap');
+    $last_success_snap = find_last('success.snap');
+    $forcerun = 1 unless (defined($last_run_snap));
 
     # updated by find_changed to last mtime of any file in the repo
-	$current_snap=0;
+    $current_snap=0;
 
     # see if we need to force a build
-	$last_status = 0
-		if ($last_status && $force_every && 
-			$last_status+($force_every*3600) < $now);
-	$last_status = 0 if $forcerun;
+    $last_status = 0
+	if ($last_status && $force_every && 
+	    $last_status+($force_every*3600) < $now);
+    $last_status = 0 if $forcerun;
 
     # get a hash of the files listed in .cvsignore files
     # They will be removed if a vpath build puts them in the repo.
 
-	File::Find::find({wanted => \&find_ignore}, 'pgsql') ;
+    $scm->find_ignore(\%ignore_file);
 
     # see what's changed since the last time we did work
-	File::Find::find({wanted => \&find_changed}, 'pgsql');
+    $scm->find_changed(\$current_snap,$last_run_snap, $last_success_snap,
+					   \@changed_files, \@changed_since_success);
 
     #ignore changes to files specified by the trigger filter, if any
-	if (defined($trigger_filter))
-	{
+    if (defined($trigger_filter))
+    {
 		@filtered_files = grep { ! m[$trigger_filter] } @changed_files;
-	}
-	else
-	{
+    }
+    else
+    {
 		@filtered_files = @changed_files;
-	}
+    }
 
     # if no build required do nothing
-	if ($last_status && ! @filtered_files)
-	{
+    if ($last_status && ! @filtered_files)
+    {
 		print time_str(),
-		"No build required: last status = ",scalar(gmtime($last_status)),
-		" GMT, current snapshot = ",scalar(gmtime($current_snap))," GMT,",
-		" changed files = ",scalar(@filtered_files),"\n" if $verbose;
+		  "No build required: last status = ",scalar(gmtime($last_status)),
+			" GMT, current snapshot = ",scalar(gmtime($current_snap))," GMT,",
+			  " changed files = ",scalar(@filtered_files),"\n" if $verbose;
 		rmtree("$pgsql");
 		exit 0;
-	}
+    }
 	
-    # get CVS version info on both changed files sets
-    # skip if in export mode
+    # get version info on both changed files sets
 
-	unless ($cvsmethod eq "export")
-	{
-		get_cvs_versions(\@changed_files);
-		get_cvs_versions(\@changed_since_success);
-	}
+	$scm->get_versions(\@changed_files);
+	$scm->get_versions(\@changed_since_success);
 
 } # end of unless ($from_source)
 
 cleanlogs();
 
-writelog('CVS',$savecvslog) unless $from_source;
+writelog('SCM-checkout',$savescmlog) unless $from_source;
 
-# copy/create according to vpath/cvsmethod settings
+# copy/create according to vpath/scm settings
 
 if ($use_vpath)
 {
     print time_str(),"creating vpath build dir $pgsql ...\n" if $verbose;
 	mkdir $pgsql || die "making $pgsql: $!";
 }
-elsif (!$from_source && $cvsmethod eq 'update')
+elsif (!$from_source && $scm->copy_source_required())
 {
 	print time_str(),"copying source to $pgsql ...\n" if $verbose;
 
-	# annoyingly, there isn't a standard perl module to do a recursive copy
-	# and I don't want to require use of the non-standard File::Copy::Recursive
-	if ($using_msvc)
-	{
-		system("xcopy /I /Q /E pgsql $pgsql 2>&1");
-	}
-	else
-	{
-		system("cp -r pgsql $pgsql 2>&1");
-	}
-	my $status = $? >> 8;
-	die "copying directories: $status" if $status;
+	$scm->copy_source($using_msvc);
+
 }
 
 # start working
@@ -740,7 +701,7 @@ usage: $0 [options] [branch]
   --nosend                  = don't send results
   --nostatus                = don't set status files
   --force                   = force a build run (ignore status files)
-  --from-source=/path       = use source in path, not from cvs
+  --from-source=/path       = use source in path, not from SCM
   or
   --from-source-clean=/path = same as --from-source, run make distclean first
   --find-typedefs           = extract list of typedef symbols
@@ -1443,168 +1404,6 @@ sub configure
 	$steps_completed .= " Configure";
 }
 
-sub find_ignore
-{
-	# skip CVS dirs if using update
-	if ($cvsmethod eq 'update' && $_ eq 'CVS' && -d $_)
-	{
-		$File::Find::prune = 1;
-	}
-	elsif (-f $_ && $_ eq '.cvsignore')
-	{
-		my $fh;
-		open($fh,$_) || die "cannot open $File::Find::name for reading";
-		my @names = (<$fh>);
-		close($fh);
-		chomp @names;
-		map { s!^!$File::Find::dir/!; } @names;
-		@ignore_file{@names} = (1) x @names;
-	}
-}
-
-
-sub find_changed 
-{
-	# skip CVS dirs if using update
-	if ($cvsmethod eq 'update' && $_ eq 'CVS' && -d $_)
-	{
-		$File::Find::prune = 1;
-	}
-	else
-	{
-		my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,
-			$size,$atime,$mtime,$ctime,$blksize,$blocks) = lstat($_);
-
-		if (-f _ )
-		{
-			$current_snap = $mtime  if ($mtime > $current_snap);
-			
-			my $sname = $File::Find::name;
-			if ($last_run_snap && ($mtime > $last_run_snap))
-			{
-				$sname =~ s!^pgsql/!!;
-				push(@changed_files,$sname);
-			}
-			elsif ($last_success_snap && ($mtime > $last_success_snap))
-			{
-				$sname =~ s!^pgsql/!!;
-				push(@changed_since_success,$sname);
-			}
-		}
-		
-	}
-}
-
-
-sub checkout
-{
-	my @cvslog;
-	# cvs occasionally does weird things when given an explicit HEAD
-	# especially on checkout or update.
-	# since it's the default anyway, we omit it.
-	my $rtag = $branch eq 'HEAD' ? "" : "-r $branch";
-	if ($cvsmethod eq 'export')
-	{
-		# but you have to have a tag for export
-		@cvslog = `cvs -d  $cvsserver export -r $branch pgsql 2>&1`;
-	}
-	elsif (-d 'pgsql')
-	{
-		chdir 'pgsql';
-		@cvslog = `cvs -d $cvsserver update -d $rtag 2>&1`;
-		chdir '..';
-	}
-	else
-	{
-		@cvslog = `cvs -d $cvsserver co $rtag pgsql 2>&1`;
-	}
-	my $status = $? >>8;
-	print "======== cvs $cvsmethod log ===========\n",@cvslog
-		if ($verbose > 1);
-	# can't call writelog here because we call cleanlogs after the
-	# cvs stage, since we only clear out the logs if we find we need to
-	# do a build run.
-	# consequence - we don't save the cvs log if we don't do a run
-	# doesn't matter too much because if CVS fails we exit anyway.
-
-	my $merge_conflicts = grep {/^C/} @cvslog;
-	my $mod_files = grep { /^M/ } @cvslog;
-	my $unknown_files = grep {/^\?/ } @cvslog;
-	my @bad_ignore = ();
-	foreach my $ignore (keys %ignore_file)
-	{
-		push (@bad_ignore,"X $ignore\n") 
-			if -e $ignore;
-	}
-
-	if ( $cvsmethod ne 'export' && $unknown_files && 
-		! ($nosend && $nostatus ) )
-	{
-		sleep 20;
-		my @statout = `cd pgsql && cvs -d $cvsserver status 2>&1`;
-		$unknown_files = grep { /^\?/ } @statout;
-	}
-		
-	
-	send_result('CVS',$status,\@cvslog)	if ($status);
-	send_result('CVS-Merge',$merge_conflicts,\@cvslog) 
-		if ($merge_conflicts);
-	unless ($nosend && $nostatus)
-	{
-		send_result('CVS-Dirty',$mod_files,\@cvslog) 
-			if ($mod_files);
-		send_result('CVS-Extraneous-Files',$unknown_files,\@cvslog)
-			if ($unknown_files);
-		send_result('CVS-Extraneous-Ignore',scalar(@bad_ignore),\@bad_ignore)
-			if (@bad_ignore);
-	}
-	$steps_completed = "CVS";
-
-	# if we were successful, however, we return the info so that 
-	# we can put it in the newly cleaned logdir  later on.
-	return \@cvslog;
-}
-
-sub get_cvs_versions
-{
-	my $flist = shift;
-	return unless @$flist;
-	my @cvs_status;
-	# some shells (e.g cygwin::bash ) choke on very long command lines
-	# so do this in batches.
-	while (@$flist)
-	{
-		my @chunk = splice(@$flist,0,200);
-		my @res = `cd pgsql && cvs status @chunk 2>&1` ;
-		push(@cvs_status,@res);
-		my $status = $? >>8;
-		print "======== cvs status log ===========\n",@cvs_status
-			if ($verbose > 1);
-		send_result('CVS-status',$status,\@cvs_status)	if ($status);
-	}
-	my @fchunks = split(/File:/,join("",@cvs_status));
-	my @repolines;
-	foreach (@fchunks)
-	{
-		# we need to report the working revision rather than the
-		# repository revision version in case the file has been
-		# updated between the time we did the checkout/update and now.
-		next unless 
-			m!
-			Working\srevision:\s+
-			(\d+(\.\d+)+)
-			.*Repository.revision:.
-			(\d+(\.\d+)+)
-			.*
-			/(pgsql/.*)
-			,v
-			!sx ;
-
-		push(@repolines,"$5 $1");
-	}
-	@$flist = (@repolines);
-}
-
 sub find_last
 {
 	my $which = shift;
@@ -1658,7 +1457,7 @@ sub send_result
 	{
 		$confsum= $saved_config;
 	}
-	elsif ($stage !~ /CVS/ )
+	elsif ($stage !~ /CVS|Git|SCM/ )
 	{
 		$confsum = get_config_summary();
 	}
@@ -1697,7 +1496,7 @@ sub send_result
 		}
 	}
 
-	if ($stage !~ /CVS/ )
+	if ($stage !~ /CVS|Git|SCM/ )
 	{
 
 		my @logfiles = glob("$lrname/*.log");
@@ -1803,7 +1602,7 @@ sub get_config_summary
 	return $config;
 }
 
-sub cvs_timeout
+sub scm_timeout
 {
 	my $wait_time = shift;
 	my $who_to_kill = getpgrp(0);
@@ -1820,7 +1619,7 @@ sub cvs_timeout
 	 # kill the whole process group
 	unless (kill $sig,$who_to_kill)
 	{
-		print "cvs timeout kill failed\n";
+		print "scm timeout kill failed\n";
 	}
 }
 
@@ -1833,4 +1632,23 @@ sub spawn
         exit &$coderef(@_);
     }
     return $pid;
+}
+
+# common routine use for copying the source, called by the
+# SCM objects
+sub copy_source
+{
+	# annoyingly, there isn't a standard perl module to do a recursive copy
+	# and I don't want to require use of the non-standard File::Copy::Recursive
+	if ($using_msvc)
+	{
+		system("xcopy /I /Q /E pgsql $pgsql 2>&1");
+	}
+	else
+	{
+		system("cp -r pgsql $pgsql 2>&1");
+	}
+	my $status = $? >> 8;
+	die "copying directories: $status" if $status;
+
 }
