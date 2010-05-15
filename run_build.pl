@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.107 2010/05/15 23:03:37 andrewd Exp $
+	q$Id: run_build.pl,v 1.108 2010/05/15 23:40:57 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -85,12 +85,12 @@ my @invocation_args = (@ARGV);
 #
 # process command line
 #
-my $nosend;
+#these are used by the SCM modules
+use vars qw($nosend $nostatus $verbose);
+
 my $forcerun;
 my $buildconf = "build-farm.conf"; # default value
 my $keepall;
-my $nostatus;
-my $verbose;
 my $ipcclean;
 my $help;
 my $multiroot;

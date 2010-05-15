@@ -1,4 +1,4 @@
-
+use strict;
 ##########################################################################
 #
 # SCM Class and subclasses for specific SCMs (currently CVS and git).
@@ -149,7 +149,7 @@ sub checkout
 	}
 	my $status = $? >>8;
 	print "======== cvs $cvsmethod log ===========\n",@cvslog
-		if ($verbose > 1);
+		if ($main::verbose > 1);
 	# can't call writelog here because we call cleanlogs after the
 	# scm stage, since we only clear out the logs if we find we need to
 	# do a build run.
@@ -167,7 +167,7 @@ sub checkout
 	}
 
 	if ( $cvsmethod ne 'export' && $unknown_files && 
-		! ($nosend && $nostatus ) )
+		! ($main::nosend && $main::nostatus ) )
 	{
 		sleep 20;
 		my @statout = `cd pgsql && cvs -d $cvsserver status 2>&1`;
@@ -178,7 +178,7 @@ sub checkout
 	main::send_result('CVS',$status,\@cvslog)	if ($status);
 	main::send_result('CVS-Merge',$merge_conflicts,\@cvslog) 
 		if ($merge_conflicts);
-	unless ($nosend && $nostatus)
+	unless ($main::nosend && $main::nostatus)
 	{
 		main::send_result('CVS-Dirty',$mod_files,\@cvslog) 
 			if ($mod_files);
@@ -284,7 +284,7 @@ sub get_versions
 		push(@cvs_status,@res);
 		my $status = $? >>8;
 		print "======== cvs status log ===========\n",@cvs_status
-			if ($verbose > 1);
+			if ($main::verbose > 1);
 		main::send_result('CVS-status',$status,\@cvs_status)	if ($status);
 	}
 	my @fchunks = split(/File:/,join("",@cvs_status));
@@ -379,7 +379,8 @@ sub checkout
 		my @branches = `git branch 2>&1`;
 		unless (grep {/^\* bf_$branch$/} @branches)
 		{
-			print "Missing checked out branch bf_$branch:\n",@branches if ($verbose);
+			print "Missing checked out branch bf_$branch:\n",@branches 
+			  if ($main::verbose);
 			push @branches,"Missing checked out branch bf_$branch:\n";
 			main::send_result('Git',$status,\@branches)
 		}
@@ -405,7 +406,7 @@ sub checkout
 	}
 	$status = $? >>8;
 	print "================== git log =====================\n",@gitlog
-		if ($verbose > 1);
+		if ($main::verbose > 1);
 	# can't call writelog here because we call cleanlogs after the
 	# checkout stage, since we only clear out the logs if we find we need to
 	# do a build run.
@@ -422,7 +423,7 @@ sub checkout
 
 
 	main::send_result('Git',$status,\@gitlog)	if ($status);
-	unless ($nosend && $nostatus)
+	unless ($main::nosend && $main::nostatus)
 	{
 		push(@gitlog,"===========",@gitstat);
 		main::send_result('Git-Dirty',99,\@gitlog) 
