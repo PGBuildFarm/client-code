@@ -34,7 +34,7 @@ sub new
 # check_access()
 # get_build_path()
 # checkout()
-# find_ignore()
+# clean()
 # find_changed()
 # get_versions()
 
@@ -59,6 +59,7 @@ sub new
 	$conf->{scmrepo} || 
 	":pserver:anoncvs\@anoncvs.postgresql.org:/projects/cvsroot";
     $self->{cvsmethod} = $conf->{cvsmethod} || 'export';
+	$self->{ignore_files} = {};
     return bless $self, $class;
 }
 
@@ -142,10 +143,12 @@ sub checkout
 		chdir 'pgsql';
 		@cvslog = `cvs -d $cvsserver update -d $rtag 2>&1`;
 		chdir '..';
+		find_ignore($self);
 	}
 	else
 	{
 		@cvslog = `cvs -d $cvsserver co $rtag pgsql 2>&1`;
+		find_ignore($self);
 	}
 	my $status = $? >>8;
 	print "======== cvs $cvsmethod log ===========\n",@cvslog
@@ -160,7 +163,7 @@ sub checkout
 	my $mod_files = grep { /^M/ } @cvslog;
 	my $unknown_files = grep {/^\?/ } @cvslog;
 	my @bad_ignore = ();
-	foreach my $ignore (keys %$ignore_files)
+	foreach my $ignore (keys %{$self->{ignore_files}})
 	{
 		push (@bad_ignore,"X $ignore\n") 
 			if -e $ignore;
@@ -194,11 +197,18 @@ sub checkout
 	return \@cvslog;
 }
 
+sub cleanup
+{
+	my $self = shift;
+	unlink keys %{$self->{ignore_files}};
+}
+
+# find_ignore is now a private method of the subclass.
 sub find_ignore
 {
 
 	my $self = shift;
-	my $ignore_file = shift;
+	my $ignore_file =  $self->{ignore_files};
 	my $cvsmethod = $self->{cvsmethod};
 
 	my $wanted = sub 
@@ -413,6 +423,10 @@ sub checkout
 	# consequence - we don't save the git log if we don't do a run
 	# doesn't matter too much because if git fails we exit anyway.
 
+	# Don't call git clean here. If the user has left stuff lying around it
+	# might be important to them, so instead of blowing it away just bitch
+	# loudly.
+
 	chdir "pgsql";
 	my @gitstat = `git status 2>&1`;
 	chdir "..";
@@ -436,33 +450,12 @@ sub checkout
 }
 
 
-
-sub find_ignore
+sub cleanup
 {
 	my $self = shift;
-	my $ignore_file = shift;
-
-	my $wanted = sub 
-	{
-		# skip .git directory
-		if ($_ eq '.git' && -d $_)
-		{
-			$File::Find::prune = 1;
-		}
-		# even on git these are still listed in .cvsignore files
-		elsif (-f $_ && $_ eq '.cvsignore')
-		{
-			my $fh;
-			open($fh,$_) || die "cannot open $File::Find::name for reading";
-			my @names = (<$fh>);
-			close($fh);
-			chomp @names;
-			map { s!^!$File::Find::dir/!; } @names;
-			@{$ignore_file}{@names} = (1) x @names;
-		}
-	};
-
-	File::Find::find({wanted => $wanted}, 'pgsql') ;
+	chdir "pgsql";
+	system("git clean -dfxq");
+	chdir "..";
 }
 
 # private Class level routine for getting changed file data

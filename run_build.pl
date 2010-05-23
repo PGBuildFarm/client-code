@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.108 2010/05/15 23:40:57 andrewd Exp $
+	q$Id: run_build.pl,v 1.109 2010/05/23 10:01:04 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -364,8 +364,6 @@ my $now=time;
 my $installdir = "$buildroot/$branch/inst";
 my $dbstarted;
 
-my %ignore_file = ();
-
 my $extraconf;
 
 # cleanup handler for all exits
@@ -427,7 +425,7 @@ END
 		{
 			# vpath builds leave some stuff lying around in the
 			# source dir, unfortunately. This should clean it up.
-			unlink (keys %ignore_file);
+			$scm->cleanup();
 		}
 		close($lockfile);
 		unlink("builder.LCK");
@@ -480,7 +478,7 @@ elsif (! $from_source)
     $timeout_pid = spawn(\&scm_timeout,$scm_timeout_secs) 
 	if $scm_timeout_secs; 
     
-    $savescmlog = $scm->checkout($branch, \%ignore_file);
+    $savescmlog = $scm->checkout($branch);
 	$steps_completed = "SCM-checkout";
 
     if ($timeout_pid)
@@ -512,11 +510,6 @@ elsif (! $from_source)
 	if ($last_status && $force_every && 
 	    $last_status+($force_every*3600) < $now);
     $last_status = 0 if $forcerun;
-
-    # get a hash of the files listed in .cvsignore files
-    # They will be removed if a vpath build puts them in the repo.
-
-    $scm->find_ignore(\%ignore_file);
 
     # see what's changed since the last time we did work
     $scm->find_changed(\$current_snap,$last_run_snap, $last_success_snap,
