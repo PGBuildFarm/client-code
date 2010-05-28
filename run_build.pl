@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.109 2010/05/23 10:01:04 andrewd Exp $
+	q$Id: run_build.pl,v 1.110 2010/05/28 12:02:09 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -175,7 +175,7 @@ die "cannot use vpath with MSVC"
 
 if (ref($force_every) eq 'HASH')
 {
-	$force_every = $force_every->{$branch};
+	$force_every = $force_every->{$branch} || $force_every->{default};
 }
 
 my $config_opts = $PGBuild::conf{config_opts};
