@@ -355,9 +355,9 @@ sub copy_source
 	# so we just move it out of the way during the copy
 	# there might be better ways of doing this, but this should do for now
 
-	move "pgsql/.git", ".";
+	move "pgsql/.git", "./git-save";
 	main::copy_source();
-	move ".git","pgsql";
+	move "./git-save","pgsql/.git";
 }
 
 sub get_build_path

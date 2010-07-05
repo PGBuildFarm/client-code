@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.110 2010/05/28 12:02:09 andrewd Exp $
+	q$Id: run_build.pl,v 1.111 2010/07/05 16:28:14 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -558,7 +558,7 @@ elsif (!$from_source && $scm->copy_source_required())
 {
 	print time_str(),"copying source to $pgsql ...\n" if $verbose;
 
-	$scm->copy_source($using_msvc);
+	$scm->copy_source();
 
 }
 
