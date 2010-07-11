@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.111 2010/07/05 16:28:14 andrewd Exp $
+	q$Id: run_build.pl,v 1.112 2010/07/11 15:00:13 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -1534,6 +1534,10 @@ sub send_result
 	if ($txstatus)
 	{
 		print "Web txn failed with status: $txstatus\n";
+		# if the web txn fails, restore the timestamps
+		# so we try again the next time.
+		set_last('status',$last_status) unless $nostatus;
+		set_last('run.snap',$last_run_snap) unless $nostatus;
 		exit($txstatus);
 	}
 
