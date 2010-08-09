@@ -409,7 +409,8 @@ sub checkout
 			# make sure we don't name the new branch HEAD
 			# also, safer to checkout origin/master than origin/HEAD, I think
 			my $rbranch = $branch eq 'HEAD' ? 'master' : $branch;
-			my @colog = `git checkout -b bf_$branch -t origin/$rbranch 2>&1`;
+			my @colog = 
+			  `git checkout -b bf_$branch --track origin/$rbranch 2>&1`;
 			push(@gitlog,@colog);
 			chdir "..";
 		}
