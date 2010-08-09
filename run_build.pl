@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.112 2010/07/11 15:00:13 andrewd Exp $
+	q$Id: run_build.pl,v 1.113 2010/08/09 20:43:39 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -1454,6 +1454,10 @@ sub send_result
 	{
 		$confsum = get_config_summary();
 	}
+	else
+	{
+		$confsum = get_script_config_dump();
+	}
 
 	my $savedata = Data::Dumper->Dump
 		(
@@ -1589,14 +1593,19 @@ sub get_config_summary
 		$config .= 
 			"\n========================================================\n";
 	}
+	$config .= get_script_config_dump();
+	return $config;
+}
+
+sub get_script_config_dump
+{
 	my $conf = {%PGBuild::conf,  # shallow copy
 				script_version => $VERSION,
 				invocation_args => \@invocation_args,
 				steps_completed => $steps_completed,
 			};
 	delete $conf->{secret};
-	$config .= Data::Dumper->Dump([$conf],['Script_Config']);
-	return $config;
+	return  Data::Dumper->Dump([$conf],['Script_Config']);
 }
 
 sub scm_timeout
