@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.113 2010/08/09 20:43:39 andrewd Exp $
+	q$Id: run_build.pl,v 1.114 2010/09/22 21:56:15 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -412,7 +412,6 @@ END
 		}
 		else
 		{
-			
 			rmtree("inst") unless $keepall;
 			rmtree("$pgsql") unless ($from_source || $keepall);
 		}

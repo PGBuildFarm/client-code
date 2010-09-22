@@ -34,7 +34,7 @@ sub new
 # check_access()
 # get_build_path()
 # checkout()
-# clean()
+# cleanup()
 # find_changed()
 # get_versions()
 
@@ -124,7 +124,6 @@ sub checkout
 {
 	my $self = shift;
 	my $branch = shift;
-	my $ignore_files = shift;
 	my $cvsmethod = $self->{cvsmethod};
 	my $cvsserver = $self->{cvsrepo};
 
