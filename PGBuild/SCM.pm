@@ -61,7 +61,7 @@ sub new
 	$conf->{cvsrepo} || 
 	$conf->{scmrepo} || 
 	":pserver:anoncvs\@anoncvs.postgresql.org:/projects/cvsroot";
-    $self->{cvsmethod} = $conf->{cvsmethod} || 'export';
+    $self->{cvsmethod} = $conf->{cvsmethod} || 'update';
 	$self->{use_git_cvsserver} = $conf->{use_git_cvsserver};
 	$self->{ignore_files} = {};
 
@@ -344,7 +344,7 @@ sub get_versions
 
 		my $module = 'pgsql';
 		$module = ( $self->{branch} eq 'HEAD' ? 'master' : $self->{branch} )
-		  if $self->{use_git_cvsserver);
+		  if $self->{use_git_cvsserver};
 		next unless 
 			m!
 			Working\srevision:\s+
