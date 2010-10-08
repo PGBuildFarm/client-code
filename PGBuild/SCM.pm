@@ -1,4 +1,7 @@
 use strict;
+
+use File::Find;
+
 ##########################################################################
 #
 # SCM Class and subclasses for specific SCMs (currently CVS and git).
@@ -59,7 +62,12 @@ sub new
 	$conf->{scmrepo} || 
 	":pserver:anoncvs\@anoncvs.postgresql.org:/projects/cvsroot";
     $self->{cvsmethod} = $conf->{cvsmethod} || 'export';
+	$self->{use_git_cvsserver} = $conf->{use_git_cvsserver};
 	$self->{ignore_files} = {};
+
+	die "can't use export cvs method with git-cvsserver"
+	  if $self->{use_git_cvsserver} && ($self->{cvsmethod} eq 'export');
+
     return bless $self, $class;
 }
 
@@ -128,26 +136,54 @@ sub checkout
 	my $cvsserver = $self->{cvsrepo};
 
 	my @cvslog;
-	# cvs occasionally does weird things when given an explicit HEAD
-	# especially on checkout or update.
-	# since it's the default anyway, we omit it.
-	my $rtag = $branch eq 'HEAD' ? "" : "-r $branch";
-	if ($cvsmethod eq 'export')
+
+	if ($self->{use_git_cvsserver})
 	{
-		# but you have to have a tag for export
-		@cvslog = `cvs -d  $cvsserver export -r $branch pgsql 2>&1`;
-	}
-	elsif (-d 'pgsql')
-	{
-		chdir 'pgsql';
-		@cvslog = `cvs -d $cvsserver update -d $rtag 2>&1`;
-		chdir '..';
-		find_ignore($self);
+
+		# git-cvsserver treats a branch as a module, so we have to do things
+		# a bit differently from the old CVS server
+		my $module = $branch eq 'HEAD' ? 'master' : $branch;
+
+		if (-d 'pgsql')
+		{
+			chdir 'pgsql';
+			@cvslog = `cvs -d $cvsserver update -d 2>&1`;
+			chdir '..';
+			find_ignore($self);
+		}
+		else
+		{
+			@cvslog = `cvs -d $cvsserver co -d pgsql $module 2>&1`;
+			find_ignore($self);
+		}
 	}
 	else
 	{
-		@cvslog = `cvs -d $cvsserver co $rtag pgsql 2>&1`;
-		find_ignore($self);
+		# old style CVS repo where the module name is 'pgsql' and we
+		# check out branches
+		
+		# cvs occasionally does weird things when given an explicit HEAD
+		# especially on checkout or update.
+		# since it's the default anyway, we omit it.
+		my $rtag = $branch eq 'HEAD' ? "" : "-r $branch";
+
+		if ($cvsmethod eq 'export')
+		{
+			# but you have to have a tag for export
+			@cvslog = `cvs -d  $cvsserver export -r $branch pgsql 2>&1`;
+		}
+		elsif (-d 'pgsql')
+		{
+			chdir 'pgsql';
+			@cvslog = `cvs -d $cvsserver update -d $rtag 2>&1`;
+			chdir '..';
+			find_ignore($self);
+		}
+		else
+		{
+			@cvslog = `cvs -d $cvsserver co $rtag pgsql 2>&1`;
+			find_ignore($self);
+		}
 	}
 	my $status = $? >>8;
 	print "======== cvs $cvsmethod log ===========\n",@cvslog
@@ -224,7 +260,8 @@ sub find_ignore
 			my @names = (<$fh>);
 			close($fh);
 			chomp @names;
-			map { s!^!$File::Find::dir/!; } @names;
+			my $found_dir = $File::Find::dir;
+			map { s!^!$found_dir/!; } @names;
 			@{$ignore_file}{@names} = (1) x @names;
 		}
 	};
