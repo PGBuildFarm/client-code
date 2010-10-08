@@ -132,6 +132,7 @@ sub checkout
 {
 	my $self = shift;
 	my $branch = shift;
+	$self->{branch} = $branch;
 	my $cvsmethod = $self->{cvsmethod};
 	my $cvsserver = $self->{cvsrepo};
 
@@ -340,6 +341,10 @@ sub get_versions
 		# we need to report the working revision rather than the
 		# repository revision version in case the file has been
 		# updated between the time we did the checkout/update and now.
+
+		my $module = 'pgsql';
+		$module = ( $self->{branch} eq 'HEAD' ? 'master' : $self->{branch} )
+		  if $self->{use_git_cvsserver);
 		next unless 
 			m!
 			Working\srevision:\s+
@@ -347,7 +352,7 @@ sub get_versions
 			.*Repository.revision:.
 			(\d+(\.\d+)+)
 			.*
-			/(pgsql/.*)
+			/($module/.*)
 			,v
 			!sx ;
 
