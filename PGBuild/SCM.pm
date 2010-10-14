@@ -432,7 +432,7 @@ sub checkout
 		{
 			print "Missing checked out branch bf_$branch:\n",@branches 
 			  if ($main::verbose);
-			push @branches,"Missing checked out branch bf_$branch:\n";
+			unshift @branches,"Missing checked out branch bf_$branch:\n";
 			main::send_result('Git',$status,\@branches)
 		}
 		@gitlog = `git pull 2>&1`;
