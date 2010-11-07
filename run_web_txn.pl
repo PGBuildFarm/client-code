@@ -29,7 +29,7 @@ use strict;
 
 use vars qw($VERSION); $VERSION = 'REL_4.3';
 
-#  q$Id: run_web_txn.pl,v 1.7 2010/11/07 21:38:54 andrewd Exp $
+#  q$Id: run_web_txn.pl,v 1.8 2010/11/07 23:35:04 andrewd Exp $
 
 use LWP;
 use HTTP::Request::Common;
@@ -66,7 +66,7 @@ my $current_ts = time;
 my $webscriptversion = "'web_script_version' => '$VERSION',\n" ;
 my $cts	= "'current_ts' => $current_ts,\n";
 # $2 here helps us to preserve the nice spacing from Data::Dumper
-my $scriptline = "((.*)'script_version' => '\\d+\\.\\d+',\n)";
+my $scriptline = "((.*)'script_version' => '(REL_)?\\d+\\.\\d+',\n)";
 $confsum =~ s/$scriptline/$1$2$webscriptversion$2$cts/;
 my $sconf = $confsum;
 $sconf =~ s/.*(\$Script_Config)/$1/ms;
