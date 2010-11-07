@@ -28,13 +28,14 @@
 use strict;
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_web_txn.pl,v 1.4 2007/03/19 19:34:09 andrewd Exp $
+	q$Id: run_web_txn.pl,v 1.5 2010/11/07 02:56:46 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use LWP;
 use HTTP::Request::Common;
 use MIME::Base64;
 use Digest::SHA1  qw(sha1_hex);
+use Storable qw(nfreeze);
 
 my $lrname = $ARGV[0] || 'lastrun-logs' ;
 
@@ -67,6 +68,11 @@ my $cts	= "'current_ts' => $current_ts,\n";
 # $2 here helps us to preserve the nice spacing from Data::Dumper
 my $scriptline = "((.*)'script_version' => '\\d+\\.\\d+',\n)";
 $confsum =~ s/$scriptline/$1$2$webscriptversion$2$cts/;
+my $sconf = $confsum;
+$sconf =~ s/.*(\$Script_Config)/$1/ms;
+my $Script_Config;
+eval $sconf;
+my $frozen_sconf = nfreeze $Script_Config;
 
 # make the base64 data escape-proof; = is probably ok but no harm done
 # this ensures that what is seen at the other end is EXACTLY what we
@@ -74,7 +80,8 @@ $confsum =~ s/$scriptline/$1$2$webscriptversion$2$cts/;
 
 map 
 { $_=encode_base64($_,""); tr/+=/$@/; } 
-($log_data,$confsum,$changed_this_run,$changed_since_success,$tardata);
+($log_data,$confsum,$changed_this_run,$changed_since_success,$tardata, 
+ $frozen_sconf);
 
 my $content = 
 	"changed_files=$changed_this_run&".
@@ -82,6 +89,8 @@ my $content =
 	"branch=$branch&res=$status&stage=$stage&animal=$animal&ts=$ts".
 	"&log=$log_data&conf=$confsum";
 my $sig= sha1_hex($content,$secret);
+
+$content .= "&frozen_sconf=$frozen_sconf";
 
 if ($tardata)
 {
