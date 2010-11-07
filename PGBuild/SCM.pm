@@ -40,6 +40,7 @@ sub new
 # cleanup()
 # find_changed()
 # get_versions()
+# log_id()
 
 
 
@@ -126,6 +127,12 @@ sub get_build_path
 	  ($self->{cvsmethod} eq 'export' && not $use_vpath) ? 
 		"pgsql" : 
 		  "pgsql.$$";
+}
+
+sub log_id
+{
+	# CVS doesn't have a concept of a tree id.
+	return;
 }
 
 sub checkout
@@ -380,6 +387,9 @@ sub new
 	  $conf->{scmrepo} || "git://git.postgresql.org/git/postgresql.git";
 	$self->{reference} = $conf->{git_reference} 
 	  if defined ($conf->{git_reference});
+	$self->{mirror} = "$conf->{build_root}/pgmirror.git" 
+	  if $conf->{git_keep_mirror};
+	$self->{ignore_mirror_failure} = $conf->{git_ignore_mirror_failure};
     return bless $self, $class;
 }
 
@@ -415,6 +425,13 @@ sub check_access
 	return;
 }
 
+sub log_id
+{
+	my $self = shift;
+	main::writelog('githead',[$self->{headref}])
+		if $self->{headref};
+}
+
 sub checkout
 {
 
@@ -424,6 +441,34 @@ sub checkout
 	my $status;
 
 	my @gitlog;
+	if ($self->{mirror})
+	{
+		if (-d $self->{mirror})
+		{
+			chdir "../pgmirror.git";
+			@gitlog = `git fetch 2>&1`;
+			chdir "../$branch";
+			$status = $self->{ignore_mirror_failure} ? 0 : $? >> 8;
+		}
+		else
+		{
+			chdir "..";
+			# this will fail on older git versions
+			# workaround is to do this manually in the buildroot:
+			#   git clone --bare $gitserver pgmirror.git
+			#   (cd pgmirror.git && git remote add --mirror origin $gitserver)
+			@gitlog = `git clone --mirror $gitserver pgmirror.git 2>&1`;
+			chdir $branch;
+			$status = $? >>8;
+		}
+		if ($status)
+		{
+			unshift(@gitlog,"Git mirror failure:\n");
+			print @gitlog if ($main::verbose);
+			main::send_result('Git-mirror',$status,\@gitlog);
+		}
+	}
+
 	if (-d 'pgsql')
 	{
 		chdir 'pgsql';
@@ -435,14 +480,19 @@ sub checkout
 			unshift @branches,"Missing checked out branch bf_$branch:\n";
 			main::send_result('Git',$status,\@branches)
 		}
-		@gitlog = `git pull 2>&1`;
+		my @pulllog = `git pull 2>&1`;
+		push(@gitlog,@pulllog);
 		chdir '..';
 	}
 	else
 	{
 		my $reference = defined($self->{reference}) ?
 		  "--reference $self->{reference}" : "";
-		@gitlog = `git clone -q $reference $gitserver pgsql 2>&1`;
+
+		my $base = $self->{mirror} || $gitserver;
+
+		my @clonelog = `git clone -q $reference $base pgsql 2>&1`;
+		push(@gitlog,@clonelog);
 		$status = $? >>8;
 		if (!$status)
 		{
@@ -473,9 +523,19 @@ sub checkout
 	my @gitstat = `git status 2>&1`;
 	chdir "..";
 
+
 	@gitstat = grep 
 	{not /Already.up-to-date|On branch bf_$branch|nothing to commit .working directory clean./}
 	  @gitstat;
+
+	my ($headref,$refhandle);
+	if (open($refhandle,"pgsql/.git/refs/heads/bf_$branch"))
+	{
+		$headref = <$refhandle>;
+		chomp $headref;
+		close($refhandle);
+		$self->{headref} = $headref;
+	}
 
 
 	main::send_result('Git',$status,\@gitlog)	if ($status);

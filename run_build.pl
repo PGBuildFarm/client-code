@@ -46,7 +46,7 @@
 ###################################################
 
 my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.114 2010/09/22 21:56:15 andrewd Exp $
+	q$Id: run_build.pl,v 1.115 2010/11/07 20:50:56 andrewd Exp $
 	=~ /(\d+)/g; 
 
 use strict;
@@ -545,6 +545,7 @@ elsif (! $from_source)
 cleanlogs();
 
 writelog('SCM-checkout',$savescmlog) unless $from_source;
+$scm->log_id() unless $from_source;
 
 # copy/create according to vpath/scm settings
 
@@ -751,7 +752,7 @@ sub writelog
 	my $loglines = shift;
 	my $handle;
 	my $lrname = $st_prefix . $logdirname;
-	open($handle,">$lrname/$stage.log");
+	open($handle,">$lrname/$stage.log") || die $!;
 	print $handle @$loglines;
 	close($handle);
 }
