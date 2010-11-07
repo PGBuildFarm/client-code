@@ -10,7 +10,7 @@ use File::Find;
 
 package PGBuild::SCM;
 
-use vars qw($VERSION); $VERSION = 'REL_4.3';
+use vars qw($VERSION); $VERSION = 'REL_4.4';
 
 # factory function to return the right subclass
 sub new

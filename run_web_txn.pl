@@ -27,9 +27,9 @@
 
 use strict;
 
-use vars qw($VERSION); $VERSION = 'REL_4.3';
+use vars qw($VERSION); $VERSION = 'REL_4.4';
 
-#  q$Id: run_web_txn.pl,v 1.8 2010/11/07 23:35:04 andrewd Exp $
+#  q$Id: run_web_txn.pl,v 1.9 2010/11/07 23:35:29 andrewd Exp $
 
 use LWP;
 use HTTP::Request::Common;

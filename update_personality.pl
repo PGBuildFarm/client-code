@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 
 
-use vars qw($VERSION); $VERSION = 'REL_4.3';
+use vars qw($VERSION); $VERSION = 'REL_4.4';
 
-#	$Id: update_personality.pl,v 1.3 2010/11/07 21:38:54 andrewd Exp $
+#	$Id: update_personality.pl,v 1.4 2010/11/07 23:35:29 andrewd Exp $
 
 
 use strict;

@@ -45,9 +45,9 @@
 =cut
 ###################################################
 
-use vars qw($VERSION); $VERSION = 'REL_4.3';
+use vars qw($VERSION); $VERSION = 'REL_4.4';
 
-#	$Id: run_build.pl,v 1.117 2010/11/07 21:38:54 andrewd Exp $
+#	$Id: run_build.pl,v 1.118 2010/11/07 23:35:29 andrewd Exp $
 
 use strict;
 use warnings;
