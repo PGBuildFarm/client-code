@@ -6,6 +6,8 @@ CREL := $(if $(REL),$(strip $(subst .,_, $(REL))),YOU_NEED_A_RELEASE)
 
 .PHONY: tag
 tag:
+	sed -i -e "s/VERSION = '[^']*';/VERSION = 'REL_$(REL)';/" $(FILES)
+	cvs ci -m "setting version for tag REL_$(CREL)" $(FILES)
 	cvs tag REL_$(CREL) $(FILES)
 
 .PHONY: release

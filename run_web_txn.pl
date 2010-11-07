@@ -27,9 +27,9 @@
 
 use strict;
 
-my $VERSION = sprintf "%d.%d", 
-	q$Id: run_web_txn.pl,v 1.5 2010/11/07 02:56:46 andrewd Exp $
-	=~ /(\d+)/g; 
+use vars qw($VERSION); $VERSION = 'REL_';
+
+#  q$Id: run_web_txn.pl,v 1.6 2010/11/07 21:37:20 andrewd Exp $
 
 use LWP;
 use HTTP::Request::Common;

@@ -45,9 +45,9 @@
 =cut
 ###################################################
 
-my $VERSION = sprintf "%d.%d", 
-	q$Id: run_build.pl,v 1.115 2010/11/07 20:50:56 andrewd Exp $
-	=~ /(\d+)/g; 
+use vars qw($VERSION); $VERSION = 'REL_';
+
+#	$Id: run_build.pl,v 1.116 2010/11/07 21:37:20 andrewd Exp $
 
 use strict;
 use warnings;

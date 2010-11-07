@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 
 
-my $VERSION = sprintf "%d.%d", 
-	q$Id: setnotes.pl,v 1.1 2010/10/15 14:16:13 andrewd Exp $
-	=~ /(\d+)/g; 
+use vars qw($VERSION); $VERSION = 'REL_';
+
+#	$Id: setnotes.pl,v 1.2 2010/11/07 21:37:20 andrewd Exp $
 
 use strict;
 use warnings;
