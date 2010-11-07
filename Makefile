@@ -1,6 +1,6 @@
 
 FILES = run_build.pl run_web_txn.pl update_personality.pl \
-	build-farm.conf PGBuild/SCM.pm
+	setnotes.pl build-farm.conf PGBuild/SCM.pm
 
 CREL := $(if $(REL),$(strip $(subst .,_, $(REL))),YOU_NEED_A_RELEASE)
 
