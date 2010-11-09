@@ -29,7 +29,7 @@ use strict;
 
 use vars qw($VERSION); $VERSION = 'REL_4.4';
 
-#  q$Id: run_web_txn.pl,v 1.9 2010/11/07 23:35:29 andrewd Exp $
+#  q$Id: run_web_txn.pl,v 1.10 2010/11/09 20:56:11 andrewd Exp $
 
 use LWP;
 use HTTP::Request::Common;
@@ -72,6 +72,14 @@ my $sconf = $confsum;
 $sconf =~ s/.*(\$Script_Config)/$1/ms;
 my $Script_Config;
 eval $sconf;
+# very modern Storable modules choke on regexes
+# the server has no need of them anyway, so just chop them out
+# they are still there in the text version used for reporting
+foreach my $k ( keys %$Script_Config ) 
+{ 
+	delete $Script_Config->{$k} 
+	  if ref($Script_Config->{$k}) eq q(Regexp); 
+}
 my $frozen_sconf = nfreeze $Script_Config;
 
 # make the base64 data escape-proof; = is probably ok but no harm done
