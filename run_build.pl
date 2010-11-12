@@ -47,7 +47,7 @@
 
 use vars qw($VERSION); $VERSION = 'REL_4.4';
 
-#	$Id: run_build.pl,v 1.118 2010/11/07 23:35:29 andrewd Exp $
+#	$Id: run_build.pl,v 1.119 2010/11/12 14:12:22 andrewd Exp $
 
 use strict;
 use warnings;
@@ -58,12 +58,12 @@ use File::Basename;
 use File::Temp;
 use File::Spec;
 use IO::Handle;
-use Getopt::Long;
 use POSIX qw(:signal_h strftime);
 use Data::Dumper;
 use Cwd qw(abs_path getcwd);
 use File::Find ();
 use PGBuild::SCM;
+use PGBuild::Options;
 
 # make sure we exit nicely on any normal interrupt
 # so the cleanup handler gets called.
@@ -81,43 +81,8 @@ foreach my $sig (qw(INT TERM HUP QUIT))
 
 my @invocation_args = (@ARGV);
 
-
-#
-# process command line
-#
-#these are used by the SCM modules
-use vars qw($nosend $nostatus $verbose);
-
-my $forcerun;
-my $buildconf = "build-farm.conf"; # default value
-my $keepall;
-my $ipcclean;
-my $help;
-my $multiroot;
-my $quiet;
-my $from_source;
-my $from_source_clean;
-my $testmode;
-my $skip_steps;
-my $find_typedefs;
-
-
-GetOptions('nosend' => \$nosend, 
-		   'config=s' => \$buildconf,
-		   'from-source=s' => \$from_source,
-		   'from-source-clean=s' => \$from_source_clean,
-		   'force' => \$forcerun,
-		   'find-typedefs' => \$find_typedefs,
-		   'keepall' => \$keepall,
-		   'ipcclean' => \$ipcclean,
-		   'verbose:i' => \$verbose,
-		   'nostatus' => \$nostatus,
-		   'test' => \$testmode,
-		   'help' => \$help,
-		   'quiet' => \$quiet,
-		   'skip-steps=s' => \$skip_steps,
-		   'multiroot' => \$multiroot)
-	|| die "bad command line";
+# process the command line
+PGBuild::Options::fetch_options();
 
 die "only one of --from-source and --from-source-clean allowed"
 	if ($from_source && $from_source_clean);
