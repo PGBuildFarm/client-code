@@ -38,7 +38,7 @@ our (
 	 $nosend, $nostatus, $verbose,
 	);
 
-use vars qw (%standard_options);
+my (%standard_options);
 
 %standard_options =
   ('nosend' => \$nosend, 
@@ -69,6 +69,20 @@ sub fetch_options
 	GetOptions(%standard_options, @_)
 	  || die "bad command line";
 	
+}
+
+sub standard_option_list
+{
+	my @result = ();
+	foreach my $k ( keys %standard_options )
+	{
+		my $vref = $standard_options{$k};
+		next unless $$vref;
+		(my $nicekey = $k) =~ s/[=:].*//;
+		push(@result, "--$nicekey");
+		push(@result,$$vref) if $k =~ /[:=]/;
+	}
+	return @result;
 }
 
 
