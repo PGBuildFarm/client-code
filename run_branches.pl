@@ -8,6 +8,9 @@ use Fcntl qw(:flock :seek);
 use PGBuild::Options;
 use File::Basename;
 
+my %branch_last;
+sub branch_last_sort;
+
 my $run_build;
 ($run_build = $0) =~ s/run_branches/run_build/;
 
@@ -85,7 +88,16 @@ if ($run_all)
 }
 elsif ($run_one)
 {
-	die "run-one not yet implemented";
+	# sort the branches by the order in which they last did actual work
+	# then try running them in that order until one does some work
+
+	%branch_last = map {$_ => find_last_status($_)} @branches;
+	foreach my $brnch(sort branch_last_sort @branches)
+	{
+		run_branch($brnch);
+		my $new_status = find_last_status($brnch);
+		last if $new_status != $branch_last{$brnch};
+	}
 }
 
 
@@ -104,4 +116,21 @@ sub run_branch
 }
 
 
+sub branch_last_sort
+{
+	return $branch_last{$a} <=> $branch_last{$b};
+}
 
+sub find_last_status
+{
+	my $brnch = shift;
+	my $status_file = 
+	  "$PGBuild::conf{build_root}/$brnch/$PGBuild::conf{animal}.last.status";
+	return 0 unless (-e  $status_file);
+	my $handle;
+	open($handle,$status_file) || dir $!;
+	my $ts = <$handle>;
+	chomp $ts;
+	close($handle);
+	return $ts + 0;
+}
