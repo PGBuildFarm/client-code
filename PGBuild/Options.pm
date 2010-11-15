@@ -77,10 +77,10 @@ sub standard_option_list
 	foreach my $k ( keys %standard_options )
 	{
 		my $vref = $standard_options{$k};
-		next unless $$vref;
+		next unless defined($$vref);
 		(my $nicekey = $k) =~ s/[=:].*//;
 		push(@result, "--$nicekey");
-		push(@result,$$vref) if $k =~ /[:=]/;
+		push(@result,$$vref) if $$vref && $k =~ /[:=]/;
 	}
 	return @result;
 }
