@@ -45,12 +45,13 @@ $branch = 'global';
 #
 require $buildconf ;
 
-my @branches = @{$PGBuild::conf{branches_to_build}};
-
-unless (@branches)
+unless (ref $PGBuild::conf{branches_to_build} eq 'ARRAY' && 
+		@{$PGBuild::conf{branches_to_build}})
 {
 	die "no branches_to_build specified in $buildconf";
 }
+
+my @branches = @{$PGBuild::conf{branches_to_build}};
 
 my $global_lock_dir = 
   $PGBuild::conf{global_lock_dir} ||
@@ -110,7 +111,7 @@ exit 0;
 sub run_branch
 {
 	my $branch = shift;
-	my @args = ("perl", $run_build, 
+	my @args = ($run_build, 
 				PGBuild::Options::standard_option_list(), $branch);
 	system(@args);
 }
