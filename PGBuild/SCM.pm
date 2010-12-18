@@ -2,6 +2,14 @@ use strict;
 
 use File::Find;
 
+=comment
+
+Copyright (c) 2003-2010, Andrew Dunstan
+
+See accompanying License file for license details
+
+=cut 
+
 ##########################################################################
 #
 # SCM Class and subclasses for specific SCMs (currently CVS and git).

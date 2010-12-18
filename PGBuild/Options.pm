@@ -1,5 +1,14 @@
 
+
 package PGBuild::Options;
+
+=comment
+
+Copyright (c) 2003-2010, Andrew Dunstan
+
+See accompanying License file for license details
+
+=cut 
 
 # common options code for buildfarm scripts, so it stays in sync
 

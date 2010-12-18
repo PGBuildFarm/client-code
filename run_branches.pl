@@ -1,5 +1,13 @@
 #!/usr/bin/perl
 
+=comment
+
+Copyright (c) 2003-2010, Andrew Dunstan
+
+See accompanying License file for license details
+
+=cut 
+
 use vars qw($VERSION); $VERSION = 'REL_0.0';
 
 use strict;

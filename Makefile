@@ -1,4 +1,8 @@
 
+# Copyright (c) 2003-2010, Andrew Dunstan
+
+# See accompanying License file for license details
+
 FILES = run_build.pl run_web_txn.pl update_personality.pl \
 	setnotes.pl build-farm.conf PGBuild/SCM.pm PGBuild/Options.pm
 
