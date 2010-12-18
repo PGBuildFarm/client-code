@@ -1319,7 +1319,14 @@ sub configure
 	my @quoted_opts;
 	foreach my $c_opt (@$config_opts)
 	{
-		push(@quoted_opts,"'$c_opt'");
+		if ($c_opt =~ /['"]/)
+		{
+			push(@quoted_opts,$c_opt);
+		}
+		else
+		{
+			push(@quoted_opts,"'$c_opt'");
+		}
 	}
 
 	my $confstr = join(" ",@quoted_opts,
