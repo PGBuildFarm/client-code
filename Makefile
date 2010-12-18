@@ -3,16 +3,17 @@
 
 # See accompanying License file for license details
 
-FILES = run_build.pl run_web_txn.pl update_personality.pl \
-	setnotes.pl build-farm.conf PGBuild/SCM.pm PGBuild/Options.pm
+FILES = run_build.pl run_web_txn.pl run_branches.pl \
+	update_personality.pl setnotes.pl \
+	build-farm.conf  \
+	PGBuild/SCM.pm PGBuild/Options.pm
 
 CREL := $(if $(REL),$(strip $(subst .,_, $(REL))),YOU_NEED_A_RELEASE)
 
 .PHONY: tag
 tag:
 	sed -i -e "s/VERSION = '[^']*';/VERSION = 'REL_$(REL)';/" $(FILES)
-	cvs ci -m "setting version for tag REL_$(CREL)" $(FILES)
-	cvs tag REL_$(CREL) $(FILES)
+	git tag -m 'Release $(REL)'
 
 .PHONY: release
 release:
