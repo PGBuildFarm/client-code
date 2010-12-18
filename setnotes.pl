@@ -77,6 +77,12 @@ my $content = "animal=$animal\&sysnotes=$sys_notes";
 
 my $sig= sha1_hex($content,$secret);
 
+# set environment from config
+while (my ($envkey,$envval) = each %{$PGBuild::conf{build_env}})
+{
+    $ENV{$envkey}=$envval;
+}
+
 my $ua = new LWP::UserAgent;
 $ua->agent("Postgres Build Farm Reporter");
 if (my $proxy = $ENV{BF_PROXY})
