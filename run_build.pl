@@ -625,6 +625,8 @@ foreach my $locale (@locales)
 
 	stop_db($locale);
 
+	rmtree("$installdir/data-$locale") 
+	  unless $keepall;
 }
 
 # ecpg checks are not supported in 8.1 and earlier
@@ -1126,7 +1128,7 @@ sub make_check
 	# get the log files and the regression diffs
 	my @logs = glob("$pgsql/src/test/regress/log/*.log");
 	unshift(@logs,"$pgsql/src/test/regress/regression.diffs")
-		if (-e "$pgsql/src/test/regress/regression.diffs");
+	  if (-e "$pgsql/src/test/regress/regression.diffs");
 	foreach my $logfile (@logs)
 	{
 		push(@makeout,"\n\n================== $logfile ===================\n");
@@ -1138,12 +1140,17 @@ sub make_check
 		}
 		close($handle);
 	}
+	my $base = "$pgsql/src/test/regress/tmp_check";
 	if ($status)
 	{
-		my $base = "$pgsql/src/test/regress/tmp_check";
 		my @trace = 
 			get_stack_trace("$base/install$installdir/bin",	"$base/data");
 		push(@makeout,@trace);
+	}
+	else
+	{
+		rmtree($base)
+		  unless $keepall;
 	}
 	writelog('check',\@makeout);
 	print "======== make check logs ===========\n",@makeout 
