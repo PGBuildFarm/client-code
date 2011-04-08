@@ -605,7 +605,7 @@ sub find_changed
 	my $changed_files = shift;
 	my $changed_since_success = shift;
 
-	my $cmd = 'git --git-dir=pgsql/.git log -n 1 --pretty=format:%ct';
+	my $cmd = 'git --git-dir=pgsql/.git log -n 1 "--pretty=format:%ct"';
 	$$current_snap = `$cmd` +0;
 
 	# get the list of changed files and stash the commit data
