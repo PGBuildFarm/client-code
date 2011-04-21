@@ -128,11 +128,11 @@ require $buildconf ;
 
 # get the config data into some local variables
 my ($buildroot,$target,$animal, $print_success, $aux_path, $trigger_filter,
-	$secret, $keep_errs, $force_every, $make,
+	$secret, $keep_errs, $force_every, $make, $optional_steps,
 	$use_vpath, $tar_log_cmd, $using_msvc, $extra_config ) = 
 	@PGBuild::conf{
 		qw(build_root target animal print_success aux_path trigger_filter
-		   secret keep_error_builds force_every make
+		   secret keep_error_builds force_every make optional_steps
 		   use_vpath tar_log_cmd using_msvc extra_config)
 		};
 
@@ -558,11 +558,25 @@ print time_str(),"running make check ...\n" if $verbose;
 
 make_check();
 
+if (-d "$pgsql/src/test/isolation")
+{
+	print time_str(),"running make isolation check ...\n" if $verbose;
+	
+	make_isolation_check();
+}
+
 unless ($using_msvc)
 {
 	print time_str(),"running make contrib ...\n" if $verbose;
 	
 	make_contrib();
+}
+
+if (check_optional_step('build_docs'))
+{
+	print time_str(),"running make doc ...\n" if $verbose;
+
+	make_doc();
 }
 
 print time_str(),"running make install ...\n" if $verbose;
@@ -637,7 +651,7 @@ if ($branch eq 'HEAD' || $branch gt 'REL8_2')
 	make_ecpg_check();
 }
 
-if ($find_typedefs)
+if (check_optional_step('find_typedefs') || $find_typedefs)
 {
 	print time_str(),"running find_typedefs ...\n" if $verbose;
 	
@@ -690,6 +704,34 @@ sub time_str
 {
 	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
 	return sprintf("[%.2d:%.2d:%.2d] ",$hour, $min, $sec);
+}
+
+sub check_optional_step
+{
+	my $step = shift;
+	my $oconf;
+	my $shandle;
+
+	return undef unless ref ($oconf = $optional_steps->{$step});
+	if ($oconf->{branches})
+	{
+		return undef unless grep {$_ eq $branch} @{$oconf->{branches}};
+	}
+
+	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =
+		  localtime(time);
+	return undef if (exists $oconf->{min_hour} &&  $hour < $oconf->{min_hour});
+	return undef if (exists $oconf->{max_hour} &&  $hour > $oconf->{max_hour});
+	return undef if (exists $oconf->{dow} &&
+					 grep {$_ eq $wday} @{$oconf->{dow}});
+
+	my $last_step = $last_status = find_last("$step") || 0;
+
+	return undef unless (time >
+						 $last_step + (3600 * $oconf->{min_hours_since}));
+	set_last("$step") unless $nostatus;
+
+	return 1;
 }
 
 sub clean_from_source
@@ -759,6 +801,25 @@ sub make
 	print "======== make log ===========\n",@makeout if ($verbose > 1);
 	send_result('Make',$status,\@makeout) if $status;
 	$steps_completed .= " Make";
+}
+
+sub make_doc
+{
+	return if $skip_steps{'make-doc'};
+	my (@makeout);
+	unless ($using_msvc)
+	{
+		@makeout = `cd $pgsql/doc && $make 2>&1`;
+	}
+	else
+	{
+		die "can't make docs under MSVC";
+	}
+	my $status = $? >>8;
+	writelog('make-doc',\@makeout);
+	print "======== make doc log ===========\n",@makeout if ($verbose > 1);
+	send_result('Doc',$status,\@makeout) if $status;
+	$steps_completed .= " Doc";
 }
 
 sub make_install
@@ -1105,6 +1166,58 @@ sub make_pl_install_check
 	# only report PLCheck as a step if it actually tried to do anything
 	$steps_completed .= " PLCheck-$locale" 
 		if (grep {/pg_regress|Checking pl/} @checklog) ;
+}
+
+sub make_isolation_check
+{
+	return if $skip_steps{'isolation-check'};
+	my @makeout;
+	unless ($using_msvc)
+	{
+		@makeout = 
+			`cd $pgsql/src/test/isolation && $make NO_LOCALE=1 check 2>&1`;
+	}
+	else
+	{
+		chdir "$pgsql/src/tools/msvc";
+		@makeout = `perl vcregress.pl check 2>&1`;
+		chdir $branch_root;
+	}
+ 
+	my $status = $? >>8;
+
+	# get the log files and the regression diffs
+	my @logs = glob("$pgsql/src/test/isolation/log/*.log");
+	unshift(@logs,"$pgsql/src/test/isolation/regression.diffs")
+	  if (-e "$pgsql/src/test/isolation/regression.diffs");
+	foreach my $logfile (@logs)
+	{
+		push(@makeout,"\n\n================== $logfile ===================\n");
+		my $handle;
+		open($handle,$logfile);
+		while(<$handle>)
+		{
+			push(@makeout,$_);
+		}
+		close($handle);
+	}
+	my $base = "$pgsql/src/test/isolation/tmp_check";
+	if ($status)
+	{
+		my @trace = 
+			get_stack_trace("$base/install$installdir/bin",	"$base/data");
+		push(@makeout,@trace);
+	}
+	else
+	{
+		rmtree($base);
+	}
+	writelog('isolation-check',\@makeout);
+	print "======== make isolation check logs ===========\n",@makeout 
+		if ($verbose > 1);
+
+	send_result('IsolationCheck',$status,\@makeout) if $status;
+	$steps_completed .= " IsolationCheck";
 }
 
 sub make_check
