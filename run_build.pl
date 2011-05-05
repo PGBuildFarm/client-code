@@ -531,7 +531,7 @@ elsif (!$from_source && $scm->copy_source_required())
 {
 	print time_str(),"copying source to $pgsql ...\n" if $verbose;
 
-	$scm->copy_source();
+	$scm->copy_source($using_msvc);
 
 }
 
@@ -1740,21 +1740,3 @@ sub spawn
     return $pid;
 }
 
-# common routine use for copying the source, called by the
-# SCM objects
-sub copy_source
-{
-	# annoyingly, there isn't a standard perl module to do a recursive copy
-	# and I don't want to require use of the non-standard File::Copy::Recursive
-	if ($using_msvc)
-	{
-		system("xcopy /I /Q /E pgsql $pgsql 2>&1");
-	}
-	else
-	{
-		system("cp -r pgsql $pgsql 2>&1");
-	}
-	my $status = $? >> 8;
-	die "copying directories: $status" if $status;
-
-}

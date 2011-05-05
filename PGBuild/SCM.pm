@@ -25,20 +25,46 @@ sub new
 {
 	my $class = shift;
     my $conf = shift;
+	my $target = shift || 'pgsql';
 	if (defined($conf->{scm}) &&  $conf->{scm} =~ /^git$/i)
 	{
 		$conf->{scm} = 'git';
-		return new PGBuild::SCM::Git $conf;
+		return new PGBuild::SCM::Git $conf, $target;
 	}
     elsif ((defined($conf->{scm}) &&  $conf->{scm} =~ /^cvs$/i ) || 
 		$conf->{csvrepo} || 
 		$conf->{cvsmethod})
     {
 		$conf->{scm} = 'cvs';;
-		return new PGBuild::SCM::CVS $conf;
+		return new PGBuild::SCM::CVS $conf, $target;
     }
     die "only CVS and Git currently supported";
 }
+
+# common routine use for copying the source, called by the
+# SCM objects (directly, not as class methods)
+sub copy_source
+{
+	my $using_msvc = shift;
+	my $target = shift;
+	my $build_path = shift;
+
+	# annoyingly, there isn't a standard perl module to do a recursive copy
+	# and I don't want to require use of the non-standard File::Copy::Recursive
+	if ($using_msvc)
+	{
+		system("xcopy /I /Q /E $target $build_path 2>&1");
+	}
+	else
+	{
+		system("cp -r $target $build_path 2>&1");
+	}
+	my $status = $? >> 8;
+	die "copying directories: $status" if $status;
+
+}
+
+
 
 # required operations in each subclass:
 # new()
@@ -67,6 +93,7 @@ sub new
 {                
     my $class = shift;
     my $conf = shift;
+	my $target = shift;
     my $self = {};
     $self->{cvsrepo} = 
 	$conf->{cvsrepo} || 
@@ -75,6 +102,7 @@ sub new
     $self->{cvsmethod} = $conf->{cvsmethod} || 'update';
 	$self->{use_git_cvsserver} = $conf->{use_git_cvsserver};
 	$self->{ignore_files} = {};
+	$self->{target} = $target;
 
 	die "can't use export cvs method with git-cvsserver"
 	  if $self->{use_git_cvsserver} && ($self->{cvsmethod} eq 'export');
@@ -90,7 +118,12 @@ sub copy_source_required
 
 sub copy_source
 {
-	main::copy_source();
+	my $self = shift;
+	my $using_msvc = shift;
+	my $target = $self->{target};
+	my $build_path = $self->{build_path};
+	die "no build path" unless $build_path;
+	PGBuild::SCM::copy_source($using_msvc,$target,$build_path);
 }
 
 sub check_access 
@@ -133,10 +166,12 @@ sub get_build_path
 {
 	my $self = shift;
     my $use_vpath = shift;
-    return 
+	my $target = $self->{target};
+	$self->{build_path} = 
 	  ($self->{cvsmethod} eq 'export' && not $use_vpath) ? 
-		"pgsql" : 
-		  "pgsql.$$";
+		"$target" : 
+		  "$target.$$";
+	return 	$self->{build_path};
 }
 
 sub log_id
@@ -152,6 +187,7 @@ sub checkout
 	$self->{branch} = $branch;
 	my $cvsmethod = $self->{cvsmethod};
 	my $cvsserver = $self->{cvsrepo};
+	my $target = $self->{target};
 
 	my @cvslog;
 
@@ -162,16 +198,16 @@ sub checkout
 		# a bit differently from the old CVS server
 		my $module = $branch eq 'HEAD' ? 'master' : $branch;
 
-		if (-d 'pgsql')
+		if (-d $target)
 		{
-			chdir 'pgsql';
+			chdir $target;
 			@cvslog = `cvs -d $cvsserver update -d 2>&1`;
 			chdir '..';
 			find_ignore($self);
 		}
 		else
 		{
-			@cvslog = `cvs -d $cvsserver co -d pgsql $module 2>&1`;
+			@cvslog = `cvs -d $cvsserver co -d $target $module 2>&1`;
 			find_ignore($self);
 		}
 	}
@@ -188,18 +224,18 @@ sub checkout
 		if ($cvsmethod eq 'export')
 		{
 			# but you have to have a tag for export
-			@cvslog = `cvs -d  $cvsserver export -r $branch pgsql 2>&1`;
+			@cvslog = `cvs -d  $cvsserver export -r $branch $target 2>&1`;
 		}
-		elsif (-d 'pgsql')
+		elsif (-d $target)
 		{
-			chdir 'pgsql';
+			chdir $target;
 			@cvslog = `cvs -d $cvsserver update -d $rtag 2>&1`;
 			chdir '..';
 			find_ignore($self);
 		}
 		else
 		{
-			@cvslog = `cvs -d $cvsserver co $rtag pgsql 2>&1`;
+			@cvslog = `cvs -d $cvsserver co $rtag $target 2>&1`;
 			find_ignore($self);
 		}
 	}
@@ -226,21 +262,21 @@ sub checkout
 		! ($main::nosend && $main::nostatus ) )
 	{
 		sleep 20;
-		my @statout = `cd pgsql && cvs -d $cvsserver status 2>&1`;
+		my @statout = `cd $target && cvs -d $cvsserver status 2>&1`;
 		$unknown_files = grep { /^\?/ } @statout;
 	}
 		
 	
-	main::send_result('CVS',$status,\@cvslog)	if ($status);
-	main::send_result('CVS-Merge',$merge_conflicts,\@cvslog) 
+	main::send_result('$target-CVS',$status,\@cvslog)	if ($status);
+	main::send_result('$target-CVS-Merge',$merge_conflicts,\@cvslog) 
 		if ($merge_conflicts);
 	unless ($main::nosend && $main::nostatus)
 	{
-		main::send_result('CVS-Dirty',$mod_files,\@cvslog) 
+		main::send_result('$target-CVS-Dirty',$mod_files,\@cvslog) 
 			if ($mod_files);
-		main::send_result('CVS-Extraneous-Files',$unknown_files,\@cvslog)
+		main::send_result('$target-CVS-Extraneous-Files',$unknown_files,\@cvslog)
 			if ($unknown_files);
-		main::send_result('CVS-Extraneous-Ignore',
+		main::send_result('$target-CVS-Extraneous-Ignore',
 						  scalar(@bad_ignore),\@bad_ignore)
 			if (@bad_ignore);
 	}
@@ -261,6 +297,7 @@ sub find_ignore
 {
 
 	my $self = shift;
+	my $target = $self->{target};
 	my $ignore_file =  $self->{ignore_files};
 	my $cvsmethod = $self->{cvsmethod};
 
@@ -284,7 +321,7 @@ sub find_ignore
 		}
 	};
 
-	File::Find::find({wanted => $wanted}, 'pgsql') ;
+	File::Find::find({wanted => $wanted}, $target) ;
 }
 
 sub find_changed {
@@ -295,6 +332,7 @@ sub find_changed {
 	my $changed_files = shift;
 	my $changed_since_success = shift;
 	my $cvsmethod = $self->{cvsmethod};
+	my $target = $self->{target};
 
 	my $wanted = sub
 	{
@@ -315,19 +353,19 @@ sub find_changed {
 				my $sname = $File::Find::name;
 				if ($last_run_snap && ($mtime > $last_run_snap))
 				{
-					$sname =~ s!^pgsql/!!;
+					$sname =~ s!^$target/!!;
 					push(@$changed_files,$sname);
 				}
 				elsif ($last_success_snap && ($mtime > $last_success_snap))
 				{
-					$sname =~ s!^pgsql/!!;
+					$sname =~ s!^$target/!!;
 					push(@$changed_since_success,$sname);
 				}
 			}
 		}
 	};
 
-	File::Find::find({wanted => $wanted}, 'pgsql') ;
+	File::Find::find({wanted => $wanted}, $target) ;
 }
 
 
@@ -338,18 +376,21 @@ sub get_versions
 
 	my $flist = shift;
 	return unless @$flist;
+
+	my $target = $self->{target};
 	my @cvs_status;
 	# some shells (e.g cygwin::bash ) choke on very long command lines
 	# so do this in batches.
 	while (@$flist)
 	{
 		my @chunk = splice(@$flist,0,200);
-		my @res = `cd pgsql && cvs status @chunk 2>&1` ;
+		my @res = `cd $target && cvs status @chunk 2>&1` ;
 		push(@cvs_status,@res);
 		my $status = $? >>8;
-		print "======== cvs status log ===========\n",@cvs_status
+		print "======== $target-cvs status log ===========\n",@cvs_status
 			if ($main::verbose > 1);
-		main::send_result('CVS-status',$status,\@cvs_status)	if ($status);
+		main::send_result('$target-CVS-status',$status,\@cvs_status)	
+			if ($status);
 	}
 	my @fchunks = split(/File:/,join("",@cvs_status));
 	my @repolines;
@@ -359,7 +400,7 @@ sub get_versions
 		# repository revision version in case the file has been
 		# updated between the time we did the checkout/update and now.
 
-		my $module = 'pgsql';
+		my $module = $target; # XXX is it??
 		$module = ( $self->{branch} eq 'HEAD' ? 'master' : $self->{branch} )
 		  if $self->{use_git_cvsserver};
 		next unless 
@@ -392,6 +433,7 @@ sub new
 {                
     my $class = shift;
     my $conf = shift;
+	my $target = shift;
     my $self = {};
     $self->{gitrepo} = 
 	  $conf->{scmrepo} || "git://git.postgresql.org/git/postgresql.git";
@@ -400,6 +442,7 @@ sub new
 	$self->{mirror} = "$conf->{build_root}/pgmirror.git" 
 	  if $conf->{git_keep_mirror};
 	$self->{ignore_mirror_failure} = $conf->{git_ignore_mirror_failure};
+	$self->{target} = $target;
     return bless $self, $class;
 }
 
@@ -412,20 +455,28 @@ sub copy_source_required
 
 sub copy_source
 {
+	my $self = shift;
+	my $using_msvc = shift;
+	my $target = $self->{target};
+	my $build_path = $self->{build_path};
+	die "no build path" unless $build_path;
+
 	# we don't want to copy the (very large) .git directory
 	# so we just move it out of the way during the copy
 	# there might be better ways of doing this, but this should do for now
 
-	move "pgsql/.git", "./git-save";
-	main::copy_source();
-	move "./git-save","pgsql/.git";
+	move "$target/.git", "./git-save";
+	PGBuild::SCM::copy_source($using_msvc,$target,$build_path);
+	move "./git-save","$target/.git";
 }
 
 sub get_build_path
 {
 	my $self = shift;
-    my $use_vpath = shift;
-    return "pgsql.$$";
+    my $use_vpath = shift; # irrelevant for git
+	my $target = $self->{target};
+    $self->{build_path} = "$target.$$";
+	return 	$self->{build_path};
 }
 
 
@@ -448,14 +499,18 @@ sub checkout
 	my $self = shift;
 	my $branch = shift;
 	my $gitserver = $self->{gitrepo};
+	my $target = $self->{target};
 	my $status;
 
 	my @gitlog;
 	if ($self->{mirror})
 	{
+
+		my $mirror = $target eq 'pgsql' ? 'pgmirror.git' : "$target-mirror.git";
+		
 		if (-d $self->{mirror})
 		{
-			chdir "../pgmirror.git";
+			chdir "../$mirror";
 			@gitlog = `git fetch 2>&1`;
 			chdir "../$branch";
 			$status = $self->{ignore_mirror_failure} ? 0 : $? >> 8;
@@ -467,7 +522,8 @@ sub checkout
 			# workaround is to do this manually in the buildroot:
 			#   git clone --bare $gitserver pgmirror.git
 			#   (cd pgmirror.git && git remote add --mirror origin $gitserver)
-			@gitlog = `git clone --mirror $gitserver pgmirror.git 2>&1`;
+			# or equivalent for other targets
+			@gitlog = `git clone --mirror $gitserver $mirror 2>&1`;
 			chdir $branch;
 			$status = $? >>8;
 		}
@@ -479,16 +535,16 @@ sub checkout
 		}
 	}
 
-	if (-d 'pgsql')
+	if (-d $target)
 	{
-		chdir 'pgsql';
+		chdir $target;
 		my @branches = `git branch 2>&1`;
 		unless (grep {/^\* bf_$branch$/} @branches)
 		{
 			print "Missing checked out branch bf_$branch:\n",@branches 
 			  if ($main::verbose);
 			unshift @branches,"Missing checked out branch bf_$branch:\n";
-			main::send_result('Git',$status,\@branches)
+			main::send_result('$target-Git',$status,\@branches)
 		}
 		my @pulllog = `git pull 2>&1`;
 		push(@gitlog,@pulllog);
@@ -501,12 +557,12 @@ sub checkout
 
 		my $base = $self->{mirror} || $gitserver;
 
-		my @clonelog = `git clone -q $reference $base pgsql 2>&1`;
+		my @clonelog = `git clone -q $reference $base $target 2>&1`;
 		push(@gitlog,@clonelog);
 		$status = $? >>8;
 		if (!$status)
 		{
-			chdir "pgsql";
+			chdir $target;
 			# make sure we don't name the new branch HEAD
 			# also, safer to checkout origin/master than origin/HEAD, I think
 			my $rbranch = $branch eq 'HEAD' ? 'master' : $branch;
@@ -529,7 +585,7 @@ sub checkout
 	# might be important to them, so instead of blowing it away just bitch
 	# loudly.
 
-	chdir "pgsql";
+	chdir "$target";
 	my @gitstat = `git status 2>&1`;
 	chdir "..";
 
@@ -539,7 +595,7 @@ sub checkout
 	  @gitstat;
 
 	my ($headref,$refhandle);
-	if (open($refhandle,"pgsql/.git/refs/heads/bf_$branch"))
+	if (open($refhandle,"$target/.git/refs/heads/bf_$branch"))
 	{
 		$headref = <$refhandle>;
 		chomp $headref;
@@ -548,11 +604,11 @@ sub checkout
 	}
 
 
-	main::send_result('Git',$status,\@gitlog)	if ($status);
+	main::send_result('$targtet-Git',$status,\@gitlog)	if ($status);
 	unless ($main::nosend && $main::nostatus)
 	{
 		push(@gitlog,"===========",@gitstat);
-		main::send_result('Git-Dirty',99,\@gitlog) 
+		main::send_result('$target-Git-Dirty',99,\@gitlog) 
 			if (@gitstat);
 	}
 
@@ -565,7 +621,8 @@ sub checkout
 sub cleanup
 {
 	my $self = shift;
-	chdir "pgsql";
+	my $target = $self->{target};
+	chdir $target;
 	system("git clean -dfxq");
 	chdir "..";
 }
@@ -599,13 +656,14 @@ sub parse_log
 sub find_changed
 {
 	my $self = shift;
+	my $target = $self->{target};
 	my $current_snap = shift;
 	my $last_run_snap = shift;
 	my $last_success_snap = shift || 0;
 	my $changed_files = shift;
 	my $changed_since_success = shift;
 
-	my $cmd = 'git --git-dir=pgsql/.git log -n 1 "--pretty=format:%ct"';
+	my $cmd = qq{git --git-dir=$target/.git log -n 1 "--pretty=format:%ct"};
 	$$current_snap = `$cmd` +0;
 
 	# get the list of changed files and stash the commit data
@@ -616,7 +674,7 @@ sub find_changed
 		{
 			$last_success_snap++;
 			my $lrsscmd = 
-			  "git  --git-dir=pgsql/.git log --name-only " . 
+			  "git  --git-dir=$target/.git log --name-only " . 
 				"--since=$last_success_snap --until=$last_run_snap";
 			$self->{changed_since_success} = parse_log($lrsscmd);
 		}
@@ -626,7 +684,7 @@ sub find_changed
 		}
 		$last_run_snap++;
 		my $lrscmd = 
-		  "git  --git-dir=pgsql/.git log --name-only " . 
+		  "git  --git-dir=$target/.git log --name-only " . 
 			"--since=$last_run_snap";
 		$self->{changed_since_last_run} = parse_log($lrscmd);
 		foreach my $file (keys %{$self->{changed_since_last_run}})
