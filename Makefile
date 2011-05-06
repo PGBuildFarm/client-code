@@ -13,7 +13,7 @@ CREL := $(if $(REL),$(strip $(subst .,_, $(REL))),YOU_NEED_A_RELEASE)
 .PHONY: tag
 tag:
 	sed -i -e "s/VERSION = '[^']*';/VERSION = 'REL_$(REL)';/" $(FILES)
-	git tag -m 'Release $(REL)'
+	git tag -m 'Release $(REL)' $(CREL)
 
 .PHONY: release
 release:
