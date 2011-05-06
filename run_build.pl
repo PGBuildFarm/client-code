@@ -53,9 +53,7 @@ See accompanying License file for license details
 =cut
 ###################################################
 
-use vars qw($VERSION); $VERSION = 'REL_4.4';
-
-#	$Id: run_build.pl,v 1.119 2010/11/12 14:12:22 andrewd Exp $
+use vars qw($VERSION); $VERSION = 'REL_4.5';
 
 use strict;
 use warnings;

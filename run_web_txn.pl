@@ -35,9 +35,7 @@ See accompanying License file for license details
 
 use strict;
 
-use vars qw($VERSION); $VERSION = 'REL_4.4';
-
-#  q$Id: run_web_txn.pl,v 1.10 2010/11/09 20:56:11 andrewd Exp $
+use vars qw($VERSION); $VERSION = 'REL_4.5';
 
 use LWP;
 use HTTP::Request::Common;
