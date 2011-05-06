@@ -1323,9 +1323,7 @@ sub make_ecpg_check
 sub find_typedefs
 {
 	my @err = `objdump -W 2>&1`;
-	@err = () if `uname -s 2>&1` =~ /CYGWIN/i;
 	my @readelferr = `readelf -w 2>&1`;
-	@readelferr = () if `uname -s 2>&1` =~ /CYGWIN/i;
 	my %syms;
 	my @dumpout;
 	my @flds;
@@ -1382,17 +1380,18 @@ sub find_typedefs
 	my $setfound = sub
 	{
 		return unless (-f $_ && /^.*\.[chly]\z/);
+		local ($/) = undef;
 		my @lines;
 		my $handle;
 		open ($handle,$_);
-		while (my $line=<$handle>)
+		my $src = <$handle>;
+		close ($handle);
+		# strip C comments - see perlfaq6
+		$src =~ s#/\*[^*]*\*+([^/*][^*]*\*+)*/|("(\\.|[^"\\])*"|'(\\.|[^'\\])*'|.[^/"'\\]*)#defined $2 ? $2 : ""#gse;
+		foreach my $word (split(/\W+/,$src))
 		{
-			foreach my $word (split(/\W+/,$line))
-			{
-				$foundwords{$word} = 1;
-			}
+			$foundwords{$word} = 1;
 		}
-		close($handle);
 	};
 
 	File::Find::find($setfound,"$branch_root/pgsql");
