@@ -598,6 +598,19 @@ foreach my $locale (@locales)
 
 	make_install_check($locale);
 
+	if (-d "$pgsql/src/test/isolation" && $locale eq 'C' && !$using_msvc)
+	{
+		# restart the db to clear the log file
+		print time_str(),"restarting db ($locale)...\n" if $verbose;
+		
+		stop_db($locale);
+		start_db($locale);
+
+		print time_str(),"running make isolation check ...\n" if $verbose;
+		
+		make_isolation_check();
+	}
+
 	# releases 8.0 and earlier don't support the standard method for testing 
 	# PLs so only check them for later versions
 
@@ -1161,18 +1174,21 @@ sub make_pl_install_check
 
 sub make_isolation_check
 {
+	my $locale = shift;
 	return if $skip_steps{'isolation-check'};
 	my @makeout;
 	unless ($using_msvc)
 	{
-		@makeout = 
-			`cd $pgsql/src/test/isolation && $make NO_LOCALE=1 check 2>&1`;
+		my $cmd = 
+		  "cd $pgsql/src/test/isolation && $make NO_LOCALE=1 installcheck";
+		@makeout = `$cmd 2>&1`;
 	}
 	else
 	{
-		chdir "$pgsql/src/tools/msvc";
-		@makeout = `perl vcregress.pl check 2>&1`;
-		chdir $branch_root;
+		die "isolation check not yet working for MSVC";
+		# chdir "$pgsql/src/tools/msvc";
+		# @makeout = `perl vcregress.pl check 2>&1`;
+		# chdir $branch_root;
 	}
  
 	my $status = $? >>8;
@@ -1192,16 +1208,11 @@ sub make_isolation_check
 		}
 		close($handle);
 	}
-	my $base = "$pgsql/src/test/isolation/tmp_check";
 	if ($status)
 	{
-		my @trace = 
-			get_stack_trace("$base/install$installdir/bin",	"$base/data");
+		my @trace = get_stack_trace("$installdir/bin",
+									"$installdir/data-$locale");
 		push(@makeout,@trace);
-	}
-	else
-	{
-		rmtree($base);
 	}
 	writelog('isolation-check',\@makeout);
 	print "======== make isolation check logs ===========\n",@makeout 
