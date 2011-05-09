@@ -556,13 +556,6 @@ print time_str(),"running make check ...\n" if $verbose;
 
 make_check();
 
-if (-d "$pgsql/src/test/isolation")
-{
-	print time_str(),"running make isolation check ...\n" if $verbose;
-	
-	make_isolation_check();
-}
-
 unless ($using_msvc)
 {
 	print time_str(),"running make contrib ...\n" if $verbose;
