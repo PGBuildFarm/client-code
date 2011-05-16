@@ -598,7 +598,7 @@ foreach my $locale (@locales)
 
 	make_install_check($locale);
 
-	if (-d "$pgsql/src/test/isolation" && $locale eq 'C' && !$using_msvc)
+	if (-d "$pgsql/src/test/isolation" && $locale eq 'C')
 	{
 		# restart the db to clear the log file
 		print time_str(),"restarting db ($locale)...\n" if $verbose;
@@ -1185,10 +1185,9 @@ sub make_isolation_check
 	}
 	else
 	{
-		die "isolation check not yet working for MSVC";
-		# chdir "$pgsql/src/tools/msvc";
-		# @makeout = `perl vcregress.pl check 2>&1`;
-		# chdir $branch_root;
+		chdir "$pgsql/src/tools/msvc";
+		@makeout = `perl vcregress.pl isolationcheck 2>&1`;
+		chdir $branch_root;
 	}
  
 	my $status = $? >>8;
