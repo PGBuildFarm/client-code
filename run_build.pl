@@ -856,10 +856,6 @@ sub make_install
 	}
 
 	# make sure the installed libraries come first in dynamic load paths
-	# this won;t have any effect under Windows, but the DLL copy above 
-	# achieves the same thing there anyway.
-	# DYLD_LIBRARY_PATH is for darwin.
-	# this is exactly what pg_regress does for its temp installs.
 
 	if (my $ldpath = $ENV{LD_LIBRARY_PATH})
 	{
@@ -876,6 +872,14 @@ sub make_install
 	else
 	{
 		$ENV{DYLD_LIBRARY_PATH}="$installdir/lib";
+	}
+	if ($using_msvc)
+	{
+		$ENV{PATH} = "$installdir/bin;$ENV{PATH}";
+	}
+	else
+	{
+		$ENV{PATH} = "$installdir/bin:$ENV{PATH}";
 	}
 
 	$steps_completed .= " Install";
