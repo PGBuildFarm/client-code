@@ -245,9 +245,6 @@ while (my ($envkey,$envval) = each %{$PGBuild::conf{build_env}})
 	$ENV{$envkey}=$envval;
 }
 
-# set path to include install dir for use by modules
-$ENV{PATH} .= $using_msvc ? ";$buildroot/inst/bin" : ":$buildroot/inst/bin";
-
 # change to buildroot for this branch or die
 
 die "no buildroot" unless $buildroot;
