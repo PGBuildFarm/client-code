@@ -71,6 +71,10 @@ use File::Find ();
 use PGBuild::SCM;
 use PGBuild::Options;
 
+my %module_hooks;
+my $orig_dir = getcwd();
+push @INC, $orig_dir;
+
 # make sure we exit nicely on any normal interrupt
 # so the cleanup handler gets called.
 # that lets us stop the db if it's running and 
@@ -241,6 +245,9 @@ while (my ($envkey,$envval) = each %{$PGBuild::conf{build_env}})
 	$ENV{$envkey}=$envval;
 }
 
+# set path to include install dir for use by modules
+$ENV{PATH} .= $using_msvc ? ";$buildroot/inst/bin" : ":$buildroot/inst/bin";
+
 # change to buildroot for this branch or die
 
 die "no buildroot" unless $buildroot;
@@ -250,8 +257,6 @@ unless ($buildroot =~ m!^/! or
 {
 	die "buildroot $buildroot not absolute" ;
 }
-
-
 
 die "$buildroot does not exist or is not a directory" unless -d $buildroot;
 
@@ -274,6 +279,23 @@ unless ($using_msvc)
 {
 	die "$make is not GNU Make - please fix config file" 
 		unless check_make();
+}
+
+# set up modules
+foreach my $module (@{$PGBuild::conf{modules}})
+{
+	# fill in the name of the module here, so use double quotes
+	# so everything BUT the module name needs to be escaped
+	my $str = qq!
+         require PGBuild::Modules::$module; 
+         PGBuild::Modules::${module}::setup(
+              \$buildroot,
+              \$branch,
+              \\\%PGBuild::conf);
+    !;
+	eval $str;
+	# make errors fatal
+	die $@ if $@;
 }
 
 # acquire the lock
@@ -442,7 +464,6 @@ elsif (! $from_source)
 
     print time_str(),"checking out source ...\n" if $verbose;
 
-
     my $timeout_pid;
 
     $timeout_pid = spawn(\&scm_timeout,$scm_timeout_secs) 
@@ -450,6 +471,8 @@ elsif (! $from_source)
     
     $savescmlog = $scm->checkout($branch);
 	$steps_completed = "SCM-checkout";
+
+	process_module_hooks('checkout',$savescmlog);
 
     if ($timeout_pid)
     {
@@ -495,8 +518,12 @@ elsif (! $from_source)
 		@filtered_files = @changed_files;
     }
 
+	my $modules_need_run;
+
+	process_module_hooks('need-run',\$modules_need_run);
+
     # if no build required do nothing
-    if ($last_status && ! @filtered_files)
+    if ($last_status && ! @filtered_files && !$modules_need_run)
     {
 		print time_str(),
 		  "No build required: last status = ",scalar(gmtime($last_status)),
@@ -507,6 +534,7 @@ elsif (! $from_source)
     }
 	
     # get version info on both changed files sets
+	# XXX modules support?
 
 	$scm->get_versions(\@changed_files);
 	$scm->get_versions(\@changed_since_success);
@@ -516,7 +544,7 @@ elsif (! $from_source)
 cleanlogs();
 
 writelog('SCM-checkout',$savescmlog) unless $from_source;
-$scm->log_id() unless $from_source;
+$scm->log_id() unless $from_source; 
 
 # copy/create according to vpath/scm settings
 
@@ -530,8 +558,9 @@ elsif (!$from_source && $scm->copy_source_required())
 	print time_str(),"copying source to $pgsql ...\n" if $verbose;
 
 	$scm->copy_source($using_msvc);
-
 }
+
+process_module_hooks('setup-target');
 
 # start working
 
@@ -547,6 +576,9 @@ my $started_times = 0;
 print time_str(),"running configure ...\n" if $verbose;
 
 configure();
+
+# module configure has to wait until we have built and installed the base
+# so see below
 
 print time_str(),"running make ...\n" if $verbose;
 
@@ -583,6 +615,12 @@ unless ($using_msvc)
 	make_contrib_install();
 }
 
+process_module_hooks('configure');
+
+process_module_hooks('build');
+
+process_module_hooks('install');
+
 foreach my $locale (@locales)
 {
 
@@ -597,6 +635,8 @@ foreach my $locale (@locales)
 	print time_str(),"running make installcheck ($locale)...\n" if $verbose;
 
 	make_install_check($locale);
+
+	process_module_hooks('installcheck');
 
 	if (-d "$pgsql/src/test/isolation" && $locale eq 'C')
 	{
@@ -708,6 +748,28 @@ sub time_str
 {
 	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
 	return sprintf("[%.2d:%.2d:%.2d] ",$hour, $min, $sec);
+}
+
+sub register_module_hooks
+{
+	my $who = shift;
+	my $what = shift;
+	while (my ($hook,$func) = each %$what)
+	{
+		$module_hooks{$hook} ||= [];
+		push(@{$module_hooks{$hook}},[$func,$who]);
+	}
+}
+
+sub process_module_hooks
+{
+	my $hook = shift;
+	# pass remaining args (if any) to module func
+	foreach my $module (@{$module_hooks{$hook}})
+	{
+		my ($func,$module_instance) = @$module;
+		&$func($module_instance, @_);
+	}						
 }
 
 sub check_optional_step
@@ -1530,6 +1592,9 @@ sub send_result
 	$extraconf = undef;
 
 	my $stage = shift;
+
+	process_module_hooks('cleanup',$stage);
+
 	my $ts = $now || time;
 	my $status=shift || 0;
 	my $log = shift || [];
