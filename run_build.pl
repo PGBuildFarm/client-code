@@ -608,7 +608,7 @@ foreach my $locale (@locales)
 
 		print time_str(),"running make isolation check ...\n" if $verbose;
 		
-		make_isolation_check();
+		make_isolation_check($locale);
 	}
 
 	# releases 8.0 and earlier don't support the standard method for testing 
