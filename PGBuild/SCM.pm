@@ -267,16 +267,16 @@ sub checkout
 	}
 		
 	
-	main::send_result('$target-CVS',$status,\@cvslog)	if ($status);
-	main::send_result('$target-CVS-Merge',$merge_conflicts,\@cvslog) 
+	main::send_result("$target-CVS",$status,\@cvslog)	if ($status);
+	main::send_result("$target-CVS-Merge",$merge_conflicts,\@cvslog) 
 		if ($merge_conflicts);
 	unless ($main::nosend && $main::nostatus)
 	{
-		main::send_result('$target-CVS-Dirty',$mod_files,\@cvslog) 
+		main::send_result("$target-CVS-Dirty",$mod_files,\@cvslog) 
 			if ($mod_files);
-		main::send_result('$target-CVS-Extraneous-Files',$unknown_files,\@cvslog)
+		main::send_result("$target-CVS-Extraneous-Files",$unknown_files,\@cvslog)
 			if ($unknown_files);
-		main::send_result('$target-CVS-Extraneous-Ignore',
+		main::send_result("$target-CVS-Extraneous-Ignore",
 						  scalar(@bad_ignore),\@bad_ignore)
 			if (@bad_ignore);
 	}
@@ -389,7 +389,7 @@ sub get_versions
 		my $status = $? >>8;
 		print "======== $target-cvs status log ===========\n",@cvs_status
 			if ($main::verbose > 1);
-		main::send_result('$target-CVS-status',$status,\@cvs_status)	
+		main::send_result("$target-CVS-status",$status,\@cvs_status)	
 			if ($status);
 	}
 	my @fchunks = split(/File:/,join("",@cvs_status));
@@ -544,7 +544,7 @@ sub checkout
 			print "Missing checked out branch bf_$branch:\n",@branches 
 			  if ($main::verbose);
 			unshift @branches,"Missing checked out branch bf_$branch:\n";
-			main::send_result('$target-Git',$status,\@branches)
+			main::send_result("$target-Git",$status,\@branches)
 		}
 		my @pulllog = `git pull 2>&1`;
 		push(@gitlog,@pulllog);
@@ -604,11 +604,11 @@ sub checkout
 	}
 
 
-	main::send_result('$targtet-Git',$status,\@gitlog)	if ($status);
+	main::send_result("$target-Git",$status,\@gitlog)	if ($status);
 	unless ($main::nosend && $main::nostatus)
 	{
 		push(@gitlog,"===========",@gitstat);
-		main::send_result('$target-Git-Dirty',99,\@gitlog) 
+		main::send_result("$target-Git-Dirty",99,\@gitlog) 
 			if (@gitstat);
 	}
 
