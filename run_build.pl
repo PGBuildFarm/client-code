@@ -876,7 +876,9 @@ sub make_doc
 	}
 	else
 	{
-		die "can't make docs under MSVC";
+		chdir "$pgsql/src/tools/msvc";
+		@makeout = `perl builddoc.pl 2>&1`;
+		chdir $branch_root;
 	}
 	my $status = $? >>8;
 	writelog('make-doc',\@makeout);
