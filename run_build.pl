@@ -1259,6 +1259,7 @@ sub make_isolation_check
 
 	# get the log files and the regression diffs
 	my @logs = glob("$pgsql/src/test/isolation/log/*.log");
+	push (@logs,"$installdir/logfile");
 	unshift(@logs,"$pgsql/src/test/isolation/regression.diffs")
 	  if (-e "$pgsql/src/test/isolation/regression.diffs");
 	foreach my $logfile (@logs)
