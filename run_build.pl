@@ -1389,7 +1389,11 @@ sub make_ecpg_check
 
 sub find_typedefs
 {
-	my @err = `objdump -W 2>&1`;
+	my ($host) = grep {/--host=/} @$config_opts;
+	$host ||= "";
+	$host =~ s/--host=(.)/$1-objdump/;
+	my $objdump = $host || 'objdump';
+	my @err = `$objdump -W 2>&1`;
 	my @readelferr = `readelf -w 2>&1`;
 	my %syms;
 	my @dumpout;
@@ -1402,7 +1406,7 @@ sub find_typedefs
 		next unless -f $bin;
 		if (@err == 1) # Linux
 		{
-			@dumpout = `objdump -W $bin 2>/dev/null | egrep -A3 DW_TAG_typedef 2>/dev/null`;
+			@dumpout = `$objdump -W $bin 2>/dev/null | egrep -A3 DW_TAG_typedef 2>/dev/null`;
 			foreach (@dumpout)
 			{
 				@flds = split;
@@ -1425,7 +1429,7 @@ sub find_typedefs
 		}
 		else
 		{
-			@dumpout = `objdump --stabs $bin 2>/dev/null`;
+			@dumpout = `$objdump --stabs $bin 2>/dev/null`;
 			foreach (@dumpout)
 			{
 				@flds = split;
