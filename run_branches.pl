@@ -80,6 +80,8 @@ elsif ($PGBuild::conf{branches_to_build} eq 'ALL' )
 	$ENV{PATH} = $save_path;
 	push(@branches,$_) 
 	  foreach (split(/\s+/,$branches_of_interest));
+	@branches = grep {$_ ne 'REL8_2_STABLE'} @branches 
+	  if  $PGBuild::conf{using_msvc};
 }
 
 @branches = apply_throttle(@branches);
