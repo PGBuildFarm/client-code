@@ -53,13 +53,36 @@ $branch = 'global';
 #
 require $buildconf ;
 
-unless (ref $PGBuild::conf{branches_to_build} eq 'ARRAY' && 
-		@{$PGBuild::conf{branches_to_build}})
+unless ((ref $PGBuild::conf{branches_to_build} eq 'ARRAY' && 
+		@{$PGBuild::conf{branches_to_build}}) || 
+		$PGBuild::conf{branches_to_build} eq 'ALL')
 {
 	die "no branches_to_build specified in $buildconf";
 }
 
-my @branches = @{$PGBuild::conf{branches_to_build}};
+my @branches;
+if (ref $PGBuild::conf{branches_to_build})
+{
+	@branches = @{$PGBuild::conf{branches_to_build}};
+}
+elsif ($PGBuild::conf{branches_to_build} eq 'ALL' )
+{
+	# Need to set the path here so we make sure we pick up the right perl.
+	# It has to be the perl that the build script would choose
+	# i.e. specially *not* the MinGW SDK perl that is invoked for the
+	# build script, which means we need to put the path back the way it was
+	# when we're done
+	my $save_path = $ENV{PATH};
+	$ENV{PATH} = $PGBuild::conf{build_env}->{PATH}
+	  if ($PGBuild::conf{build_env}->{PATH});
+	my $url = "http://buildfarm.postgresql.org/branches_of_interest.txt";
+	my $branches_of_interest = `perl -MLWP::Simple -e "getprint(q{$url})"`; 
+	$ENV{PATH} = $save_path;
+	push(@branches,$_) 
+	  foreach (split(/\s+/,$branches_of_interest));
+}
+
+@branches = apply_throttle(@branches);
 
 my $global_lock_dir = 
   $PGBuild::conf{global_lock_dir} ||
@@ -142,4 +165,68 @@ sub find_last_status
 	chomp $ts;
 	close($handle);
 	return $ts + 0;
+}
+
+sub apply_throttle
+{
+	my @branches = @_;
+	return @branches unless exists $PGBuild::conf{throttle};
+	my @result;
+	my %throttle = %{$PGBuild::conf{throttle}};
+
+	# implement throttle keywords ALL !HEAD and !RECENT
+	my @candidates;
+	my $replacement;
+	if (exists $throttle{ALL})
+	{
+		@candidates = @branches;
+		$replacement = $throttle{ALL};
+	}
+	elsif (exists  $throttle{'!HEAD'})
+	{
+		@candidates = grep { $_ ne 'HEAD' } @branches;
+		$replacement = $throttle{'!HEAD'};
+	}
+	elsif (exists  $throttle{'!RECENT'})
+	{
+		# sort branches, make sure we get numeric major version sorting right 
+		my @stable = grep { $_ ne 'HEAD' } @branches;
+		s/^REL(\d)_/0$1/ foreach (@stable);
+		@stable = sort @stable;
+		s/^REL0/REL/ foreach (@stable);
+		pop @stable; # remove latest
+		@candidates = @stable;
+		$replacement = $throttle{'!RECENT'};
+	}
+	foreach my $cand (@candidates)
+	{
+		# only supply this for the branch if there isn't already
+		# a throttle
+		$throttle{$cand} ||= $replacement;
+	}
+	
+
+	# apply throttle filters
+	foreach my $branch(@branches)
+	{
+		my $this_throttle =  $throttle{$branch};
+		unless (defined $this_throttle)
+		{
+			push(@result,$branch);
+			next;
+		}
+		my $minh = $this_throttle->{min_hours_since};
+		my $ts = find_last_status($branch);
+		next if ($ts && (defined $minh) && 
+				($minh && $minh < ((time - $ts) / 3600.0)));
+		if (exists $this_throttle->{allowed_hours})
+		{
+			my @allowed_hours = split(/,/,$this_throttle->{allowed_hours});
+			my $hour = (localtime(time))[2];
+			next unless grep {$_ == $hour} @allowed_hours;
+		}
+		push(@result,$branch);
+	}
+
+	return @result;
 }
