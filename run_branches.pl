@@ -75,8 +75,10 @@ elsif ($PGBuild::conf{branches_to_build} eq 'ALL' )
 	my $save_path = $ENV{PATH};
 	$ENV{PATH} = $PGBuild::conf{build_env}->{PATH}
 	  if ($PGBuild::conf{build_env}->{PATH});
-	my $url = "http://buildfarm.postgresql.org/branches_of_interest.txt";
+	(my $url = $PGBuild::conf{target}) =~ 
+	  s/cgi-bin.*/branches_of_interest.txt/;
 	my $branches_of_interest = `perl -MLWP::Simple -e "getprint(q{$url})"`; 
+	die "getting branches of interest" unless $branches_of_interest;
 	$ENV{PATH} = $save_path;
 	push(@branches,$_) 
 	  foreach (split(/\s+/,$branches_of_interest));
