@@ -6,14 +6,16 @@
 FILES = run_build.pl run_web_txn.pl run_branches.pl \
 	update_personality.pl setnotes.pl \
 	build-farm.conf  \
-	PGBuild/SCM.pm PGBuild/Options.pm
+	PGBuild/SCM.pm PGBuild/Options.pm \
+	PGBuild/Modules/Skeleton.pm
 
 CREL := $(if $(REL),$(strip $(subst .,_, $(REL))),YOU_NEED_A_RELEASE)
 
 .PHONY: tag
 tag:
 	sed -i -e "s/VERSION = '[^']*';/VERSION = 'REL_$(REL)';/" $(FILES)
-	git tag -m 'Release $(REL)' $(CREL)
+	git commit -a -m 'Mark Release '$(REL)
+	git tag -m 'Release $(REL)' REL_$(CREL)
 
 .PHONY: release
 release:

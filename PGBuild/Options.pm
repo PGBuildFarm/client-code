@@ -33,7 +33,7 @@ BEGIN
 use Exporter   ();
 our (@ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 
-use vars qw($VERSION); $VERSION = 'REL_4.5';
+use vars qw($VERSION); $VERSION = 'REL_4.6';
 
 @ISA         = qw(Exporter);
 @EXPORT      = @option_list;
