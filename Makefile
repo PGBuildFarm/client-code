@@ -3,11 +3,13 @@
 
 # See accompanying License file for license details
 
-FILES = run_build.pl run_web_txn.pl run_branches.pl \
+PERLFILES = run_build.pl run_web_txn.pl run_branches.pl \
 	update_personality.pl setnotes.pl \
 	build-farm.conf  \
 	PGBuild/SCM.pm PGBuild/Options.pm \
 	PGBuild/Modules/Skeleton.pm
+
+FILES = License README $(PERLFILES)
 
 CREL := $(if $(REL),$(strip $(subst .,_, $(REL))),YOU_NEED_A_RELEASE)
 
@@ -24,3 +26,6 @@ release:
 	tar -cf - $(FILES) | tar -C build-farm-$(REL) -xf -
 	tar -z -cf build-farm-$(CREL).tgz build-farm-$(REL)
 	rm -rf build-farm-$(REL)
+
+tidy:
+	perltidy -b -bl -nsfs -naws -l=80 -ole=unix $(PERLFILES) 
