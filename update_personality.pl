@@ -8,9 +8,7 @@ See accompanying License file for license details
 
 =cut 
 
-
 use vars qw($VERSION); $VERSION = 'REL_4.6';
-
 
 use strict;
 use warnings;
@@ -27,50 +25,46 @@ use Getopt::Long;
 
 my @invocation_args = (@ARGV);
 
-
 my $buildconf = "build-farm.conf"; # default value
 my ($os_version, $compiler_version,$help);
 
-GetOptions('config=s' => \$buildconf,
-		   'help' => \$help,
-		   'os-version=s' => \$os_version,
-		   'compiler-version=s' => \$compiler_version,
-		   )
-	|| usage("bad command line");
+GetOptions(
+    'config=s' => \$buildconf,
+    'help' => \$help,
+    'os-version=s' => \$os_version,
+    'compiler-version=s' => \$compiler_version,
+)|| usage("bad command line");
 
-usage("No extra args allowed") 
-	if @_;
+usage("No extra args allowed")
+  if @_;
 
-usage() 
-	if $help;
+usage()
+  if $help;
 
-usage("must specify at least one item to change") 
-	unless ($os_version or $compiler_version);
-
+usage("must specify at least one item to change")
+  unless ($os_version or $compiler_version);
 
 #
 # process config file
 #
-require $buildconf ;
+require $buildconf;
 
-my ($target,$animal,$secret,$upgrade_target) = 
-	@PGBuild::conf{	qw(target animal secret upgrade_target)	};
+my ($target,$animal,$secret,$upgrade_target) =
+  @PGBuild::conf{qw(target animal secret upgrade_target)};
 
 # default for old config files
 unless ($upgrade_target)
 {
-	$upgrade_target = $target;
-	$upgrade_target =~ s/pgstatus.pl/upgrade.pl/;
+    $upgrade_target = $target;
+    $upgrade_target =~ s/pgstatus.pl/upgrade.pl/;
 }
-
 
 # make the base64 data escape-proof; = is probably ok but no harm done
 # this ensures that what is seen at the other end is EXACTLY what we
 # see when we calculate the signature
 
-map 
-{ $_ ||= ""; $_ = encode_base64($_,""); tr/+=/$@/; } 
-($os_version,$compiler_version);
+map{ $_ ||= ""; $_ = encode_base64($_,""); tr/+=/$@/; }
+  ($os_version,$compiler_version);
 
 my $ts = time;
 
@@ -90,39 +84,35 @@ my $ua = new LWP::UserAgent;
 $ua->agent("Postgres Build Farm Reporter");
 if (my $proxy = $ENV{BF_PROXY})
 {
-	$ua->proxy('http',$proxy);
+    $ua->proxy('http',$proxy);
 }
-
 
 my $request=HTTP::Request->new(POST => "$upgrade_target/$sig");
 $request->content_type("application/x-www-form-urlencoded");
 $request->content($content);
 
-
 my $response=$ua->request($request);
 
 unless ($response->is_success)
 {
-	print 
-		"Query for: animal=$animal&ts=$ts\n",
-		"Target: $upgrade_target/$sig\n",
-    	"Query Content: $content\n";
-	print "Status Line: ",$response->status_line,"\n";
-	print "Content: \n", $response->content,"\n" ;
-	exit 1;
+    print
+      "Query for: animal=$animal&ts=$ts\n",
+      "Target: $upgrade_target/$sig\n",
+      "Query Content: $content\n";
+    print "Status Line: ",$response->status_line,"\n";
+    print "Content: \n", $response->content,"\n";
+    exit 1;
 }
 
 exit(0);
-
-
 
 #######################################################################
 
 sub usage
 {
-	my $opt_message = shift ;
-	print "$opt_message\n" if $opt_message;
-	print  <<EOH;
+    my $opt_message = shift;
+    print "$opt_message\n" if $opt_message;
+    print  <<EOH;
 update_personality.pl [ option ... ]
 where option is one or more of
   --config=path                 /path/to/buildfarm.conf
@@ -130,8 +120,7 @@ where option is one or more of
   --compiler-version=version    new compiler version
   --help                        get this message
 EOH
-;
 
-	exit defined($opt_message)+0;
+    exit defined($opt_message)+0;
 }
 
