@@ -1072,7 +1072,9 @@ sub stop_db
     my $locale = shift;
     my $logpos = -s "$installdir/logfile" || 0;
     chdir($installdir);
-    my $cmd = qq{"bin/pg_ctl" -D data-$locale stop >stoplog 2>&1};
+	my $timeout = 
+	  ($branch eq 'HEAD' || $branch ge 'REL8_3') ? "-t 120" : "";
+    my $cmd = qq{"bin/pg_ctl" $timeout -D data-$locale stop >stoplog 2>&1};
     system($cmd);
     my $status = $? >>8;
     chdir($branch_root);
