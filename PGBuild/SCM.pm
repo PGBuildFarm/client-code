@@ -1,7 +1,6 @@
 use strict;
 
 use File::Find;
-use Cwd;
 
 =comment
 
@@ -435,6 +434,7 @@ sub get_versions
 package PGBuild::SCM::Git;
 
 use File::Copy;
+use Cwd;
 
 sub new
 {
