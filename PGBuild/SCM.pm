@@ -1,6 +1,7 @@
 use strict;
 
 use File::Find;
+use Cwd;
 
 =comment
 
@@ -509,6 +510,16 @@ sub checkout
     my $target = $self->{target};
     my $status;
 
+	# Msysgit does some horrible things, especially when it expects a drive
+	# spec and doesn't get one.  So we extract it if it exists and use it
+	# where necessary.
+
+	my $drive = "";
+	my $cwd = getcwd();
+	$drive = substr($cwd,0,2) if $cwd =~ /^[A-Z]:/;
+
+
+
     my @gitlog;
     if ($self->{mirror})
     {
@@ -525,6 +536,10 @@ sub checkout
         else
         {
             chdir "..";
+
+			my $char1 = substr($gitserver,0,1);
+			$gitserver = "$drive$gitserver" 
+			  if ( $char1 eq '/' or $char1 eq '\\');
 
             # this will fail on older git versions
             # workaround is to do this manually in the buildroot:
@@ -564,6 +579,10 @@ sub checkout
           defined($self->{reference}) ?"--reference $self->{reference}" : "";
 
         my $base = $self->{mirror} || $gitserver;
+
+		my $char1 = substr($base,0,1);
+		$base = "$drive$base" 
+		  if ( $char1 eq '/' or $char1 eq '\\');
 
         my @clonelog = `git clone -q $reference $base $target 2>&1`;
         push(@gitlog,@clonelog);
