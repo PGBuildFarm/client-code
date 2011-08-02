@@ -108,7 +108,7 @@ open($lockfile, ">$lockfilename") || die "opening lockfile: $!";
 
 if ( !flock($lockfile,LOCK_EX|LOCK_NB) )
 {
-    print "Another process holds the lock on " ."$lockfilename. Exiting."
+    print "Another process holds the lock on " ."$lockfilename. Exiting.\n"
       if ($verbose);
     exit(0);
 }
