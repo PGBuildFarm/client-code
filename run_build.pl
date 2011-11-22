@@ -296,7 +296,8 @@ foreach my $module (@{$PGBuild::conf{modules}})
          PGBuild::Modules::${module}::setup(
               \$buildroot,
               \$branch,
-              \\\%PGBuild::conf);
+              \\\%PGBuild::conf,
+              \$pgsql);
     !;
     eval $str;
 
