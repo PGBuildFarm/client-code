@@ -29,9 +29,13 @@ sub setup
     my $buildroot = shift; # where we're building
     my $branch = shift; # The branch of Postgres that's being built.
     my $conf = shift;  # ref to the whole config object
+	my $pgsql = shift; # postgres build dir
 
     # could even set up several of these (e.g. for different branches)
-    my $self  = {};
+    my $self  = {buildroot => $buildroot,
+				 pgbranch=> $branch, 
+				 bfconf => $conf, 
+				 pgsql => $pgsql};
     bless($self, $class);
 
     # for each instance you create, do:

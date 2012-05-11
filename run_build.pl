@@ -637,6 +637,7 @@ process_module_hooks('install');
 
 foreach my $locale (@locales)
 {
+	last if $skip_steps{install};
 
     print time_str(),"setting up db cluster ($locale)...\n" if $verbose;
 
@@ -905,6 +906,7 @@ sub make_doc
 
 sub make_install
 {
+    return if $skip_steps{install};
     my @makeout;
     unless ($using_msvc)
     {
