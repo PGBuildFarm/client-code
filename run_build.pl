@@ -132,17 +132,23 @@ require $buildconf;
 # get the config data into some local variables
 my (
     $buildroot,$target,$animal, $print_success,
-    $aux_path,$trigger_filter,$secret, $keep_errs,
+    $aux_path,$trigger_exclude,$trigger_include,$secret, $keep_errs,
     $force_every, $make,$optional_steps,$use_vpath,
     $tar_log_cmd, $using_msvc, $extra_config
   )
   =@PGBuild::conf{
-    qw(build_root target animal print_success aux_path trigger_filter
-      secret keep_error_builds force_every make optional_steps
+    qw(build_root target animal print_success aux_path trigger_exclude 
+      trigger_include secret keep_error_builds force_every make optional_steps
       use_vpath tar_log_cmd using_msvc extra_config)
   };
 
-my  $scm_timeout_secs =$PGBuild::conf{scm_timeout_secs}
+# legacy name
+if (defined($PGBuild::conf{trigger_filter}))
+{
+	$trigger_exclude = $PGBuild::conf{trigger_filter};
+}
+
+my  $scm_timeout_secs = $PGBuild::conf{scm_timeout_secs}
   || $PGBuild::conf{cvs_timeout_secs};
 
 print scalar(localtime()),": buildfarm run for $animal:$branch starting\n"
@@ -521,14 +527,20 @@ elsif (!$from_source)
     $scm->find_changed(\$current_snap,$last_run_snap, $last_success_snap,
         \@changed_files,\@changed_since_success);
 
-    #ignore changes to files specified by the trigger filter, if any
-    if (defined($trigger_filter))
+    #ignore changes to files specified by the trigger exclude filter, if any
+    if (defined($trigger_exclude))
     {
-        @filtered_files = grep { !m[$trigger_filter] } @changed_files;
+        @filtered_files = grep { !m[$trigger_exclude] } @changed_files;
     }
     else
     {
         @filtered_files = @changed_files;
+    }
+
+    #ignore changes to files NOT specified by the trigger include filter, if any
+    if (defined($trigger_include))
+    {
+        @filtered_files = grep { m[$trigger_include] } @filtered_files;
     }
 
     my $modules_need_run;
@@ -979,7 +991,7 @@ sub make_contrib
 
 sub make_contrib_install
 {
-
+    return if $skip_steps{'install'};
     # part of install under msvc
     my @makeout = `cd $pgsql/contrib && $make install 2>&1`;
     my $status = $? >>8;
