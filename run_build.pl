@@ -70,6 +70,8 @@ use POSIX qw(:signal_h strftime);
 use Data::Dumper;
 use Cwd qw(abs_path getcwd);
 use File::Find ();
+use Storable qw(dclone);
+
 use PGBuild::SCM;
 use PGBuild::Options;
 
@@ -437,6 +439,24 @@ END
         close($lockfile);
         unlink("builder.LCK");
     }
+}
+
+# Prepend the DEFAULT settings (if any) to any settings for the
+# branch. Since we're mangling this, deep clone $extra_config
+# so the config object is kept as given.
+
+$extra_config = dclone($extra_config);
+
+if ($extra_config &&  $extra_config->{DEFAULT})
+{
+	if (! exists  $extra_config->{$branch})
+	{
+		$extra_config->{$branch} = 	$extra_config->{DEFAULT};
+	}
+	else
+	{
+		unshift(@{$extra_config->{$branch}}, @{$extra_config->{DEFAULT}});
+	}
 }
 
 if ($extra_config && $extra_config->{$branch})
