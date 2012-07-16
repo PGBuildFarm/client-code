@@ -134,12 +134,12 @@ require $buildconf;
 # get the config data into some local variables
 my (
     $buildroot,$target,$animal, $print_success,
-    $aux_path,$trigger_exclude,$trigger_include,$secret, $keep_errs,
-    $force_every, $make,$optional_steps,$use_vpath,
-    $tar_log_cmd, $using_msvc, $extra_config
+    $aux_path,$trigger_exclude,$trigger_include,$secret,
+    $keep_errs,$force_every, $make,$optional_steps,
+    $use_vpath,$tar_log_cmd, $using_msvc, $extra_config
   )
   =@PGBuild::conf{
-    qw(build_root target animal print_success aux_path trigger_exclude 
+    qw(build_root target animal print_success aux_path trigger_exclude
       trigger_include secret keep_error_builds force_every make optional_steps
       use_vpath tar_log_cmd using_msvc extra_config)
   };
@@ -147,7 +147,7 @@ my (
 # legacy name
 if (defined($PGBuild::conf{trigger_filter}))
 {
-	$trigger_exclude = $PGBuild::conf{trigger_filter};
+    $trigger_exclude = $PGBuild::conf{trigger_filter};
 }
 
 my  $scm_timeout_secs = $PGBuild::conf{scm_timeout_secs}
@@ -449,14 +449,14 @@ $extra_config = dclone($extra_config);
 
 if ($extra_config &&  $extra_config->{DEFAULT})
 {
-	if (! exists  $extra_config->{$branch})
-	{
-		$extra_config->{$branch} = 	$extra_config->{DEFAULT};
-	}
-	else
-	{
-		unshift(@{$extra_config->{$branch}}, @{$extra_config->{DEFAULT}});
-	}
+    if (!exists  $extra_config->{$branch})
+    {
+        $extra_config->{$branch} = 	$extra_config->{DEFAULT};
+    }
+    else
+    {
+        unshift(@{$extra_config->{$branch}}, @{$extra_config->{DEFAULT}});
+    }
 }
 
 if ($extra_config && $extra_config->{$branch})
@@ -669,7 +669,7 @@ process_module_hooks('install');
 
 foreach my $locale (@locales)
 {
-	last if $skip_steps{install};
+    last if $skip_steps{install};
 
     print time_str(),"setting up db cluster ($locale)...\n" if $verbose;
 
@@ -1012,6 +1012,7 @@ sub make_contrib
 sub make_contrib_install
 {
     return if $skip_steps{'install'};
+
     # part of install under msvc
     my @makeout = `cd $pgsql/contrib && $make install 2>&1`;
     my $status = $? >>8;
@@ -1107,8 +1108,7 @@ sub stop_db
     my $locale = shift;
     my $logpos = -s "$installdir/logfile" || 0;
     chdir($installdir);
-	my $timeout = 
-	  ($branch eq 'HEAD' || $branch ge 'REL8_3') ? "-t 120" : "";
+    my $timeout =($branch eq 'HEAD' || $branch ge 'REL8_3') ? "-t 120" : "";
     my $cmd = qq{"bin/pg_ctl" $timeout -D data-$locale stop >stoplog 2>&1};
     system($cmd);
     my $status = $? >>8;
