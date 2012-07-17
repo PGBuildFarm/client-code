@@ -33,7 +33,7 @@ See accompanying License file for license details
 
 use strict;
 
-use vars qw($VERSION); $VERSION = 'REL_4.6';
+use vars qw($VERSION); $VERSION = 'REL_4.7';
 
 use LWP;
 use HTTP::Request::Common;
