@@ -18,6 +18,7 @@ tag:
 	sed -i -e "s/VERSION = '[^']*';/VERSION = 'REL_$(REL)';/" $(FILES)
 	git commit -a -m 'Mark Release '$(REL)
 	git tag -m 'Release $(REL)' REL_$(CREL)
+	@echo Now do: git push --tags origin master
 
 .PHONY: release
 release:
