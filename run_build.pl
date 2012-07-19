@@ -70,7 +70,6 @@ use POSIX qw(:signal_h strftime);
 use Data::Dumper;
 use Cwd qw(abs_path getcwd);
 use File::Find ();
-use Storable qw(dclone);
 
 use PGBuild::SCM;
 use PGBuild::Options;
@@ -443,9 +442,12 @@ END
 
 # Prepend the DEFAULT settings (if any) to any settings for the
 # branch. Since we're mangling this, deep clone $extra_config
-# so the config object is kept as given.
+# so the config object is kept as given. This is done using
+# Dumper() because the MSys DTK perl doesn't have Storable. This
+# is less efficient but it hardly matters here for this shallow
+# structure.
 
-$extra_config = dclone($extra_config);
+$extra_config = eval Dumper($extra_config);
 
 if ($extra_config &&  $extra_config->{DEFAULT})
 {
