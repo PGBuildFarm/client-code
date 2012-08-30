@@ -9,7 +9,7 @@ use PGBuild::SCM;
 
 use strict;
 
-+use vars qw($VERSION); $VERSION = 'REL_4.7';
+use vars qw($VERSION); $VERSION = 'REL_4.7';
 
 my $hooks = {
     'checkout' => \&checkout,
