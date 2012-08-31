@@ -478,7 +478,8 @@ if ($extra_config && $extra_config->{$branch})
     autoflush $extraconf 1;
 }
 
-my $steps_completed = "";
+use vars qw($steps_completed);
+$steps_completed = "";
 
 my @changed_files;
 my @changed_since_success;
@@ -685,7 +686,7 @@ foreach my $locale (@locales)
 
     make_install_check($locale);
 
-    process_module_hooks('installcheck');
+    process_module_hooks('installcheck', $locale);
 
     if (-d "$pgsql/src/test/isolation" && $locale eq 'C')
     {
