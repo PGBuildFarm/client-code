@@ -7,8 +7,6 @@ package PGBuild::Modules::TestUpgrade;
 use PGBuild::Options;
 use PGBuild::SCM;
 
-use File::Copy;
-
 use strict;
 
 use vars qw($VERSION); $VERSION = 'REL_4.7';
@@ -33,7 +31,7 @@ sub setup
     my $conf = shift;  # ref to the whole config object
     my $pgsql = shift; # postgres build dir
 
-	return unless ($branch eq 'HEAD' or $branch ge 'REL_9_2');
+	return unless ($branch eq 'HEAD' or $branch ge 'REL9_2');
 	return if $conf->{using_msvc};
 
     # could even set up several of these (e.g. for different branches)
