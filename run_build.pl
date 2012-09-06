@@ -20,36 +20,13 @@ See accompanying License file for license details
 
  AUTHOR: Andrew Dunstan
 
- USAGE:
+ DOCUMENTATION:
 
-   To upload results, you will need a name/secret
-   to put into the config file. Test runs without
-   uploading results can be done using the --nosend 
-   commandline flag.
+  See http://wiki.postgresql.org/wiki/PostgreSQL_Buildfarm_Howto
 
-   Install this file, run_web_txn.pl and build-farm.conf in some
-   directory together. Edit build-farm.conf to match
-   your setup. Create the buildroot directory.
-   Run "perl -cw build-farm.conf" to make sure it
-   is OK. Run "perl -cw run_build.pl" to make sure
-   you have all the required perl modules. Make a
-   test run in the foreground (can take up to an hour
-   on a slow machine). Add cron entries that look
-   like this:
+ REPOSITORY:
 
-   # check HEAD branch once an hour
-   32 * * * * cd /path/to/script && ./run_build.pl 
-   # check REL7_4_STABLE branch once a week
-   18 3 * * 3 cd /path/to/script && ./run_build.pl REL7_4_STABLE
-
-   There is provision in the conf file for support of 
-   ccache. This is highly recommended.
-
-   For more extensive information, see docs and mailing list
-   at the pgfoundry site: http://pgfoundry.org/projects/pgbuildfarm/
-
-   See the results of our labors at 
-   http://www.pgbuildfarm.org/cgi-bin/show_status.pl 
+  https://github.com/PGBuildFarm/client-code
 
 =cut
 
@@ -244,11 +221,6 @@ if (!$from_source)
     $scm->check_access($using_msvc);
 }
 
-if ($multiroot)
-{
-    warn "--multi-root is no longer necessary, and is deprecated";
-}
-
 my $st_prefix = "$animal.";
 
 my $pgsql = $from_source  || $scm->get_build_path($use_vpath);
@@ -396,10 +368,6 @@ END
                 system(qq{"bin/pg_ctl" -D "data-$loc" stop >$devnull 2>&1});
             }
             chdir $branch_root;
-        }
-        if ($ipcclean && -x "$pgsql/src/bin/ipcclean/ipcclean")
-        {
-            system("$pgsql/src/bin/ipcclean/ipcclean >$devnull 2>&1");
         }
         if ( !$from_source && $keep_errs)
         {
@@ -787,8 +755,8 @@ usage: $0 [options] [branch]
   --keepall                 = keep directories if an error occurs
   --verbose[=n]             = verbosity (default 1) 2 or more = huge output.
   --quiet                   = suppress normal error message 
-  --ipcclean                = clean up shared memory on failure
   --test                    = short for --nosend --nostatus --verbose --force
+  --skip-steps=list         = skip certain steps
 
 Default branch is HEAD. Usually only the --config option should be necessary.
 
