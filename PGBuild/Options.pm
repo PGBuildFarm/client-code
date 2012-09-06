@@ -20,7 +20,7 @@ use vars qw(@option_list);
 BEGIN
 {
     @option_list =qw(
-      $forcerun $buildconf $keepall $ipcclean $help $multiroot
+      $forcerun $buildconf $keepall $help
       $quiet $from_source $from_source_clean $testmode
       $test_mode $skip_steps $find_typedefs
       $nosend $nostatus $verbose
@@ -38,8 +38,8 @@ use vars qw($VERSION); $VERSION = 'REL_4.7';
 @EXPORT_OK   = ();
 
 our (
-    $forcerun, $buildconf, $keepall, $ipcclean,
-    $help, $multiroot,$quiet, $from_source,
+    $forcerun, $buildconf, $keepall,
+    $help, $quiet, $from_source,
     $from_source_clean, $testmode,$test_mode, $skip_steps,
     $find_typedefs,$nosend, $nostatus, $verbose,
 );
@@ -54,14 +54,12 @@ my (%standard_options);
     'force' => \$forcerun,
     'find-typedefs' => \$find_typedefs,
     'keepall' => \$keepall,
-    'ipcclean' => \$ipcclean,
     'verbose:i' => \$verbose,
     'nostatus' => \$nostatus,
     'test' => \$testmode,
     'help' => \$help,
     'quiet' => \$quiet,
     'skip-steps=s' => \$skip_steps,
-    'multiroot' => \$multiroot,
 );
 
 $buildconf = "build-farm.conf"; # default value
