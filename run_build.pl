@@ -111,13 +111,14 @@ require $buildconf;
 my (
     $buildroot,$target,$animal, $print_success,
     $aux_path,$trigger_exclude,$trigger_include,$secret,
-    $keep_errs,$force_every, $make,$optional_steps,
-    $use_vpath,$tar_log_cmd, $using_msvc, $extra_config
+    $keep_errs,$force_every, $make, $optional_steps,
+    $use_vpath,$tar_log_cmd, $using_msvc, $extra_config,
+	$make_jobs
   )
   =@PGBuild::conf{
     qw(build_root target animal print_success aux_path trigger_exclude
       trigger_include secret keep_error_builds force_every make optional_steps
-      use_vpath tar_log_cmd using_msvc extra_config)
+      use_vpath tar_log_cmd using_msvc extra_config, make_jobs)
   };
 
 # legacy name
@@ -871,7 +872,10 @@ sub make
     my (@makeout);
     unless ($using_msvc)
     {
-        @makeout = `cd $pgsql && $make 2>&1`;
+		my $make_cmd = $make;
+		$make_cmd = "$make -j $make_jobs"
+		  if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
+        @makeout = `cd $pgsql && $make_cmd 2>&1`;
     }
     else
     {
@@ -972,7 +976,10 @@ sub make_contrib
 
     # part of build under msvc
     return if $skip_steps{'make-contrib'};
-    my @makeout = `cd $pgsql/contrib && $make 2>&1`;
+	my $make_cmd = $make;
+	$make_cmd = "$make -j $make_jobs"
+	  if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
+    my @makeout = `cd $pgsql/contrib && $make_cmd 2>&1`;
     my $status = $? >>8;
     writelog('make-contrib',\@makeout);
     print "======== make contrib log ===========\n",@makeout if ($verbose > 1);
