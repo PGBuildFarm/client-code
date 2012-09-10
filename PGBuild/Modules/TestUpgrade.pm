@@ -32,7 +32,6 @@ sub setup
     my $pgsql = shift; # postgres build dir
 
 	return unless ($branch eq 'HEAD' or $branch ge 'REL9_2');
-	return if $conf->{using_msvc};
 
     # could even set up several of these (e.g. for different branches)
     my $self  = {
@@ -58,8 +57,18 @@ sub installcheck
     print main::time_str(), "checking pg_upgrade\n" if	$verbose;
 
 	my @checklog;
-	my $cmd = "cd $self->{pgsql}/contrib/pg_upgrade && make check";
-	@checklog = `$cmd 2>&1`;
+
+	if ($self->{bfconf}->{using_msvc})
+	{
+        chdir "$self->{pgsql}/src/tools/msvc";
+        @checklog = `perl vcregress.pl upgradecheck 2>&1`;
+        chdir "$self->{build_root}/$self->{branch}";		
+	}
+	else
+	{
+		my $cmd = "cd $self->{pgsql}/contrib/pg_upgrade && make check";
+		@checklog = `$cmd 2>&1`;
+	}
 
 	my $status = $? >>8;
 
