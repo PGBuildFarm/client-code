@@ -637,6 +637,8 @@ process_module_hooks('configure');
 
 process_module_hooks('build');
 
+process_module_hooks("check");
+
 process_module_hooks('install');
 
 foreach my $locale (@locales)

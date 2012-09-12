@@ -18,7 +18,7 @@ my $hooks = {
 #    'configure' => \&configure,
 #    'build' => \&build,
 #    'install' => \&install,
-    'installcheck' => \&installcheck,
+    'check' => \&check,
 #    'cleanup' => \&cleanup,
 };
 
@@ -47,12 +47,9 @@ sub setup
 
 }
 
-sub installcheck
+sub check
 {
     my $self = shift;
-    my $locale = shift;
-
-	return if $locale ne 'C';
 
     print main::time_str(), "checking pg_upgrade\n" if	$verbose;
 
@@ -62,7 +59,7 @@ sub installcheck
 	{
         chdir "$self->{pgsql}/src/tools/msvc";
         @checklog = `perl vcregress.pl upgradecheck 2>&1`;
-        chdir "$self->{build_root}/$self->{branch}";		
+        chdir "$self->{buildroot}/$self->{pgbranch}";		
 	}
 	else
 	{

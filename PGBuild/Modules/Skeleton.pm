@@ -17,6 +17,7 @@ my $hooks = {
     'need-run' => \&need_run,
     'configure' => \&configure,
     'build' => \&build,
+	'check' => \&check,
     'install' => \&install,
     'installcheck' => \&installcheck,
     'cleanup' => \&cleanup,
@@ -99,12 +100,19 @@ sub install
     print main::time_str(), "installing ",__PACKAGE__,"\n" if	$verbose;
 }
 
+sub check
+{
+    my $self = shift;
+
+    print main::time_str(), "checking ",__PACKAGE__,"\n" if	$verbose;
+}
+
 sub installcheck
 {
     my $self = shift;
     my $locale = shift;
 
-    print main::time_str(), "checking ",__PACKAGE__,"\n" if	$verbose;
+    print main::time_str(), "installchecking ",__PACKAGE__,"\n" if	$verbose;
 }
 
 sub cleanup
