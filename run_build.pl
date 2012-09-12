@@ -118,7 +118,7 @@ my (
   =@PGBuild::conf{
     qw(build_root target animal print_success aux_path trigger_exclude
       trigger_include secret keep_error_builds force_every make optional_steps
-      use_vpath tar_log_cmd using_msvc extra_config, make_jobs)
+      use_vpath tar_log_cmd using_msvc extra_config make_jobs)
   };
 
 # legacy name
