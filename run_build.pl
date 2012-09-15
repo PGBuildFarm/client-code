@@ -773,13 +773,12 @@ usage: $0 [options] [branch]
   --keepall                 = keep directories if an error occurs
   --verbose[=n]             = verbosity (default 1) 2 or more = huge output.
   --quiet                   = suppress normal error message 
-  --ipcclean                = clean up shared memory on failure
   --test                    = short for --nosend --nostatus --verbose --force
   --skip-steps="step ..."   = whitespace-separated list of steps to skip
     valid steps are:          make check make-contrib make-doc (optional)
-	                          install (includes contrib install) install-check
-							  isolation-check pl-install-check
-							  contrib-install-check ecpg-check
+                              install (includes contrib install) install-check
+                              isolation-check pl-install-check
+                              contrib-install-check ecpg-check
   --only-steps="step ..."   = opposite of skip; explicit list of steps to perform
     eg: --only-steps="make-doc"
 

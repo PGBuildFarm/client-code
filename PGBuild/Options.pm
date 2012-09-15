@@ -41,8 +41,8 @@ our (
     $forcerun, $buildconf, $keepall,
     $help, $quiet, $from_source,
     $from_source_clean, $testmode,$test_mode, $skip_steps,
-	$only_steps, $find_typedefs,$nosend, $nostatus,
-	$verbose,
+    $only_steps, $find_typedefs,$nosend, $nostatus,
+    $verbose,
 );
 
 my (%standard_options);
@@ -62,7 +62,6 @@ my (%standard_options);
     'quiet' => \$quiet,
     'skip-steps=s' => \$skip_steps,
     'only-steps=s' => \$only_steps,
-    'multiroot' => \$multiroot,
 );
 
 $buildconf = "build-farm.conf"; # default value
