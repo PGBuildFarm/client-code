@@ -96,6 +96,13 @@ if ($skip_steps =~ /\S/)
     %skip_steps = map {$_ => 1} split(/\s+/,$skip_steps);
 }
 
+my %only_steps;
+$only_steps ||= "";
+if ($only_steps =~ /\S/)
+{
+    %only_steps = map {$_ => 1} split(/\s+/,$only_steps);
+}
+
 use vars qw($branch);
 my $explicit_branch = shift;
 $branch = $explicit_branch || 'HEAD';
@@ -598,29 +605,34 @@ configure();
 # module configure has to wait until we have built and installed the base
 # so see below
 
-print time_str(),"running make ...\n" if $verbose;
+print time_str(),"running make ...\n"
+  if $verbose and !$skip_steps{'make'} and ($only_steps{'make'} or !$only_steps);
 
 make();
 
-print time_str(),"running make check ...\n" if $verbose;
+print time_str(),"running make check ...\n"
+  if $verbose and !$skip_steps{'check'} and ($only_steps{'check'} or !$only_steps);
 
 make_check();
 
 unless ($using_msvc)
 {
-    print time_str(),"running make contrib ...\n" if $verbose;
+    print time_str(),"running make contrib ...\n"
+	  if $verbose and !$skip_steps{'make-contrib'} and ($only_steps{'make-contrib'} or !$only_steps);
 
     make_contrib();
 }
 
 if (check_optional_step('build_docs'))
 {
-    print time_str(),"running make doc ...\n" if $verbose;
+    print time_str(),"running make doc ...\n"
+	  if $verbose and !$skip_steps{'make-doc'} and ($only_steps{'make-doc'} or !$only_steps);
 
     make_doc();
 }
 
-print time_str(),"running make install ...\n" if $verbose;
+print time_str(),"running make install ...\n"
+  if $verbose and !$skip_steps{'install'} and ($only_steps{'install'} or !$only_steps);
 
 make_install();
 
@@ -628,7 +640,7 @@ make_install();
 unless ($using_msvc)
 {
     print time_str(),"running make contrib install ...\n"
-      if $verbose;
+      if $verbose and !$skip_steps{'install'} and ($only_steps{'install'} or !$only_steps);
 
     make_contrib_install();
 }
@@ -643,7 +655,7 @@ process_module_hooks('install');
 
 foreach my $locale (@locales)
 {
-    last if $skip_steps{install};
+    last if $skip_steps{'install'} or (!$only_steps{'install'} and $only_steps);
 
     print time_str(),"setting up db cluster ($locale)...\n" if $verbose;
 
@@ -653,7 +665,8 @@ foreach my $locale (@locales)
 
     start_db($locale);
 
-    print time_str(),"running make installcheck ($locale)...\n" if $verbose;
+    print time_str(),"running make installcheck ($locale)...\n"
+	  if $verbose and !$skip_steps{'install-check'} and ($only_steps{'install-check'} or !$only_steps);
 
     make_install_check($locale);
 
@@ -668,7 +681,8 @@ foreach my $locale (@locales)
         stop_db($locale);
         start_db($locale);
 
-        print time_str(),"running make isolation check ...\n" if $verbose;
+        print time_str(),"running make isolation check ...\n"
+		  if $verbose and !$skip_steps{'isolation-check'} and ($only_steps{'isolation-check'} or !$only_steps);
 
         make_isolation_check($locale);
     }
@@ -686,7 +700,7 @@ foreach my $locale (@locales)
         start_db($locale);
 
         print time_str(),"running make PL installcheck ($locale)...\n"
-          if $verbose;
+          if $verbose and !$skip_steps{'pl-install-check'} and ($only_steps{'pl-install-check'} or !$only_steps);
 
         make_pl_install_check($locale);
     }
@@ -698,7 +712,7 @@ foreach my $locale (@locales)
     start_db($locale);
 
     print time_str(),"running make contrib installcheck ($locale)...\n"
-      if $verbose;
+      if $verbose and !$skip_steps{'contrib-install-check'} and ($only_steps{'contrib-install-check'} or !$only_steps);
 
     make_contrib_install_check($locale);
 
@@ -713,7 +727,8 @@ foreach my $locale (@locales)
 # ecpg checks are not supported in 8.1 and earlier
 if ($branch eq 'HEAD' || $branch gt 'REL8_2')
 {
-    print time_str(),"running make ecpg check ...\n" if $verbose;
+    print time_str(),"running make ecpg check ...\n"
+	  if $verbose and !$skip_steps{'ecpg-check'} and ($only_steps{'ecpg-check'} or !$only_steps);
 
     make_ecpg_check();
 }
@@ -758,8 +773,15 @@ usage: $0 [options] [branch]
   --keepall                 = keep directories if an error occurs
   --verbose[=n]             = verbosity (default 1) 2 or more = huge output.
   --quiet                   = suppress normal error message 
+  --ipcclean                = clean up shared memory on failure
   --test                    = short for --nosend --nostatus --verbose --force
-  --skip-steps=list         = skip certain steps
+  --skip-steps="step ..."   = whitespace-separated list of steps to skip
+    valid steps are:          make check make-contrib make-doc (optional)
+	                          install (includes contrib install) install-check
+							  isolation-check pl-install-check
+							  contrib-install-check ecpg-check
+  --only-steps="step ..."   = opposite of skip; explicit list of steps to perform
+    eg: --only-steps="make-doc"
 
 Default branch is HEAD. Usually only the --config option should be necessary.
 
@@ -870,7 +892,7 @@ sub check_make
 
 sub make
 {
-    return if $skip_steps{make};
+    return if $skip_steps{'make'} or (!$only_steps{'make'} and $only_steps);
     my (@makeout);
     unless ($using_msvc)
     {
@@ -894,7 +916,7 @@ sub make
 
 sub make_doc
 {
-    return if $skip_steps{'make-doc'};
+    return if $skip_steps{'make-doc'} or (!$only_steps{'make-doc'} and $only_steps);
     my (@makeout);
     unless ($using_msvc)
     {
@@ -915,7 +937,7 @@ sub make_doc
 
 sub make_install
 {
-    return if $skip_steps{install};
+    return if $skip_steps{'install'} or (!$only_steps{'install'} and $only_steps);
     my @makeout;
     unless ($using_msvc)
     {
@@ -977,7 +999,7 @@ sub make_contrib
 {
 
     # part of build under msvc
-    return if $skip_steps{'make-contrib'};
+    return if $skip_steps{'make-contrib'} or (!$only_steps{'make-contrib'} and $only_steps);
 	my $make_cmd = $make;
 	$make_cmd = "$make -j $make_jobs"
 	  if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
@@ -991,7 +1013,7 @@ sub make_contrib
 
 sub make_contrib_install
 {
-    return if $skip_steps{'install'};
+    return if $skip_steps{'install'} or (!$only_steps{'install'} and $only_steps);
 
     # part of install under msvc
     my @makeout = `cd $pgsql/contrib && $make install 2>&1`;
@@ -1144,7 +1166,7 @@ sub get_stack_trace
 sub make_install_check
 {
     my $locale = shift;
-    return if $skip_steps{'install-check'};
+    return if $skip_steps{'install-check'} or (!$only_steps{'install-check'} and $only_steps);
     my @checklog;
     unless ($using_msvc)
     {
@@ -1187,7 +1209,7 @@ sub make_install_check
 sub make_contrib_install_check
 {
     my $locale = shift;
-    return if $skip_steps{'contrib-install-check'};
+    return if $skip_steps{'contrib-install-check'} or (!$only_steps{'contrib-install-check'} and $only_steps);
     my @checklog;
     unless ($using_msvc)
     {
@@ -1230,7 +1252,7 @@ sub make_contrib_install_check
 sub make_pl_install_check
 {
     my $locale = shift;
-    return if $skip_steps{'pl-install-check'};
+    return if $skip_steps{'pl-install-check'} or (!$only_steps{'pl-install-check'} and $only_steps);
     my @checklog;
     unless ($using_msvc)
     {
@@ -1276,7 +1298,7 @@ sub make_pl_install_check
 sub make_isolation_check
 {
     my $locale = shift;
-    return if $skip_steps{'isolation-check'};
+    return if $skip_steps{'isolation-check'} or (!$only_steps{'isolation-check'} and $only_steps);
     my @makeout;
     unless ($using_msvc)
     {
@@ -1325,7 +1347,7 @@ sub make_isolation_check
 
 sub make_check
 {
-    return if $skip_steps{check};
+    return if $skip_steps{'check'} or (!$only_steps{'check'} and $only_steps);
     my @makeout;
     unless ($using_msvc)
     {
@@ -1377,7 +1399,7 @@ sub make_check
 
 sub make_ecpg_check
 {
-    return if $skip_steps{'ecpg-check'};
+    return if $skip_steps{'ecpg-check'} or (!$only_steps{'ecpg-check'} and $only_steps);
     my @makeout;
     my $ecpg_dir = "$pgsql/src/interfaces/ecpg";
     if ($using_msvc)
