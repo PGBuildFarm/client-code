@@ -48,6 +48,18 @@ use Data::Dumper;
 use Cwd qw(abs_path getcwd);
 use File::Find ();
 
+# save a copy of the original enviroment for reporting
+# save it early to reduce the risk of prior mangling
+use vars qw($orig_env);
+BEGIN 
+{ 
+	$orig_env = {};
+	while (my ($k,$v) = each %ENV)
+	{
+		$orig_env->{$k} = $v;
+	}
+}
+
 use PGBuild::SCM;
 use PGBuild::Options;
 
@@ -1830,6 +1842,7 @@ sub get_script_config_dump
         script_version => $VERSION,
         invocation_args => \@invocation_args,
         steps_completed => $steps_completed,
+		orig_env => $orig_env,
     };
     delete $conf->{secret};
     return  Data::Dumper->Dump([$conf],['Script_Config']);
