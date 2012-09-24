@@ -51,6 +51,9 @@ sub check
 {
     my $self = shift;
 
+
+	return unless main::step_wanted('pg_upgrade-check');
+
     print main::time_str(), "checking pg_upgrade\n" if	$verbose;
 
 	my @checklog;
