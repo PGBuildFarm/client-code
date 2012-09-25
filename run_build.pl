@@ -56,7 +56,9 @@ BEGIN
 	$orig_env = {};
 	while (my ($k,$v) = each %ENV)
 	{
-		$orig_env->{$k} = $v;
+		# suppress reporting the value for a few things that might be
+		# sensitive
+		$orig_env->{$k} = ($k =~ /PASS|PW|SSH/ ? 'xxxxxxxx' : $v);
 	}
 }
 
