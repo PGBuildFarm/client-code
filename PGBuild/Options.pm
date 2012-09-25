@@ -38,10 +38,10 @@ use vars qw($VERSION); $VERSION = 'REL_4.7';
 @EXPORT_OK   = ();
 
 our (
-    $forcerun, $buildconf, $keepall,
-    $help, $quiet, $from_source,
-    $from_source_clean, $testmode,$test_mode, $skip_steps,
-    $only_steps, $find_typedefs,$nosend, $nostatus, $verbose,
+    $forcerun, $buildconf, $keepall,$help,
+    $quiet, $from_source,$from_source_clean, $testmode,
+    $test_mode, $skip_steps,$only_steps, $find_typedefs,
+    $nosend, $nostatus, $verbose,
 );
 
 my (%standard_options);

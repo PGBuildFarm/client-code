@@ -12,14 +12,16 @@ use strict;
 use vars qw($VERSION); $VERSION = 'REL_4.7';
 
 my $hooks = {
-#    'checkout' => \&checkout,
-#    'setup-target' => \&setup_target,
-#    'need-run' => \&need_run,
-#    'configure' => \&configure,
-#    'build' => \&build,
-#    'install' => \&install,
+
+    #    'checkout' => \&checkout,
+    #    'setup-target' => \&setup_target,
+    #    'need-run' => \&need_run,
+    #    'configure' => \&configure,
+    #    'build' => \&build,
+    #    'install' => \&install,
     'check' => \&check,
-#    'cleanup' => \&cleanup,
+
+    #    'cleanup' => \&cleanup,
 };
 
 sub setup
@@ -31,7 +33,7 @@ sub setup
     my $conf = shift;  # ref to the whole config object
     my $pgsql = shift; # postgres build dir
 
-	return unless ($branch eq 'HEAD' or $branch ge 'REL9_2');
+    return unless ($branch eq 'HEAD' or $branch ge 'REL9_2');
 
     # could even set up several of these (e.g. for different branches)
     my $self  = {
@@ -51,38 +53,35 @@ sub check
 {
     my $self = shift;
 
-
-	return unless main::step_wanted('pg_upgrade-check');
+    return unless main::step_wanted('pg_upgrade-check');
 
     print main::time_str(), "checking pg_upgrade\n" if	$verbose;
 
-	my @checklog;
+    my @checklog;
 
-	if ($self->{bfconf}->{using_msvc})
-	{
+    if ($self->{bfconf}->{using_msvc})
+    {
         chdir "$self->{pgsql}/src/tools/msvc";
         @checklog = `perl vcregress.pl upgradecheck 2>&1`;
-        chdir "$self->{buildroot}/$self->{pgbranch}";		
-	}
-	else
-	{
-		my $cmd = "cd $self->{pgsql}/contrib/pg_upgrade && make check";
-		@checklog = `$cmd 2>&1`;
-	}
+        chdir "$self->{buildroot}/$self->{pgbranch}";
+    }
+    else
+    {
+        my $cmd = "cd $self->{pgsql}/contrib/pg_upgrade && make check";
+        @checklog = `$cmd 2>&1`;
+    }
 
-	my $status = $? >>8;
+    my $status = $? >>8;
 
     main::writelog("check-pg_upgrade",\@checklog);
     print "======== pg_upgrade check log ===========\n",@checklog
       if ($verbose > 1);
     main::send_result("pg_upgradeCheck",$status,\@checklog) if $status;
-  {
-	  no warnings 'once';
-	  $main::steps_completed .= " pg_upgradeCheck";
-  }
-
+    {
+        no warnings 'once';
+        $main::steps_completed .= " pg_upgradeCheck";
+    }
 
 }
-
 
 1;

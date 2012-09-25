@@ -51,18 +51,21 @@ use File::Find ();
 # save a copy of the original enviroment for reporting
 # save it early to reduce the risk of prior mangling
 use vars qw($orig_env);
-BEGIN 
-{ 
-	$orig_env = {};
-	while (my ($k,$v) = each %ENV)
-	{
-		# report all the keys but only values for whitelisted settings
-		# this is to stop leaking of things like passwords
-		$orig_env->{$k} = 
-		  ($k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|FLAG|LIBRAR|INCLUDE/ 
-		   ? $v 
-		   : 'xxxxxx');
-	}
+
+BEGIN
+{
+    $orig_env = {};
+    while (my ($k,$v) = each %ENV)
+    {
+
+        # report all the keys but only values for whitelisted settings
+        # this is to stop leaking of things like passwords
+        $orig_env->{$k} =(
+              $k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|FLAG|LIBRAR|INCLUDE/
+            ? $v
+            : 'xxxxxx'
+        );
+    }
 }
 
 use PGBuild::SCM;
@@ -138,7 +141,7 @@ my (
     $aux_path,$trigger_exclude,$trigger_include,$secret,
     $keep_errs,$force_every, $make, $optional_steps,
     $use_vpath,$tar_log_cmd, $using_msvc, $extra_config,
-	$make_jobs
+    $make_jobs
   )
   =@PGBuild::conf{
     qw(build_root target animal print_success aux_path trigger_exclude
@@ -661,8 +664,9 @@ foreach my $locale (@locales)
 
     process_module_hooks('installcheck', $locale);
 
-    if (-d "$pgsql/src/test/isolation" && $locale eq 'C' 
-		&& step_wanted('isolation-check'))
+    if (   -d "$pgsql/src/test/isolation"
+        && $locale eq 'C'
+        && step_wanted('isolation-check'))
     {
 
         # restart the db to clear the log file
@@ -680,7 +684,7 @@ foreach my $locale (@locales)
     # PLs so only check them for later versions
 
     if (($branch eq 'HEAD' || $branch gt 'REL8_1')
-		&& step_wanted('pl-install-check'))
+        && step_wanted('pl-install-check'))
     {
 
         # restart the db to clear the log file
@@ -695,20 +699,20 @@ foreach my $locale (@locales)
         make_pl_install_check($locale);
     }
 
-	if (step_wanted('contrib-install-check'))
-	{
+    if (step_wanted('contrib-install-check'))
+    {
 
-		# restart the db to clear the log file
-		print time_str(),"restarting db ($locale)...\n" if $verbose;
-		
-		stop_db($locale);
-		start_db($locale);
-		
-		print time_str(),"running make contrib installcheck ($locale)...\n"
-		  if $verbose;
+        # restart the db to clear the log file
+        print time_str(),"restarting db ($locale)...\n" if $verbose;
 
-		make_contrib_install_check($locale);
-	}
+        stop_db($locale);
+        start_db($locale);
+
+        print time_str(),"running make contrib installcheck ($locale)...\n"
+          if $verbose;
+
+        make_contrib_install_check($locale);
+    }
 
     print time_str(),"stopping db ($locale)...\n" if $verbose;
 
@@ -784,10 +788,10 @@ sub time_str
 
 sub step_wanted
 {
-	my $step = shift;
-	return $only_steps{$step} if $only_steps;
-	return ! $skip_steps{$step} if $skip_steps;
-	return 1; # default is everything is wanted
+    my $step = shift;
+    return $only_steps{$step} if $only_steps;
+    return !$skip_steps{$step} if $skip_steps;
+    return 1; # default is everything is wanted
 }
 
 sub register_module_hooks
@@ -888,14 +892,14 @@ sub check_make
 sub make
 {
     return unless step_wanted('make');
-	print time_str(),"running make ...\n" if $verbose;
+    print time_str(),"running make ...\n" if $verbose;
 
     my (@makeout);
     unless ($using_msvc)
     {
-		my $make_cmd = $make;
-		$make_cmd = "$make -j $make_jobs"
-		  if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
+        my $make_cmd = $make;
+        $make_cmd = "$make -j $make_jobs"
+          if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
         @makeout = `cd $pgsql && $make_cmd 2>&1`;
     }
     else
@@ -937,7 +941,7 @@ sub make_doc
 sub make_install
 {
     return unless step_wanted('install');
-	print time_str(),"running make install ...\n" if $verbose;
+    print time_str(),"running make install ...\n" if $verbose;
 
     my @makeout;
     unless ($using_msvc)
@@ -1003,9 +1007,9 @@ sub make_contrib
     return unless step_wanted('make-contrib');
     print time_str(),"running make contrib ...\n" if $verbose;
 
-	my $make_cmd = $make;
-	$make_cmd = "$make -j $make_jobs"
-	  if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
+    my $make_cmd = $make;
+    $make_cmd = "$make -j $make_jobs"
+      if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
     my @makeout = `cd $pgsql/contrib && $make_cmd 2>&1`;
     my $status = $? >>8;
     writelog('make-contrib',\@makeout);
@@ -1019,7 +1023,6 @@ sub make_contrib_install
     return unless step_wanted('install');
     print time_str(),"running make contrib install ...\n"
       if $verbose;
-
 
     # part of install under msvc
     my @makeout = `cd $pgsql/contrib && $make install 2>&1`;
@@ -1356,7 +1359,7 @@ sub make_isolation_check
 sub make_check
 {
     return unless step_wanted('check');
-	print time_str(),"running make check ...\n" if $verbose;
+    print time_str(),"running make check ...\n" if $verbose;
 
     my @makeout;
     unless ($using_msvc)
@@ -1862,7 +1865,7 @@ sub get_script_config_dump
         script_version => $VERSION,
         invocation_args => \@invocation_args,
         steps_completed => $steps_completed,
-		orig_env => $orig_env,
+        orig_env => $orig_env,
     };
     delete $conf->{secret};
     return  Data::Dumper->Dump([$conf],['Script_Config']);
