@@ -32,7 +32,7 @@ See accompanying License file for license details
 
 ###################################################
 
-use vars qw($VERSION); $VERSION = 'REL_4.7';
+use vars qw($VERSION); $VERSION = 'REL_4.8';
 
 use strict;
 use warnings;
