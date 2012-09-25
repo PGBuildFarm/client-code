@@ -56,9 +56,12 @@ BEGIN
 	$orig_env = {};
 	while (my ($k,$v) = each %ENV)
 	{
-		# suppress reporting the value for a few things that might be
-		# sensitive
-		$orig_env->{$k} = ($k =~ /PASS|PW|SSH/ ? 'xxxxxxxx' : $v);
+		# report all the keys but only values for whitelisted settings
+		# this is to stop leaking of things like passwords
+		$orig_env->{$k} = 
+		  ($k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|FLAG|LIBRAR|INCLUDE/ 
+		   ? $v 
+		   : 'xxxxxx');
 	}
 }
 
