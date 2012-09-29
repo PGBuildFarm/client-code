@@ -17,9 +17,11 @@ use vars qw($VERSION); $VERSION = 'REL_4.8';
 my $hooks = {
     'checkout' => \&checkout,
     'setup-target' => \&setup_target,
+
     # 'need-run' => \&need_run,
     # 'configure' => \&configure,
     'build' => \&build,
+
     # 'check' => \&check,
     'install' => \&install,
     'installcheck' => \&installcheck,
@@ -35,7 +37,7 @@ sub setup
     my $conf = shift;  # ref to the whole config object
     my $pgsql = shift; # postgres build dir
 
-	return unless $branch ge 'REL9_1_STABLE' || $branch eq 'HEAD';
+    return unless $branch ge 'REL9_1_STABLE' || $branch eq 'HEAD';
 
     # could even set up several of these (e.g. for different branches)
     my $self  = {
@@ -46,18 +48,17 @@ sub setup
     };
     bless($self, $class);
 
-	my $scmconf = 
-	{
-	 scm => 'git',
-	 scmrepo => 'git://github.com/adunstan/file_text_array_fdw.git',
-	 git_reference => undef,
-	 git_keep_mirror => undef,
-	 git_ignore_mirror_failure => undef,
-	};
+    my $scmconf ={
+        scm => 'git',
+        scmrepo => 'git://github.com/adunstan/file_text_array_fdw.git',
+        git_reference => undef,
+        git_keep_mirror => undef,
+        git_ignore_mirror_failure => undef,
+    };
 
-	$self->{scm} = new PGBuild::SCM $scmconf, 'file_text_array_fdw';
-	my $where = $self->{scm}->get_build_path();
-	$self->{where} = $where;
+    $self->{scm} = new PGBuild::SCM $scmconf, 'file_text_array_fdw';
+    my $where = $self->{scm}->get_build_path();
+    $self->{where} = $where;
 
     # for each instance you create, do:
     main::register_module_hooks($self,$hooks);
@@ -71,10 +72,10 @@ sub checkout
 
     print main::time_str(), "checking out $MODULE\n" if	$verbose;
 
-	my $scmlog = $self->{scm}->checkout($self->{pgbranch}); 
+    my $scmlog = $self->{scm}->checkout($self->{pgbranch});
 
-    push(@$savescmlog, "------------- $MODULE checkout ----------------\n", 
-		@$scmlog);
+    push(@$savescmlog,
+        "------------- $MODULE checkout ----------------\n",@$scmlog);
 }
 
 sub setup_target
@@ -83,8 +84,8 @@ sub setup_target
 
     # copy the code or setup a vpath dir if supported as appropriate
 
-    print main::time_str(), "copying source to  ...$self->{where}\n" 
-	  if $verbose;
+    print main::time_str(), "copying source to  ...$self->{where}\n"
+      if $verbose;
 
     $self->{scm}->copy_source(undef);
 
@@ -109,7 +110,6 @@ sub configure
 
     print main::time_str(), "configuring $MODULE\n" if	$verbose;
 
-	
 }
 
 sub build
@@ -118,15 +118,15 @@ sub build
 
     print main::time_str(), "building $MODULE\n" if	$verbose;
 
-	my $cmd = "PATH=../inst:$ENV{PATH} make USE_PGXS=1";
+    my $cmd = "PATH=../inst:$ENV{PATH} make USE_PGXS=1";
 
-	my @makeout = `cd $self->{where} && $cmd 2>&1`;
+    my @makeout = `cd $self->{where} && $cmd 2>&1`;
 
     my $status = $? >>8;
     main::writelog("$MODULE-build",\@makeout);
     print "======== make log ===========\n",@makeout if ($verbose > 1);
     main::send_result("$MODULE-build",$status,\@makeout) if $status;
-	
+
 }
 
 sub install
@@ -135,15 +135,15 @@ sub install
 
     print main::time_str(), "installing $MODULE\n" if	$verbose;
 
-	my $cmd = "PATH=../inst:$ENV{PATH} make USE_PGXS=1 install";
+    my $cmd = "PATH=../inst:$ENV{PATH} make USE_PGXS=1 install";
 
-	my @log = `cd $self->{where} && $cmd 2>&1`;
+    my @log = `cd $self->{where} && $cmd 2>&1`;
 
     my $status = $? >>8;
     main::writelog("$MODULE-install",\@log);
     print "======== install log ===========\n",@log if ($verbose > 1);
     main::send_result("$MODULE-install",$status,\@log) if $status;
-	
+
 }
 
 sub check
@@ -160,16 +160,16 @@ sub installcheck
 
     print main::time_str(), "install-checking $MODULE\n" if	$verbose;
 
-	my $cmd = "PATH=../inst:$ENV{PATH} make USE_PGXS=1 installcheck";
+    my $cmd = "PATH=../inst:$ENV{PATH} make USE_PGXS=1 installcheck";
 
-	my @log = `cd $self->{where} && $cmd 2>&1`;
+    my @log = `cd $self->{where} && $cmd 2>&1`;
 
     my $status = $? >>8;
     main::writelog("$MODULE-installcheck-$locale",\@log);
-    print "======== installcheck ($locale) log ===========\n",@log 
-	  if ($verbose > 1);
+    print "======== installcheck ($locale) log ===========\n",@log
+      if ($verbose > 1);
     main::send_result("$MODULE-installcheck-$locale",$status,\@log) if $status;
-	
+
 }
 
 sub cleanup
@@ -178,7 +178,7 @@ sub cleanup
 
     print main::time_str(), "cleaning up $MODULE\n" if	$verbose;
 
-	system("rm -rf $self->{where}");
+    system("rm -rf $self->{where}");
 }
 
 1;

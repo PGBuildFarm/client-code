@@ -8,7 +8,8 @@ PERLFILES = run_build.pl run_web_txn.pl run_branches.pl \
 	build-farm.conf  \
 	PGBuild/SCM.pm PGBuild/Options.pm \
 	PGBuild/Modules/Skeleton.pm \
-	PGBuild/Modules/TestUpgrade.pm
+	PGBuild/Modules/TestUpgrade.pm \
+	PGBuild/Modules/FileTextArrayFDW.pm
 
 FILES = License README $(PERLFILES)
 
