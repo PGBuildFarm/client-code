@@ -61,7 +61,8 @@ BEGIN
         # report all the keys but only values for whitelisted settings
         # this is to stop leaking of things like passwords
         $orig_env->{$k} =(
-              $k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|FLAG|LIBRAR|INCLUDE/
+              ($k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|FLAG|LIBRAR|INCLUDE/ ||
+			   $k =~/^(HOME|LOGNAME|USER|PATH|SHELL)$/)
             ? $v
             : 'xxxxxx'
         );
@@ -940,7 +941,7 @@ sub make_doc
 
 sub make_install
 {
-    return unless step_wanted('install');
+    return unless step_wanted('make') && step_wanted('install');
     print time_str(),"running make install ...\n" if $verbose;
 
     my @makeout;
@@ -1004,7 +1005,7 @@ sub make_contrib
 {
 
     # part of build under msvc
-    return unless step_wanted('make-contrib');
+    return unless step_wanted('make') && step_wanted('make-contrib');
     print time_str(),"running make contrib ...\n" if $verbose;
 
     my $make_cmd = $make;
@@ -1020,7 +1021,9 @@ sub make_contrib
 
 sub make_contrib_install
 {
-    return unless step_wanted('install');
+    return unless step_wanted('make') && 
+	  step_wanted('make-contrib') && 
+		step_wanted('install');
     print time_str(),"running make contrib install ...\n"
       if $verbose;
 
