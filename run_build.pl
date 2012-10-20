@@ -426,6 +426,9 @@ END
         # only keep the cache in cases of success
         rmtree("$ccachedir") if $ccachedir;
     }
+
+    process_module_hooks('cleanup');
+
     if ($have_lock)
     {
         if ($use_vpath)
@@ -1024,9 +1027,9 @@ sub make_contrib
 sub make_contrib_install
 {
     return
-      unless step_wanted('make')
-          &&step_wanted('make-contrib')
-          &&step_wanted('install');
+      unless (step_wanted('make')
+        and step_wanted('make-contrib')
+        and step_wanted('install'));
     print time_str(),"running make contrib install ...\n"
       if $verbose;
 
@@ -1680,8 +1683,6 @@ sub send_result
     $extraconf = undef;
 
     my $stage = shift;
-
-    process_module_hooks('cleanup',$stage);
 
     my $ts = $now || time;
     my $status=shift || 0;
