@@ -52,8 +52,9 @@ sub setup
         scm => 'git',
         scmrepo => 'git://github.com/adunstan/file_text_array_fdw.git',
         git_reference => undef,
-        git_keep_mirror => undef,
-        git_ignore_mirror_failure => undef,
+        git_keep_mirror => 'true',
+        git_ignore_mirror_failure => 'true',
+        build_root => $self->{buildroot},
     };
 
     $self->{scm} = new PGBuild::SCM $scmconf, 'file_text_array_fdw';

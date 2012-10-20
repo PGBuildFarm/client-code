@@ -446,8 +446,11 @@ sub new
       || "git://git.postgresql.org/git/postgresql.git";
     $self->{reference} = $conf->{git_reference}
       if defined($conf->{git_reference});
-    $self->{mirror} = "$conf->{build_root}/pgmirror.git"
-      if $conf->{git_keep_mirror};
+    $self->{mirror} =(
+        $target eq 'pgsql'
+        ? "$conf->{build_root}/pgmirror.git"
+        :"$conf->{build_root}/$target-mirror.git"
+    )if $conf->{git_keep_mirror};
     $self->{ignore_mirror_failure} = $conf->{git_ignore_mirror_failure};
     $self->{target} = $target;
     return bless $self, $class;
