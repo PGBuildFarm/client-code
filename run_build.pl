@@ -152,6 +152,9 @@ my (
       use_vpath tar_log_cmd using_msvc extra_config make_jobs)
   };
 
+#default is no parallel build
+$make_jobs ||= 1;
+
 # legacy name
 if (defined($PGBuild::conf{trigger_filter}))
 {
