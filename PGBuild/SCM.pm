@@ -621,7 +621,7 @@ sub checkout
 
     @gitstat = grep{
         not
-/Already.up-to-date|On branch bf_$branch|nothing to commit .working directory clean./
+/Already.up-to-date|On branch bf_$branch|nothing to commit\W+working directory clean/
     }@gitstat;
 
     my ($headref,$refhandle);
