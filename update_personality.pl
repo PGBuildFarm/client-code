@@ -8,7 +8,7 @@ See accompanying License file for license details
 
 =cut 
 
-use vars qw($VERSION); $VERSION = 'REL_4.8';
+use vars qw($VERSION); $VERSION = 'REL_4.9';
 
 use strict;
 use warnings;
