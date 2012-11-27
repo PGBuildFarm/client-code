@@ -496,6 +496,8 @@ my $current_snap;
 my @filtered_files;
 my $savescmlog = "";
 
+$ENV{PGUSER} = 'buildfarm';
+
 if ($from_source_clean)
 {
     print time_str(),"cleaning source in $pgsql ...\n";
@@ -1054,13 +1056,13 @@ sub initdb
     if ($using_msvc)
     {
         chdir $installdir;
-        @initout = `"bin/initdb" --locale=$locale data-$locale 2>&1`;
+        @initout = `"bin/initdb" -U buildfarm --locale=$locale data-$locale 2>&1`;
         chdir $branch_root;
     }
     else
     {
         chdir $installdir;
-        @initout =`bin/initdb --locale=$locale data-$locale 2>&1`;
+        @initout =`bin/initdb -U buildfarm --locale=$locale data-$locale 2>&1`;
         chdir $branch_root;
     }
 
