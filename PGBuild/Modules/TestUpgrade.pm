@@ -35,6 +35,10 @@ sub setup
 
     return unless ($branch eq 'HEAD' or $branch ge 'REL9_2');
 
+	die "overly long build root $buildroot will cause upgrade problems - try something shorter than 46 chars"
+	  if (length($buildroot) > 46);
+
+
     # could even set up several of these (e.g. for different branches)
     my $self  = {
         buildroot => $buildroot,
