@@ -75,6 +75,19 @@ sub check
         @checklog = `$cmd 2>&1`;
     }
 
+	my @logfiles = glob("$self->{pgsql}/contrib/pg_upgrade/*.log");
+	foreach my $log (@logfiles)
+	{
+		my $fname = basename $log;
+		local $/ = undef;
+		my $handle;
+		open($handle,$log);
+		my $contents = <$handle>;
+		close($handle);
+		push(@checklog,"=========================== $fname ================\n",
+			 $contents);
+	}
+
     my $status = $? >>8;
 
     main::writelog("check-pg_upgrade",\@checklog);
