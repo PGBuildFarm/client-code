@@ -61,6 +61,8 @@ sub check
 
     print main::time_str(), "checking pg_upgrade\n" if	$verbose;
 
+	my $make = $self->{bfconf}->{make};
+
     my @checklog;
 
     if ($self->{bfconf}->{using_msvc})
@@ -71,7 +73,7 @@ sub check
     }
     else
     {
-        my $cmd = "cd $self->{pgsql}/contrib/pg_upgrade && make check";
+        my $cmd = "cd $self->{pgsql}/contrib/pg_upgrade && $make check";
         @checklog = `$cmd 2>&1`;
     }
 
