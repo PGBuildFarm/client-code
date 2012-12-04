@@ -430,6 +430,7 @@ END
         rmtree("$ccachedir") if $ccachedir;
     }
 
+	# get the modules to clean up after themselves
     process_module_hooks('cleanup');
 
     if ($have_lock)
@@ -728,6 +729,8 @@ foreach my $locale (@locales)
     print time_str(),"stopping db ($locale)...\n" if $verbose;
 
     stop_db($locale);
+
+	process_module_hooks('locale-end',$locale);
 
     rmtree("$installdir/data-$locale")
       unless $keepall;
@@ -1238,7 +1241,8 @@ sub make_contrib_install_check
     my @checklog;
     unless ($using_msvc)
     {
-        @checklog = `cd $pgsql/contrib && $make installcheck 2>&1`;
+        @checklog = 
+		  `cd $pgsql/contrib && $make USE_MODULE_DB=1 installcheck 2>&1`;
     }
     else
     {
