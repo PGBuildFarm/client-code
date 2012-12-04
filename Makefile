@@ -17,6 +17,7 @@ CREL := $(if $(REL),$(strip $(subst .,_, $(REL))),YOU_NEED_A_RELEASE)
 
 .PHONY: tag
 tag:
+	@test -n "$(REL)" || (echo Missing REL && exit 1)
 	sed -i -e "s/VERSION = '[^']*';/VERSION = 'REL_$(REL)';/" $(FILES)
 	git commit -a -m 'Mark Release '$(REL)
 	git tag -m 'Release $(REL)' REL_$(CREL)
@@ -24,6 +25,7 @@ tag:
 
 .PHONY: release
 release:
+	@test -n "$(REL)" || (echo Missing REL && exit 1)
 	@echo REL = $(CREL)
 	mkdir build-farm-$(REL)
 	tar -cf - $(FILES) | tar -C build-farm-$(REL) -xf -
