@@ -7,6 +7,8 @@ package PGBuild::Modules::TestUpgrade;
 use PGBuild::Options;
 use PGBuild::SCM;
 
+use File::Basename;
+
 use strict;
 
 use vars qw($VERSION); $VERSION = 'REL_4.9';
