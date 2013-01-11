@@ -430,7 +430,7 @@ END
         rmtree("$ccachedir") if $ccachedir;
     }
 
-	# get the modules to clean up after themselves
+    # get the modules to clean up after themselves
     process_module_hooks('cleanup');
 
     if ($have_lock)
@@ -730,7 +730,7 @@ foreach my $locale (@locales)
 
     stop_db($locale);
 
-	process_module_hooks('locale-end',$locale);
+    process_module_hooks('locale-end',$locale);
 
     rmtree("$installdir/data-$locale")
       unless $keepall;
@@ -1059,7 +1059,8 @@ sub initdb
     if ($using_msvc)
     {
         chdir $installdir;
-        @initout = `"bin/initdb" -U buildfarm --locale=$locale data-$locale 2>&1`;
+        @initout =
+          `"bin/initdb" -U buildfarm --locale=$locale data-$locale 2>&1`;
         chdir $branch_root;
     }
     else
@@ -1241,8 +1242,8 @@ sub make_contrib_install_check
     my @checklog;
     unless ($using_msvc)
     {
-        @checklog = 
-		  `cd $pgsql/contrib && $make USE_MODULE_DB=1 installcheck 2>&1`;
+        @checklog =
+          `cd $pgsql/contrib && $make USE_MODULE_DB=1 installcheck 2>&1`;
     }
     else
     {

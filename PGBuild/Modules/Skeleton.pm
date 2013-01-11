@@ -20,7 +20,7 @@ my $hooks = {
     'check' => \&check,
     'install' => \&install,
     'installcheck' => \&installcheck,
-	'locale-end' => \&locale_end,
+    'locale-end' => \&locale_end,
     'cleanup' => \&cleanup,
 };
 
@@ -113,8 +113,8 @@ sub installcheck
     my $self = shift;
     my $locale = shift;
 
-    print main::time_str(), "installchecking $locale",__PACKAGE__,"\n" 
-	  if	$verbose;
+    print main::time_str(), "installchecking $locale",__PACKAGE__,"\n"
+      if	$verbose;
 }
 
 sub locale_end
@@ -123,7 +123,7 @@ sub locale_end
     my $locale = shift;
 
     print main::time_str(), "end of locale $locale processing",__PACKAGE__,"\n"
-	  if	$verbose;
+      if	$verbose;
 }
 
 sub cleanup

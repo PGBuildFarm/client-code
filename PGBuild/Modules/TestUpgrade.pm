@@ -37,9 +37,9 @@ sub setup
 
     return unless ($branch eq 'HEAD' or $branch ge 'REL9_2');
 
-	die "overly long build root $buildroot will cause upgrade problems - try something shorter than 46 chars"
-	  if (length($buildroot) > 46);
-
+    die
+"overly long build root $buildroot will cause upgrade problems - try something shorter than 46 chars"
+      if (length($buildroot) > 46);
 
     # could even set up several of these (e.g. for different branches)
     my $self  = {
@@ -63,7 +63,7 @@ sub check
 
     print main::time_str(), "checking pg_upgrade\n" if	$verbose;
 
-	my $make = $self->{bfconf}->{make};
+    my $make = $self->{bfconf}->{make};
 
     my @checklog;
 
@@ -79,18 +79,18 @@ sub check
         @checklog = `$cmd 2>&1`;
     }
 
-	my @logfiles = glob("$self->{pgsql}/contrib/pg_upgrade/*.log");
-	foreach my $log (@logfiles)
-	{
-		my $fname = basename $log;
-		local $/ = undef;
-		my $handle;
-		open($handle,$log);
-		my $contents = <$handle>;
-		close($handle);
-		push(@checklog,"=========================== $fname ================\n",
-			 $contents);
-	}
+    my @logfiles = glob("$self->{pgsql}/contrib/pg_upgrade/*.log");
+    foreach my $log (@logfiles)
+    {
+        my $fname = basename $log;
+        local $/ = undef;
+        my $handle;
+        open($handle,$log);
+        my $contents = <$handle>;
+        close($handle);
+        push(@checklog,
+            "=========================== $fname ================\n",$contents);
+    }
 
     my $status = $? >>8;
 
