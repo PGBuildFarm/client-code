@@ -65,6 +65,12 @@ sub check
 
     my $make = $self->{bfconf}->{make};
 
+    local %ENV = %ENV;
+    delete $ENV{PGUSER};
+
+    (my $buildport = $ENV{EXTRA_REGRESS_OPTS}) =~ s/--port=//;
+    $ENV{PGPORT} = $buildport;
+
     my @checklog;
 
     if ($self->{bfconf}->{using_msvc})

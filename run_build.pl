@@ -36,6 +36,7 @@ use vars qw($VERSION); $VERSION = 'REL_4.10';
 
 use strict;
 use warnings;
+use Config;
 use Fcntl qw(:flock :seek);
 use File::Path;
 use File::Copy;
@@ -194,6 +195,8 @@ else
     # support for legacy config style
     $buildport = $PGBuild::conf{branch_ports}->{$branch} || 5999;
 }
+
+$ENV{EXTRA_REGRESS_OPTS} = "--port=$buildport";
 
 $tar_log_cmd ||= "tar -z -cf runlogs.tgz *.log";
 
@@ -499,6 +502,8 @@ my $savescmlog = "";
 
 $ENV{PGUSER} = 'buildfarm';
 
+check_port_is_ok($buildport, 'Pre');
+
 if ($from_source_clean)
 {
     print time_str(),"cleaning source in $pgsql ...\n";
@@ -750,6 +755,8 @@ if (check_optional_step('find_typedefs') || $find_typedefs)
 
     find_typedefs();
 }
+
+check_port_is_ok($buildport,'Post');
 
 # if we get here everything went fine ...
 
@@ -1766,7 +1773,7 @@ sub send_result
         }
     }
 
-    if ($stage !~ /CVS|Git|SCM/ )
+    if ($stage !~ /CVS|Git|SCM|Pre-run-port-check/ )
     {
 
         my @logfiles = glob("$lrname/*.log");
@@ -1873,6 +1880,38 @@ sub get_config_summary
     }
     $config .= get_script_config_dump();
     return $config;
+}
+
+sub check_port_is_ok
+{
+    my $port = shift;
+    my $report = shift; # Pre or Post
+    my $stage = "${report}-run-port-check";
+    my @log;
+    my $found = undef;
+
+    if ($Config{osname} !~ /msys|MSWin/)
+    {
+
+        # look for a unix socket except on Windows -
+        # cygwin does have them, though
+        # could connect, but just finding the socket file should do,
+        # since its existence will cause us grief.
+        $found = -S "/tmp/.s.PGSQL.$port";
+    }
+    if ($found)
+    {
+
+        # If we want to kill the process, do something likethis,
+        # but only in a Post checvk - don't kill any pre-existing
+        # process on the port:
+        # system("fuser -k /tmp/.s.PGSQL.$port") if $report eq 'Post';
+
+        # In either case finding this process is an error, so call
+        # send_result.
+        push(@log,"socket found listening to port $port");
+        send_result($stage,99,\@log);
+    }
 }
 
 sub get_script_config_dump
