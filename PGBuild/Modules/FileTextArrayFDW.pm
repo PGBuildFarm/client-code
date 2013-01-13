@@ -177,7 +177,7 @@ sub cleanup
 {
     my $self = shift;
 
-    print main::time_str(), "cleaning up $MODULE\n" if	$verbose;
+    print main::time_str(), "cleaning up $MODULE\n" if	$verbose > 1;
 
     system("rm -rf $self->{where}");
 }
