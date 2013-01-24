@@ -166,6 +166,23 @@ sub installcheck
     my @log = `cd $self->{where} && $cmd 2>&1`;
 
     my $status = $? >>8;
+	my $installdir = "$self->{buildroot}/$self->{pgbranch}/inst";
+    my @logfiles =
+      ("$self->{where}/regression.diffs","$installdir/logfile");
+    foreach my $logfile(@logfiles)
+    {
+		last unless $status;
+        next unless (-e $logfile );
+        push(@log,"\n\n================== $logfile ==================\n");
+        my $handle;
+        open($handle,$logfile);
+        while(<$handle>)
+        {
+            push(@log,$_);
+        }
+        close($handle);
+    }
+
     main::writelog("$MODULE-installcheck-$locale",\@log);
     print "======== installcheck ($locale) log ===========\n",@log
       if ($verbose > 1);
