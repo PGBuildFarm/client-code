@@ -38,7 +38,7 @@ use vars qw($VERSION); $VERSION = 'REL_4.10';
 use LWP;
 use HTTP::Request::Common;
 use MIME::Base64;
-use Digest::SHA1  qw(sha1_hex);
+use Digest::SHA  qw(sha1_hex);
 use Storable qw(nfreeze);
 
 my $lrname = $ARGV[0] || 'lastrun-logs';

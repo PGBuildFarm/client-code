@@ -17,7 +17,7 @@ no warnings qw(once); # suppress spurious warning about conf structure
 use LWP;
 use HTTP::Request::Common;
 use MIME::Base64;
-use Digest::SHA1  qw(sha1_hex);
+use Digest::SHA  qw(sha1_hex);
 use Getopt::Long;
 
 # copy command line before processing - so we can later report it
