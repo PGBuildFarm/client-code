@@ -6,7 +6,7 @@
 PERLFILES = run_build.pl run_web_txn.pl run_branches.pl \
 	update_personality.pl setnotes.pl \
 	build-farm.conf  \
-	PGBuild/SCM.pm PGBuild/Options.pm \
+	PGBuild/SCM.pm PGBuild/Options.pm PGBuild/WebTxn.pm \
 	PGBuild/Modules/Skeleton.pm \
 	PGBuild/Modules/TestUpgrade.pm \
 	PGBuild/Modules/FileTextArrayFDW.pm
