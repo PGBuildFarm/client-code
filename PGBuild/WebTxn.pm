@@ -81,7 +81,7 @@ sub run_web_txn
 		delete $Script_Config->{$k}
 		  if ref($Script_Config->{$k}) eq q(Regexp);
 	}
-	my $frozen_sconf = nfreeze $Script_Config;
+	my $frozen_sconf = nfreeze($Script_Config);
 	
 	# make the base64 data escape-proof; = is probably ok but no harm done
 	# this ensures that what is seen at the other end is EXACTLY what we
