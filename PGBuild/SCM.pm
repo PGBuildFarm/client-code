@@ -529,15 +529,11 @@ sub checkout
 
         if (-d $self->{mirror})
         {
-            chdir "../$mirror";
-            @gitlog = `git fetch 2>&1`;
-            chdir "../$branch";
+            @gitlog = `git --git-dir="$self->{mirror}" fetch 2>&1`;
             $status = $self->{ignore_mirror_failure} ? 0 : $? >> 8;
         }
         else
         {
-            chdir "..";
-
             my $char1 = substr($gitserver,0,1);
             $gitserver = "$drive$gitserver"
               if ( $char1 eq '/' or $char1 eq '\\');
@@ -547,8 +543,7 @@ sub checkout
             #   git clone --bare $gitserver pgmirror.git
             #   (cd pgmirror.git && git remote add --mirror origin $gitserver)
             # or equivalent for other targets
-            @gitlog = `git clone --mirror $gitserver $mirror 2>&1`;
-            chdir $branch;
+            @gitlog = `git clone --mirror $gitserver $self->{mirror} 2>&1`;
             $status = $? >>8;
         }
         if ($status)
@@ -565,6 +560,7 @@ sub checkout
         my @branches = `git branch 2>&1`;
         unless (grep {/^\* bf_$branch$/} @branches)
         {
+			chdir '..';
             print "Missing checked out branch bf_$branch:\n",@branches
               if ($main::verbose);
             unshift @branches,"Missing checked out branch bf_$branch:\n";
