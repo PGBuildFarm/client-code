@@ -74,6 +74,7 @@ BEGIN
 
 use PGBuild::SCM;
 use PGBuild::Options;
+use PGBuild::WebTxn;
 
 my %module_hooks;
 my $orig_dir = getcwd();
@@ -1796,27 +1797,28 @@ sub send_result
         unlink "$lrname/runlogs.tgz";
     }
 
-    unless (
-        -x "$aux_path/run_web_txn.pl"
-        ||($using_msvc && -f "$aux_path/run_web_txn.pl")
-      )
-    {
-        print "Could not locate $aux_path/run_web_txn.pl\n";
-        exit(1);
-    }
+	my $txstatus;
 
-    if ($using_msvc)
-    {
+	# this should now only apply to older Msys installs. All others should
+	# be running with perl >= 5.8 since that's required to build postgres 
+	# anyway
+	if (!$^V or $^V lt v5.8.0)
+	{
 
-        # no shebang line for windows, but perl is in the path
-        system("perl \"$aux_path/run_web_txn.pl\" $lrname");
-    }
-    else
-    {
+		unless (-x "$aux_path/run_web_txn.pl")
+		{
+			print "Could not locate $aux_path/run_web_txn.pl\n";
+			exit(1);
+		}
+
         system("$aux_path/run_web_txn.pl $lrname");
+		$txstatus = $? >> 8;
     }
+	else
+	{
+		$txstatus = PGBuild::WebTxn::run_web_txn($lrname) ? 0 : 1;
 
-    my $txstatus = $? >> 8;
+	}
 
     if ($txstatus)
     {

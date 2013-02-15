@@ -2,7 +2,7 @@
 
 =comment
 
-Copyright (c) 2003-2010, Andrew Dunstan
+Copyright (c) 2003-2013, Andrew Dunstan
 
 See accompanying License file for license details
 
@@ -11,6 +11,12 @@ See accompanying License file for license details
 ###################################################
 #
 # part of postgresql buildfarm suite.
+#
+#
+# The comments below now only apply to older Msys installations (where
+# the native SDK perl version is < 5.8).
+# All other installations now do not need to set aux_path, nor should this 
+# script be called.
 #
 # auxiliary script to get around the
 # fact that the SDK perl for MSys can't do the web
@@ -35,102 +41,13 @@ use strict;
 
 use vars qw($VERSION); $VERSION = 'REL_4.10';
 
-use LWP;
-use HTTP::Request::Common;
-use MIME::Base64;
-use Digest::SHA  qw(sha1_hex);
-use Storable qw(nfreeze);
+use PGBuild::WebTxn;
 
 my $lrname = $ARGV[0] || 'lastrun-logs';
 
-use vars qw($changed_this_run $changed_since_success $branch $status $stage
-  $animal $ts $log_data $confsum $target $verbose $secret);
+my $res = PGBuild::WebTxn::run_web_txn($lrname);
 
-my $txfname = "$lrname/web-txn.data";
-my $txdhandle;
-$/=undef;
-open($txdhandle,"$txfname") or die "opening $txfname: $!";
-my $txdata = <$txdhandle>;
-close($txdhandle);
+exit $res ? 0 : 1;
 
-eval $txdata;
-die $@ if $@;
 
-my $tarname = "$lrname/runlogs.tgz";
-my $tardata="";
-if (open($txdhandle,$tarname))
-{
-    binmode $txdhandle;
-    $tardata=<$txdhandle>;
-    close($txdhandle);
-}
 
-# add our own version string and time
-my $current_ts = time;
-my $webscriptversion = "'web_script_version' => '$VERSION',\n";
-my $cts	= "'current_ts' => $current_ts,\n";
-
-# $2 here helps us to preserve the nice spacing from Data::Dumper
-my $scriptline = "((.*)'script_version' => '(REL_)?\\d+\\.\\d+',\n)";
-$confsum =~ s/$scriptline/$1$2$webscriptversion$2$cts/;
-my $sconf = $confsum;
-$sconf =~ s/.*(\$Script_Config)/$1/ms;
-my $Script_Config;
-eval $sconf;
-
-# very modern Storable modules choke on regexes
-# the server has no need of them anyway, so just chop them out
-# they are still there in the text version used for reporting
-foreach my $k ( keys %$Script_Config )
-{
-    delete $Script_Config->{$k}
-      if ref($Script_Config->{$k}) eq q(Regexp);
-}
-my $frozen_sconf = nfreeze $Script_Config;
-
-# make the base64 data escape-proof; = is probably ok but no harm done
-# this ensures that what is seen at the other end is EXACTLY what we
-# see when we calculate the signature
-
-map{ $_=encode_base64($_,""); tr/+=/$@/; }(
-    $log_data,$confsum,$changed_this_run,$changed_since_success,$tardata,
-    $frozen_sconf
-);
-
-my $content =
-   "changed_files=$changed_this_run&"
-  ."changed_since_success=$changed_since_success&"
-  ."branch=$branch&res=$status&stage=$stage&animal=$animal&ts=$ts"
-  ."&log=$log_data&conf=$confsum";
-my $sig= sha1_hex($content,$secret);
-
-$content .= "&frozen_sconf=$frozen_sconf";
-
-if ($tardata)
-{
-    $content .= "&logtar=$tardata";
-}
-
-my $ua = new LWP::UserAgent;
-$ua->agent("Postgres Build Farm Reporter");
-if (my $proxy = $ENV{BF_PROXY})
-{
-    $ua->proxy('http',$proxy);
-}
-
-my $request=HTTP::Request->new(POST => "$target/$sig");
-$request->content_type("application/x-www-form-urlencoded");
-$request->content($content);
-
-my $response=$ua->request($request);
-
-unless ($response->is_success)
-{
-    print
-      "Query for: stage=$stage&animal=$animal&ts=$ts\n",
-      "Target: $target/$sig\n";
-    print "Status Line: ",$response->status_line,"\n";
-    print "Content: \n", $response->content,"\n"
-      if ($verbose && $response->content);
-    exit 1;
-}
