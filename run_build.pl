@@ -249,7 +249,10 @@ if ( $ccachedir = $PGBuild::conf{build_env}->{CCACHE_DIR} )
     $ccachedir = abs_path($ccachedir);
 }
 
-die "no aux_path in config file" unless $aux_path;
+if ($^V lt v5.8.0)
+{
+	die "no aux_path in config file" unless $aux_path;
+}
 
 die "cannot run as root/Administrator" unless ($using_msvc or $> > 0);
 
