@@ -15,7 +15,7 @@ See accompanying License file for license details
 #
 # The comments below now only apply to older Msys installations (where
 # the native SDK perl version is < 5.8).
-# All other installations now do not need to set aux_path, nor should this 
+# All other installations now do not need to set aux_path, nor should this
 # script be called.
 #
 # auxiliary script to get around the
@@ -48,6 +48,4 @@ my $lrname = $ARGV[0] || 'lastrun-logs';
 my $res = PGBuild::WebTxn::run_web_txn($lrname);
 
 exit $res ? 0 : 1;
-
-
 

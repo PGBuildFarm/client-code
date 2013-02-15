@@ -166,12 +166,11 @@ sub installcheck
     my @log = `cd $self->{where} && $cmd 2>&1`;
 
     my $status = $? >>8;
-	my $installdir = "$self->{buildroot}/$self->{pgbranch}/inst";
-    my @logfiles =
-      ("$self->{where}/regression.diffs","$installdir/logfile");
+    my $installdir = "$self->{buildroot}/$self->{pgbranch}/inst";
+    my @logfiles =("$self->{where}/regression.diffs","$installdir/logfile");
     foreach my $logfile(@logfiles)
     {
-		last unless $status;
+        last unless $status;
         next unless (-e $logfile );
         push(@log,"\n\n================== $logfile ==================\n");
         my $handle;

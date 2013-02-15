@@ -560,7 +560,7 @@ sub checkout
         my @branches = `git branch 2>&1`;
         unless (grep {/^\* bf_$branch$/} @branches)
         {
-			chdir '..';
+            chdir '..';
             print "Missing checked out branch bf_$branch:\n",@branches
               if ($main::verbose);
             unshift @branches,"Missing checked out branch bf_$branch:\n";

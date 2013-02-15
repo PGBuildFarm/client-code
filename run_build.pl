@@ -251,7 +251,7 @@ if ( $ccachedir = $PGBuild::conf{build_env}->{CCACHE_DIR} )
 
 if ($^V lt v5.8.0)
 {
-	die "no aux_path in config file" unless $aux_path;
+    die "no aux_path in config file" unless $aux_path;
 }
 
 die "cannot run as root/Administrator" unless ($using_msvc or $> > 0);
@@ -1800,28 +1800,28 @@ sub send_result
         unlink "$lrname/runlogs.tgz";
     }
 
-	my $txstatus;
+    my $txstatus;
 
-	# this should now only apply to older Msys installs. All others should
-	# be running with perl >= 5.8 since that's required to build postgres 
-	# anyway
-	if (!$^V or $^V lt v5.8.0)
-	{
+    # this should now only apply to older Msys installs. All others should
+    # be running with perl >= 5.8 since that's required to build postgres
+    # anyway
+    if (!$^V or $^V lt v5.8.0)
+    {
 
-		unless (-x "$aux_path/run_web_txn.pl")
-		{
-			print "Could not locate $aux_path/run_web_txn.pl\n";
-			exit(1);
-		}
+        unless (-x "$aux_path/run_web_txn.pl")
+        {
+            print "Could not locate $aux_path/run_web_txn.pl\n";
+            exit(1);
+        }
 
         system("$aux_path/run_web_txn.pl $lrname");
-		$txstatus = $? >> 8;
+        $txstatus = $? >> 8;
     }
-	else
-	{
-		$txstatus = PGBuild::WebTxn::run_web_txn($lrname) ? 0 : 1;
+    else
+    {
+        $txstatus = PGBuild::WebTxn::run_web_txn($lrname) ? 0 : 1;
 
-	}
+    }
 
     if ($txstatus)
     {

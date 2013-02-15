@@ -55,8 +55,8 @@ unless (
         ref $PGBuild::conf{branches_to_build} eq 'ARRAY'
         &&@{$PGBuild::conf{branches_to_build}}
     )
-    ||$PGBuild::conf{branches_to_build} =~ 
-		/^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST2)$/
+    ||$PGBuild::conf{branches_to_build} =~
+    /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST2)$/
   )
 {
     die "no branches_to_build specified in $buildconf";
@@ -67,8 +67,8 @@ if (ref $PGBuild::conf{branches_to_build})
 {
     @branches = @{$PGBuild::conf{branches_to_build}};
 }
-elsif ($PGBuild::conf{branches_to_build} =~ 
-		/^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST2)$/ )
+elsif ($PGBuild::conf{branches_to_build} =~
+    /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST2)$/ )
 {
 
     # Need to set the path here so we make sure we pick up the right perl.
@@ -86,10 +86,10 @@ elsif ($PGBuild::conf{branches_to_build} =~
     push(@branches,$_)foreach (split(/\s+/,$branches_of_interest));
     @branches = grep {$_ ne 'REL8_2_STABLE'} @branches
       if  $PGBuild::conf{using_msvc};
-	splice(@branches,0,-2) 
-	  if $PGBuild::conf{branches_to_build} eq 'HEAD_PLUS_LATEST';
-	splice(@branches,0,-3) 
-	  if $PGBuild::conf{branches_to_build} eq 'HEAD_PLUS_LATEST2';
+    splice(@branches,0,-2)
+      if $PGBuild::conf{branches_to_build} eq 'HEAD_PLUS_LATEST';
+    splice(@branches,0,-3)
+      if $PGBuild::conf{branches_to_build} eq 'HEAD_PLUS_LATEST2';
 }
 
 @branches = apply_throttle(@branches);
