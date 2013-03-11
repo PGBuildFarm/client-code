@@ -8,10 +8,6 @@
 
 # For now, only tests C locale upgrades.
 
-
-
-
-
 package PGBuild::Modules::TestUpgradeXversion;
 
 use PGBuild::Options;
@@ -32,7 +28,7 @@ my $hooks = {
      'need-run' => \&need_run,
 #    'configure' => \&configure,
 #    'build' => \&build,
-     'installcheck' => \&installcheck,
+     'locale-end' => \&installcheck,
 #    'check' => \&check,
 #    'cleanup' => \&cleanup,
 };
@@ -161,7 +157,7 @@ sub installcheck
 	my $upgrade_loc = "$upgrade_install_root/$self->{pgbranch}";
 	my $installdir = "$upgrade_loc/inst";
 
-	main::stop_db($locale);
+	# main::stop_db($locale);
 
 	mkdir  $upgrade_install_root unless -d  $upgrade_install_root;
 	
@@ -238,7 +234,7 @@ sub installcheck
 	
 	if ($self->{pgbranch} lt 'REL9_1' && $self->{pgbranch} ne 'HEAD')
 	{
-		main::start_db($locale);
+		# main::start_db($locale);
 		return;
 	}
 
@@ -342,7 +338,7 @@ sub installcheck
 		
 	}
 	
-	main::start_db($locale);
+	# main::start_db($locale);
 
 }
 
