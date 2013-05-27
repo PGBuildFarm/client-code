@@ -612,13 +612,8 @@ sub checkout
     # loudly.
 
     chdir "$target";
-    my @gitstat = `git status 2>&1`;
+    my @gitstat = `git status --porcelain 2>&1`;
     chdir "..";
-
-    @gitstat = grep{
-        not
-/Already.up-to-date|On branch bf_$branch|nothing to commit\W+working directory clean/
-    }@gitstat;
 
     my ($headref,$refhandle);
     if (open($refhandle,"$target/.git/refs/heads/bf_$branch"))
