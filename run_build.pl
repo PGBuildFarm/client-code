@@ -1191,15 +1191,23 @@ sub get_stack_trace
     my $status = $? >>8;
     return () if $status;
 
+	my $cmdfile = "./gdbcmd";
+	my $handle;
+    open($handle, ">$cmdfile");
+    print $handle "bt\n";
+    close($handle);
+
     my @trace;
 
     foreach my $core (@cores)
     {
-        my @onetrace = `gdb -ex bt --batch $bindir/postgres $core 2>&1`;
+        my @onetrace = `gdb -x $cmdfile --batch $bindir/postgres $core 2>&1`;
         push(@trace,
             "\n\n================== stack trace: $core ==================\n",
             @onetrace);
     }
+
+	unlink $cmdfile;
 
     return @trace;
 }
