@@ -146,16 +146,19 @@ my (
     $aux_path,$trigger_exclude,$trigger_include,$secret,
     $keep_errs,$force_every, $make, $optional_steps,
     $use_vpath,$tar_log_cmd, $using_msvc, $extra_config,
-    $make_jobs
+    $make_jobs, $core_file_glob
   )
   =@PGBuild::conf{
     qw(build_root target animal print_success aux_path trigger_exclude
       trigger_include secret keep_error_builds force_every make optional_steps
-      use_vpath tar_log_cmd using_msvc extra_config make_jobs)
+      use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob)
   };
 
 #default is no parallel build
 $make_jobs ||= 1;
+
+# default core file pattern is Linux, which used to be hardcoded
+$core_file_glob ||= 'core*';
 
 # legacy name
 if (defined($PGBuild::conf{trigger_filter}))
@@ -1180,7 +1183,7 @@ sub get_stack_trace
     my $pgdata = shift;
 
     # no core = no result
-    my @cores = glob("$pgdata/core*");
+    my @cores = glob("$pgdata/$core_file_glob");
     return () unless @cores;
 
     # no gdb = no result
