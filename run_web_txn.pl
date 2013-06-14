@@ -39,7 +39,7 @@ See accompanying License file for license details
 
 use strict;
 
-use vars qw($VERSION); $VERSION = 'REL_4.10';
+use vars qw($VERSION); $VERSION = 'REL_4.11';
 
 use PGBuild::WebTxn;
 
