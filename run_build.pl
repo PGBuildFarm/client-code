@@ -1191,8 +1191,8 @@ sub get_stack_trace
     my $status = $? >>8;
     return () if $status;
 
-	my $cmdfile = "./gdbcmd";
-	my $handle;
+    my $cmdfile = "./gdbcmd";
+    my $handle;
     open($handle, ">$cmdfile");
     print $handle "bt\n";
     close($handle);
@@ -1207,7 +1207,7 @@ sub get_stack_trace
             @onetrace);
     }
 
-	unlink $cmdfile;
+    unlink $cmdfile;
 
     return @trace;
 }
