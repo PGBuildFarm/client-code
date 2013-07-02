@@ -68,9 +68,10 @@ if (ref $PGBuild::conf{branches_to_build})
     @branches = @{$PGBuild::conf{branches_to_build}};
 }
 elsif ($PGBuild::conf{branches_to_build} =~
-    /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST2)$/ )
+    /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/ )
 {
 
+	my $latest = $2;
     # Need to set the path here so we make sure we pick up the right perl.
     # It has to be the perl that the build script would choose
     # i.e. specially *not* the MinGW SDK perl that is invoked for the
@@ -88,8 +89,8 @@ elsif ($PGBuild::conf{branches_to_build} =~
       if  $PGBuild::conf{using_msvc};
     splice(@branches,0,-2)
       if $PGBuild::conf{branches_to_build} eq 'HEAD_PLUS_LATEST';
-    splice(@branches,0,-3)
-      if $PGBuild::conf{branches_to_build} eq 'HEAD_PLUS_LATEST2';
+    splice(@branches,0,0 - ($latest + 2))
+      if $PGBuild::conf{branches_to_build} =~ /^HEAD_PLUS_LATEST\d$/;
 }
 
 @branches = apply_throttle(@branches);
