@@ -1741,7 +1741,7 @@ sub send_result
     {
         $confsum= $saved_config;
     }
-    elsif ($stage !~ /CVS|Git|SCM/ )
+    elsif ($stage !~ /CVS|Git|SCM|Pre-run-port-check/ )
     {
         $confsum = get_config_summary();
     }
