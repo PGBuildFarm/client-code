@@ -264,7 +264,7 @@ sub installcheck
 		my $sconfig = `$other_branch/inst/bin/pg_config --configure`;
 		my $sport = $sconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
 
-		system("$other_branch/inst/bin/pg_ctl -D $other_branch/inst/upgrade_test -o '-F' -l $other_branch/inst/upgrade_log -w start >> '$upgrade_loc/ctl.log' 2>&1");
+		system("$other_branch/inst/bin/pg_ctl -D $other_branch/inst/upgrade_test -o '-F' -l $other_branch/inst/dump-$self->{pgbranch}.log -w start >> '$upgrade_loc/ctl.log' 2>&1");
 
 		# use the NEW pg_dumpall so we're comparing apples with apples.
 		setinstenv($self, "$installdir", $save_env);
@@ -307,22 +307,29 @@ sub installcheck
                                  #target    source
 		my $expected_difflines = {
 								  HEAD => {
-										   REL9_0_STABLE => 125,
-										   REL9_1_STABLE => 11,
-										   REL9_2_STABLE => 11,
+										   REL9_0_STABLE => 1715,
+										   REL9_1_STABLE => 643,
+										   REL9_2_STABLE => 741,
+										   REL9_3_STABLE => 0,
+										  },
+								  REL9_3_STABLE => {
+										   REL9_0_STABLE => 1715,
+										   REL9_1_STABLE => 643,
+										   REL9_2_STABLE => 741,
 										  },
 								  REL9_2_STABLE => {
 													REL9_1_STABLE => 0,
-													REL9_0_STABLE => 116,
+													REL9_0_STABLE => 1085,
 												   },
 								  REL9_1_STABLE => {
-													REL9_0_STABLE => 116,
+													REL9_0_STABLE => 1085,
 												   }
 								 };
 
 
 		system("diff -u $upgrade_loc/origin-$oversion.sql $upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql > $upgrade_loc/dumpdiff-$oversion 2>&1");
 		my $difflines = `wc -l < $upgrade_loc/dumpdiff-$oversion`;
+		chomp($difflines);
 		my $expected = $expected_difflines->{$self->{pgbranch}}->{$oversion};
 		
 		if ($difflines == $expected)
@@ -331,7 +338,7 @@ sub installcheck
 		}
 		else
 		{
-			print "dumps $upgrade_loc/origin-$oversion.sql $upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql - expected $expected got $difflines of diff";
+			print "dumps $upgrade_loc/origin-$oversion.sql $upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql - expected $expected got $difflines of diff\n";
 		}
 
 		rmtree("$installdir/$oversion-upgrade");
