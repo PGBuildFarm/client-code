@@ -20,7 +20,7 @@ use File::Basename;
 
 use strict;
 
-use vars qw($VERSION); $VERSION = 'REL_4.7';
+use vars qw($VERSION); $VERSION = 'REL_4.11';
 
 my $hooks = {
 #    'checkout' => \&checkout,
@@ -165,7 +165,10 @@ sub installcheck
 
 	mkdir  $upgrade_loc;
 
-	system (qq{cp -r "$install_loc" "$installdir" >"$upgrade_loc/save.log" 2>&1});
+
+	my $copy = $self->{bfconf}->{use_mscv} ? "xcopy /I /Q /E /Y " : "cp -r ";
+	
+	system (qq{$copy "$install_loc" "$installdir" >"$upgrade_loc/save.log" 2>&1});
 		
 	# keep a copy of installed database
 	# not needed for HEAD since there is no later version 
@@ -193,12 +196,14 @@ sub installcheck
 	my @regresslibs = `psql -A -t -c '$sql' regression`;
 	
 	chomp @regresslibs;
+	s/\r$// foreach @regresslibs; # needed for mingw perl
 	
 	my %regresslibs = map { $_ => 1 } @regresslibs;
 	
 	foreach my $lib (keys %regresslibs)
 	{
 		my $dest = "$installdir/lib/postgresql/" . basename($lib);
+		next if -e $dest;
 		copy($lib,$dest);
 		die "cannot find $dest (from $lib)" unless -e $dest;
 		chmod 0755, $dest;
