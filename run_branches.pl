@@ -71,7 +71,8 @@ elsif ($PGBuild::conf{branches_to_build} =~
     /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/ )
 {
 
-	my $latest = $2;
+    my $latest = $2;
+
     # Need to set the path here so we make sure we pick up the right perl.
     # It has to be the perl that the build script would choose
     # i.e. specially *not* the MinGW SDK perl that is invoked for the
