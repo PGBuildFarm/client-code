@@ -183,7 +183,7 @@ if (ref($force_every) eq 'HASH')
 my $config_opts = $PGBuild::conf{config_opts};
 my $scm = new PGBuild::SCM \%PGBuild::conf;
 
-my $buildport;
+use vars qw($buildport);
 
 if (exists $PGBuild::conf{base_port})
 {
@@ -384,7 +384,8 @@ unless ($using_msvc)
 }
 
 # the time we take the snapshot
-my $now=time;
+use vars qw($now);
+$now=time;
 my $installdir = "$buildroot/$branch/inst";
 my $dbstarted;
 
@@ -707,7 +708,8 @@ foreach my $locale (@locales)
     # releases 8.0 and earlier don't support the standard method for testing
     # PLs so only check them for later versions
 
-    if (($branch eq 'HEAD' || $branch gt 'REL8_1')
+    if (   ($branch eq 'HEAD' || $branch gt 'REL8_1')
+        && (grep {/--with-(perl|python|tcl)/ } @$config_opts)
         && step_wanted('pl-install-check'))
     {
 
@@ -902,10 +904,12 @@ sub cleanlogs
 sub writelog
 {
     my $stage = shift;
+    my $fname = $stage;
+    $fname = "$fname.log" unless $fname =~ /\./;
     my $loglines = shift;
     my $handle;
     my $lrname = $st_prefix . $logdirname;
-    open($handle,">$lrname/$stage.log") || die $!;
+    open($handle,">$lrname/$fname") || die $!;
     print $handle @$loglines;
     close($handle);
 }
