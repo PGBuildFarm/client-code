@@ -3,7 +3,7 @@
 
 # See accompanying License file for license details
 
-ALLPERLFILES = $(shell find . \( -name '*.pl' -o -name '*.pm' \) -print | sed 's!\./!!')
+ALLPERLFILES = $(shell find . \( -name '*.pl' -o -name '*.pm' \) -print | sed 's!\./!!') build-farm.conf
 
 # these are the explicitly selected perl files that will go in a 
 # release tarball
