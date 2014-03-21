@@ -142,14 +142,14 @@ require $buildconf;
 
 # get the config data into some local variables
 my (
-    $buildroot,$target,$animal, $print_success,
+    $buildroot,$target,$animal,
     $aux_path,$trigger_exclude,$trigger_include,$secret,
     $keep_errs,$force_every, $make, $optional_steps,
     $use_vpath,$tar_log_cmd, $using_msvc, $extra_config,
     $make_jobs, $core_file_glob
   )
   =@PGBuild::conf{
-    qw(build_root target animal print_success aux_path trigger_exclude
+    qw(build_root target animal aux_path trigger_exclude
       trigger_include secret keep_error_builds force_every make optional_steps
       use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob)
   };
@@ -1853,9 +1853,6 @@ sub send_result
     {
         print "Buildfarm member $animal failed on $branch stage $stage\n";
     }
-
-    #	print "Success!\n",$response->content
-    #		if $print_success;
 
     set_last('success.snap',$current_snap) if ($stage eq 'OK' && !$nostatus);
 
