@@ -31,7 +31,7 @@ See accompanying License file for license details
 # All users need to set the aux_path setting in their config files
 # to be an absolute or relative path to this script. If relative, then
 # it must be relative to <buildroot>/<$branch>. The reason for this crazy
-# setup is so that thhis script does not need to change directory
+# setup is so that this script does not need to change directory
 # at all, which lets us get around virtual path craziness that we
 # encounter on MSys.
 #
