@@ -97,7 +97,7 @@ elsif ($PGBuild::conf{branches_to_build} =~
       if  $PGBuild::conf{using_msvc};
     splice(@branches,0,-2)
       if $PGBuild::conf{branches_to_build} eq 'HEAD_PLUS_LATEST';
-    splice(@branches,0,0 - ($latest + 2))
+    splice(@branches,0,0 - ($latest + 1))
       if $PGBuild::conf{branches_to_build} =~ /^HEAD_PLUS_LATEST\d$/;
 }
 
