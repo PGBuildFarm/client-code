@@ -150,6 +150,10 @@ elsif ($run_one)
     }
 }
 
+# clean up the lockfile when we're done.
+close $lockfile;
+unlink $lockfilename;
+
 exit 0;
 
 ##########################################################

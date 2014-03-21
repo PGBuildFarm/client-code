@@ -23,7 +23,7 @@ use vars qw($changed_this_run $changed_since_success $branch $status $stage
 BEGIN
 {
 	# see below for why we can't always make these compile time requirements
-	if (defined($^V) && $^V ge v5.8.0))
+	if (defined($^V) && $^V ge v5.8.0)
 	{
 		require LWP;
 		require HTTP::Request::Common;
@@ -135,7 +135,7 @@ sub run_web_txn
 
     my $response=$ua->request($request);
 
-    unless ($response->is_success)
+    unless ($response->is_success || $verbose > 1)
     {
         print
           "Query for: stage=$stage&animal=$animal&ts=$ts\n",
