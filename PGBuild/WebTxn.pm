@@ -20,6 +20,19 @@ use vars qw($VERSION); $VERSION = 'REL_4.11';
 use vars qw($changed_this_run $changed_since_success $branch $status $stage
   $animal $ts $log_data $confsum $target $verbose $secret);
 
+BEGIN
+{
+	# see below for why we can't always make these compile time requirements
+	if (defined($^V) && $^V ge v5.8.0))
+	{
+		require LWP;
+		require HTTP::Request::Common;
+		require MIME::Base64;
+		require Digest::SHA;
+		require Storable;
+	}
+};
+
 sub run_web_txn
 {
 

@@ -16,6 +16,10 @@ use Fcntl qw(:flock :seek);
 use PGBuild::Options;
 use File::Basename;
 
+# older msys is ging to use a different perl to run LWP, so we can't absolutely
+# require this module there
+BEGIN { require LWP::Simple if $^O ne 'msys' || $^V ge v5.8.0; }
+
 my %branch_last;
 sub branch_last_sort;
 
@@ -82,7 +86,10 @@ elsif ($PGBuild::conf{branches_to_build} =~
     $ENV{PATH} = $PGBuild::conf{build_env}->{PATH}
       if ($PGBuild::conf{build_env}->{PATH});
     (my $url = $PGBuild::conf{target}) =~s/cgi-bin.*/branches_of_interest.txt/;
-    my $branches_of_interest = `perl -MLWP::Simple -e "getprint(q{$url})"`;
+	my $branches_of_interest = 
+	  (($^O eq 'msys' && $^V lt v5.8.0)?
+		`perl -MLWP::Simple -e "getprint(q{$url})"` : # msys: use perl in PATH
+		  LWP::Simple::get($url)); # everyone else: use this perl
     die "getting branches of interest" unless $branches_of_interest;
     $ENV{PATH} = $save_path;
     push(@branches,$_)foreach (split(/\s+/,$branches_of_interest));
