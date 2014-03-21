@@ -60,7 +60,7 @@ unless (
         &&@{$PGBuild::conf{branches_to_build}}
     )
     ||$PGBuild::conf{branches_to_build} =~
-    /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST2)$/
+    /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST\d)$/
   )
 {
     die "no branches_to_build specified in $buildconf";
