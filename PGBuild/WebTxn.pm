@@ -15,7 +15,7 @@ needed on older Msys installations (i.e. things running perl < 5.8).
 
 use strict;
 
-use vars qw($VERSION); $VERSION = 'REL_4.11';
+use vars qw($VERSION); $VERSION = 'REL_4.12';
 
 use vars qw($changed_this_run $changed_since_success $branch $status $stage
   $animal $ts $log_data $confsum $target $verbose $secret);

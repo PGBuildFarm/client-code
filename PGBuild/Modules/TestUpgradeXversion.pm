@@ -20,7 +20,7 @@ use File::Basename;
 
 use strict;
 
-use vars qw($VERSION); $VERSION = 'REL_4.11';
+use vars qw($VERSION); $VERSION = 'REL_4.12';
 
 my $hooks = {
 
