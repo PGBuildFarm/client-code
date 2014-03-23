@@ -142,11 +142,11 @@ require $buildconf;
 
 # get the config data into some local variables
 my (
-    $buildroot,$target,$animal,
-    $aux_path,$trigger_exclude,$trigger_include,$secret,
-    $keep_errs,$force_every, $make, $optional_steps,
-    $use_vpath,$tar_log_cmd, $using_msvc, $extra_config,
-    $make_jobs, $core_file_glob
+    $buildroot,$target,$animal,$aux_path,
+    $trigger_exclude,$trigger_include,$secret,$keep_errs,
+    $force_every, $make, $optional_steps,$use_vpath,
+    $tar_log_cmd, $using_msvc, $extra_config,$make_jobs,
+    $core_file_glob
   )
   =@PGBuild::conf{
     qw(build_root target animal aux_path trigger_exclude
