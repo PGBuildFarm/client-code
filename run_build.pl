@@ -465,7 +465,7 @@ END
 # is less efficient but it hardly matters here for this shallow
 # structure.
 
-$extra_config = eval Dumper($extra_config);
+eval Data::Dumper->Dump([$extra_config],['extra_config']);
 
 if ($extra_config &&  $extra_config->{DEFAULT})
 {
