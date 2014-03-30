@@ -3,6 +3,7 @@ package PGBuild::Modules::TestDecoding;
 
 use PGBuild::Options;
 use PGBuild::SCM;
+use File::Basename;
 
 use strict;
 
@@ -63,10 +64,17 @@ sub check
         @checklog = `$cmd 2>&1`;
     }
 
-    my @logfiles = glob("$self->{pgsql}/contrib/test_decoding/*.log");
+    my @logfiles = glob(
+		  "$self->{pgsql}/contrib/test_decoding/regression_output/log/*.log
+		   $self->{pgsql}/contrib/test_decoding/regression_output/*.diffs
+		   $self->{pgsql}/contrib/test_decoding/isolation_output/log/*.log
+		   $self->{pgsql}/contrib/test_decoding/isolation_output/*.diffs"
+					   );
     foreach my $log (@logfiles)
     {
-        my $fname = basename $log;
+        my $fname = $log;
+		$fname =~ s!.*/([^/]+/log/[^/]+log)$!$1!;
+		$fname =~ s!.*/([^/]+/[^/]+diffs)$!$1!;
         local $/ = undef;
         my $handle;
         open($handle,$log);
