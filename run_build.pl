@@ -1504,10 +1504,22 @@ sub make_ecpg_check
 
 sub find_typedefs
 {
-    my ($host) = grep {/--host=/} @$config_opts;
-    $host ||= "";
-    $host =~ s/--host=(.)/$1-objdump/;
-    my $objdump = $host || 'objdump';
+    my ($hostobjdump) = grep {/--host=/} @$config_opts;
+    $hostobjdump ||= "";
+    $hostobjdump =~ s/--host=(.*)/$1-objdump/;
+    my $objdump = 'objdump';
+	my $sep = $using_msvc ? ';' : ':' ;
+	# if we have a hostobjdump, find out which of it and objdump is in the path
+	foreach my $p (split(/$sep/,$ENV{PATH}))
+	{
+		last unless $hostobjdump;
+		last if (-e "$p/objdump" || -e "$p/objdump.exe");
+		if (-e "$p/$hostobjdump" || -e "$p/$hostobjdump.exe")
+		{
+			$objdump = $hostobjdump;
+			last;
+		}
+	}
     my @err = `$objdump -W 2>&1`;
     my @readelferr = `readelf -w 2>&1`;
     my %syms;
@@ -1522,7 +1534,7 @@ sub find_typedefs
     {
         next if $bin =~ m!bin/(ipcclean|pltcl_)!;
         next unless -f $bin;
-        if (@err == 1) # Linux
+        if (@err == 1) # Linux and sometimes windows
         {
             @dumpout =
 `$objdump -W $bin 2>/dev/null | egrep -A3 DW_TAG_typedef 2>/dev/null`;
@@ -1580,9 +1592,20 @@ sub find_typedefs
         my $src = <$handle>;
         close($handle);
 
-        # strip C comments - see perlfaq6
-        $src =~
+        # strip C comments - see perlfaq6 for an explanation
+		# of the complex regex.
+		# On some platforms psqlscan.l  causes perl to barf and crash
+		# on the more complicated regexp, so fall back to the simple one. 
+		# The results are most likely to be the same anyway.
+		if ($_ eq 'psqlscan.l')
+		{
+			$src =~ s{/\*.*?\*/}{}gs;
+		}
+		else
+		{
+			$src =~
 s#/\*[^*]*\*+([^/*][^*]*\*+)*/|("(\\.|[^"\\])*"|'(\\.|[^'\\])*'|.[^/"'\\]*)#defined $2 ? $2 : ""#gse;
+		}
         foreach my $word (split(/\W+/,$src))
         {
             $foundwords{$word} = 1;
