@@ -1522,15 +1522,31 @@ sub find_typedefs
 	}
     my @err = `$objdump -W 2>&1`;
     my @readelferr = `readelf -w 2>&1`;
+    my $using_osx = (`uname` eq "Darwin\n");
+    my @testfiles;
     my %syms;
     my @dumpout;
     my @flds;
 
-    foreach my $bin (
-        glob("$installdir/bin/*"),
-        glob("$installdir/lib/*"),
-        glob("$installdir/lib/postgresql/*")
-      )
+    if ($using_osx)
+    {
+        # On OS X, we need to examine the .o files
+        my $obj_wanted = sub {
+            /^.*\.o\z/s && push(@testfiles, $File::Find::name);
+        };
+
+        File::Find::find($obj_wanted,$pgsql);
+    }
+    else
+    {
+        # Elsewhere, look at the installed executables and shared libraries
+        @testfiles = (
+            glob("$installdir/bin/*"),
+            glob("$installdir/lib/*"),
+            glob("$installdir/lib/postgresql/*")
+        );
+    }
+    foreach my $bin (@testfiles)
     {
         next if $bin =~ m!bin/(ipcclean|pltcl_)!;
         next unless -f $bin;
@@ -1550,7 +1566,6 @@ sub find_typedefs
         }
         elsif ( @readelferr > 10 )
         {
-
             # FreeBSD, similar output to Linux
             @dumpout =
 `readelf -w $bin 2>/dev/null | egrep -A3 DW_TAG_typedef 2>/dev/null`;
@@ -1560,6 +1575,19 @@ sub find_typedefs
                 next unless (1 < @flds);
                 next if ($flds[0] ne 'DW_AT_name');
                 $syms{$flds[-1]} =1;
+            }
+        }
+        elsif ($using_osx)
+        {
+            @dumpout =
+`dwarfdump $bin 2>/dev/null | egrep -A2 TAG_typedef 2>/dev/null`;
+            foreach (@dumpout)
+            {
+                @flds = split;
+                next unless (@flds == 3);
+                next unless ($flds[0] eq "AT_name(");
+                next unless ($flds[1] =~ m/^"(.*)"$/);
+                $syms{$1} =1;
             }
         }
         else
