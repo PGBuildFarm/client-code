@@ -1508,18 +1508,19 @@ sub find_typedefs
     $hostobjdump ||= "";
     $hostobjdump =~ s/--host=(.*)/$1-objdump/;
     my $objdump = 'objdump';
-	my $sep = $using_msvc ? ';' : ':' ;
-	# if we have a hostobjdump, find out which of it and objdump is in the path
-	foreach my $p (split(/$sep/,$ENV{PATH}))
-	{
-		last unless $hostobjdump;
-		last if (-e "$p/objdump" || -e "$p/objdump.exe");
-		if (-e "$p/$hostobjdump" || -e "$p/$hostobjdump.exe")
-		{
-			$objdump = $hostobjdump;
-			last;
-		}
-	}
+    my $sep = $using_msvc ? ';' : ':';
+
+    # if we have a hostobjdump, find out which of it and objdump is in the path
+    foreach my $p (split(/$sep/,$ENV{PATH}))
+    {
+        last unless $hostobjdump;
+        last if (-e "$p/objdump" || -e "$p/objdump.exe");
+        if (-e "$p/$hostobjdump" || -e "$p/$hostobjdump.exe")
+        {
+            $objdump = $hostobjdump;
+            last;
+        }
+    }
     my @err = `$objdump -W 2>&1`;
     my @readelferr = `readelf -w 2>&1`;
     my $using_osx = (`uname` eq "Darwin\n");
@@ -1530,6 +1531,7 @@ sub find_typedefs
 
     if ($using_osx)
     {
+
         # On OS X, we need to examine the .o files
         my $obj_wanted = sub {
             /^.*\.o\z/s && push(@testfiles, $File::Find::name);
@@ -1539,6 +1541,7 @@ sub find_typedefs
     }
     else
     {
+
         # Elsewhere, look at the installed executables and shared libraries
         @testfiles = (
             glob("$installdir/bin/*"),
@@ -1566,6 +1569,7 @@ sub find_typedefs
         }
         elsif ( @readelferr > 10 )
         {
+
             # FreeBSD, similar output to Linux
             @dumpout =
 `readelf -w $bin 2>/dev/null | egrep -A3 DW_TAG_typedef 2>/dev/null`;
@@ -1580,7 +1584,7 @@ sub find_typedefs
         elsif ($using_osx)
         {
             @dumpout =
-`dwarfdump $bin 2>/dev/null | egrep -A2 TAG_typedef 2>/dev/null`;
+              `dwarfdump $bin 2>/dev/null | egrep -A2 TAG_typedef 2>/dev/null`;
             foreach (@dumpout)
             {
                 @flds = split;
@@ -1621,19 +1625,19 @@ sub find_typedefs
         close($handle);
 
         # strip C comments - see perlfaq6 for an explanation
-		# of the complex regex.
-		# On some platforms psqlscan.l  causes perl to barf and crash
-		# on the more complicated regexp, so fall back to the simple one. 
-		# The results are most likely to be the same anyway.
-		if ($_ eq 'psqlscan.l')
-		{
-			$src =~ s{/\*.*?\*/}{}gs;
-		}
-		else
-		{
-			$src =~
+        # of the complex regex.
+        # On some platforms psqlscan.l  causes perl to barf and crash
+        # on the more complicated regexp, so fall back to the simple one.
+        # The results are most likely to be the same anyway.
+        if ($_ eq 'psqlscan.l')
+        {
+            $src =~ s{/\*.*?\*/}{}gs;
+        }
+        else
+        {
+            $src =~
 s#/\*[^*]*\*+([^/*][^*]*\*+)*/|("(\\.|[^"\\])*"|'(\\.|[^'\\])*'|.[^/"'\\]*)#defined $2 ? $2 : ""#gse;
-		}
+        }
         foreach my $word (split(/\W+/,$src))
         {
             $foundwords{$word} = 1;

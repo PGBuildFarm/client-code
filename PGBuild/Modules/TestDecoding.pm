@@ -9,9 +9,7 @@ use strict;
 
 use vars qw($VERSION); $VERSION = 'REL_4.12';
 
-my $hooks = {
-    'check' => \&check,
-};
+my $hooks = {'check' => \&check,};
 
 sub setup
 {
@@ -22,11 +20,11 @@ sub setup
     my $conf = shift;  # ref to the whole config object
     my $pgsql = shift; # postgres build dir
 
-	# for now do nothing on MSVC
-	return if $conf->{using_msvc};
+    # for now do nothing on MSVC
+    return if $conf->{using_msvc};
 
-	# only for supported branches
-	return unless $branch eq 'HEAD' || $branch ge 'REL9_4_STABLE';
+    # only for supported branches
+    return unless $branch eq 'HEAD' || $branch ge 'REL9_4_STABLE';
 
     my $self  = {
         buildroot => $buildroot,
@@ -54,9 +52,10 @@ sub check
 
     if ($self->{bfconf}->{using_msvc})
     {
-#        chdir "$self->{pgsql}/src/tools/msvc";
-#        @checklog = `perl vcregress.pl upgradecheck 2>&1`;
-#        chdir "$self->{buildroot}/$self->{pgbranch}";
+
+        #        chdir "$self->{pgsql}/src/tools/msvc";
+        #        @checklog = `perl vcregress.pl upgradecheck 2>&1`;
+        #        chdir "$self->{buildroot}/$self->{pgbranch}";
     }
     else
     {
@@ -65,16 +64,16 @@ sub check
     }
 
     my @logfiles = glob(
-		  "$self->{pgsql}/contrib/test_decoding/regression_output/log/*.log
+        "$self->{pgsql}/contrib/test_decoding/regression_output/log/*.log
 		   $self->{pgsql}/contrib/test_decoding/regression_output/*.diffs
 		   $self->{pgsql}/contrib/test_decoding/isolation_output/log/*.log
 		   $self->{pgsql}/contrib/test_decoding/isolation_output/*.diffs"
-					   );
+    );
     foreach my $log (@logfiles)
     {
         my $fname = $log;
-		$fname =~ s!.*/([^/]+/log/[^/]+log)$!$1!;
-		$fname =~ s!.*/([^/]+/[^/]+diffs)$!$1!;
+        $fname =~ s!.*/([^/]+/log/[^/]+log)$!$1!;
+        $fname =~ s!.*/([^/]+/[^/]+diffs)$!$1!;
         local $/ = undef;
         my $handle;
         open($handle,$log);
@@ -94,7 +93,7 @@ sub check
         no warnings 'once';
         $main::steps_completed .= " test-decoding-check";
     }
-	
+
 }
 
 1;
