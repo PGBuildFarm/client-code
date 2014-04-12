@@ -1533,8 +1533,10 @@ sub find_typedefs
     {
 
         # On OS X, we need to examine the .o files
+		# exclude ecpg/test, which pgindent does too
         my $obj_wanted = sub {
-            /^.*\.o\z/s && push(@testfiles, $File::Find::name);
+            /^.*\.o\z/s && ! ($File::Find::name =~ m!/ecpg/test/!s) && 
+			  push(@testfiles, $File::Find::name);
         };
 
         File::Find::find($obj_wanted,$pgsql);
