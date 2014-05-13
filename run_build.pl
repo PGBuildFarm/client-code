@@ -904,8 +904,7 @@ sub cleanlogs
 sub writelog
 {
     my $stage = shift;
-    my $fname = $stage;
-    $fname = "$fname.log" unless $fname =~ /\./;
+    my $fname = "$stage.log";
     my $loglines = shift;
     my $handle;
     my $lrname = $st_prefix . $logdirname;
