@@ -434,7 +434,7 @@ sub get_versions
 package PGBuild::SCM::Git;
 
 use File::Copy;
-use Cwd;
+use Cwd qw(getcwd abs_path);
 
 sub new
 {
@@ -446,10 +446,11 @@ sub new
       || "git://git.postgresql.org/git/postgresql.git";
     $self->{reference} = $conf->{git_reference}
       if defined($conf->{git_reference});
+    # need to use abs_path here to avoid some idiocy in msysGit.
     $self->{mirror} =(
         $target eq 'pgsql'
-        ? "$conf->{build_root}/pgmirror.git"
-        :"$conf->{build_root}/$target-mirror.git"
+        ? abs_path("$conf->{build_root}") . "/pgmirror.git"
+        : abs_path("$conf->{build_root}") . "/$target-mirror.git"
     )if $conf->{git_keep_mirror};
     $self->{ignore_mirror_failure} = $conf->{git_ignore_mirror_failure};
     $self->{target} = $target;
