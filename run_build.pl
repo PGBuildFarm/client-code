@@ -146,12 +146,13 @@ my (
     $trigger_exclude,$trigger_include,$secret,$keep_errs,
     $force_every, $make, $optional_steps,$use_vpath,
     $tar_log_cmd, $using_msvc, $extra_config,$make_jobs,
-    $core_file_glob
+    $core_file_glob, $ccache_failure_remove
   )
   =@PGBuild::conf{
     qw(build_root target animal aux_path trigger_exclude
       trigger_include secret keep_error_builds force_every make optional_steps
-      use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob)
+      use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob
+	  ccache_failure_remove)
   };
 
 #default is no parallel build
@@ -437,8 +438,11 @@ END
             rmtree("$pgsql") unless ($from_source || $keepall);
         }
 
-        # only keep the cache in cases of success
-        rmtree("$ccachedir") if $ccachedir;
+        # only keep the cache in cases of success, if config flag is set
+		if ($ccache_failure_remove)
+		{
+			rmtree("$ccachedir") if $ccachedir;
+		}
     }
 
     # get the modules to clean up after themselves
