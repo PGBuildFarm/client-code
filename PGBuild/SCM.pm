@@ -166,7 +166,7 @@ sub get_build_path
     $self->{build_path} =
       ($self->{cvsmethod} eq 'export' && not $use_vpath)
       ?"$target"
-      :"$target.$$";
+      :"$target.build";
     return 	$self->{build_path};
 }
 
@@ -487,7 +487,7 @@ sub get_build_path
     my $self = shift;
     my $use_vpath = shift; # irrelevant for git
     my $target = $self->{target};
-    $self->{build_path} = "$target.$$";
+    $self->{build_path} = "$target.build";
     return 	$self->{build_path};
 }
 
