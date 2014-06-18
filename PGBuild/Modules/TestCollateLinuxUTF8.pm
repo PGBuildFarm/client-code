@@ -24,6 +24,8 @@ sub setup
     my $conf = shift;  # ref to the whole config object
     my $pgsql = shift; # postgres build dir
 
+    return unless $branch eq 'HEAD' || $branch ge 'REL9_1_STABLE';
+
     my $locales = $conf->{locales};
     my $found = 0;
     return unless ref $locales eq 'ARRAY';
