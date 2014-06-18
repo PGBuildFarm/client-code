@@ -142,17 +142,18 @@ require $buildconf;
 
 # get the config data into some local variables
 my (
-    $buildroot,$target,$animal,$aux_path,
-    $trigger_exclude,$trigger_include,$secret,$keep_errs,
-    $force_every, $make, $optional_steps,$use_vpath,
-    $tar_log_cmd, $using_msvc, $extra_config,$make_jobs,
-    $core_file_glob, $ccache_failure_remove
+    $buildroot,$target,$animal,
+    $aux_path,$trigger_exclude,$trigger_include,
+    $secret,$keep_errs,$force_every,
+    $make, $optional_steps,$use_vpath,
+    $tar_log_cmd, $using_msvc, $extra_config,
+    $make_jobs,$core_file_glob, $ccache_failure_remove
   )
   =@PGBuild::conf{
     qw(build_root target animal aux_path trigger_exclude
       trigger_include secret keep_error_builds force_every make optional_steps
       use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob
-	  ccache_failure_remove)
+      ccache_failure_remove)
   };
 
 #default is no parallel build
@@ -439,10 +440,10 @@ END
         }
 
         # only keep the cache in cases of success, if config flag is set
-		if ($ccache_failure_remove)
-		{
-			rmtree("$ccachedir") if $ccachedir;
-		}
+        if ($ccache_failure_remove)
+        {
+            rmtree("$ccachedir") if $ccachedir;
+        }
     }
 
     # get the modules to clean up after themselves
@@ -1536,10 +1537,11 @@ sub find_typedefs
     {
 
         # On OS X, we need to examine the .o files
-		# exclude ecpg/test, which pgindent does too
+        # exclude ecpg/test, which pgindent does too
         my $obj_wanted = sub {
-            /^.*\.o\z/s && ! ($File::Find::name =~ m!/ecpg/test/!s) && 
-			  push(@testfiles, $File::Find::name);
+            /^.*\.o\z/s
+              && !($File::Find::name =~ m!/ecpg/test/!s)
+              &&push(@testfiles, $File::Find::name);
         };
 
         File::Find::find($obj_wanted,$pgsql);

@@ -39,7 +39,7 @@ sub setup
 
     return unless $branch ge 'REL9_1_STABLE' || $branch eq 'HEAD';
 
-	return unless main::step_wanted("$MODULE-build");
+    return unless main::step_wanted("$MODULE-build");
 
     # could even set up several of these (e.g. for different branches)
     my $self  = {

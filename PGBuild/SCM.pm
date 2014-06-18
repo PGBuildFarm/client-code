@@ -446,6 +446,7 @@ sub new
       || "git://git.postgresql.org/git/postgresql.git";
     $self->{reference} = $conf->{git_reference}
       if defined($conf->{git_reference});
+
     # need to use abs_path here to avoid some idiocy in msysGit.
     $self->{mirror} =(
         $target eq 'pgsql'
