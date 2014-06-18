@@ -12,7 +12,7 @@ use strict;
 # strip required namespace from package name
 (my $MODULE = __PACKAGE__ ) =~ s/PGBuild::Modules:://;
 
-use vars qw($VERSION); $VERSION = 'REL_4.12';
+use vars qw($VERSION); $VERSION = 'REL_4.11';
 
 my $hooks = {
     'checkout' => \&checkout,
@@ -38,6 +38,8 @@ sub setup
     my $pgsql = shift; # postgres build dir
 
     return unless $branch ge 'REL9_1_STABLE' || $branch eq 'HEAD';
+
+	return unless main::step_wanted("$MODULE-build");
 
     # could even set up several of these (e.g. for different branches)
     my $self  = {
