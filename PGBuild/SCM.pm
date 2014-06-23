@@ -615,16 +615,9 @@ sub checkout
 
     chdir "$target";
     my @gitstat = `git status --porcelain 2>&1`;
+	my $headref = `git show-ref --heads -- bf_$branch 2>&1`;
+	$self->{headref} = (split(/\s+/, $headref))[0];
     chdir "..";
-
-    my ($headref,$refhandle);
-    if (open($refhandle,"$target/.git/refs/heads/bf_$branch"))
-    {
-        $headref = <$refhandle>;
-        chomp $headref;
-        close($refhandle);
-        $self->{headref} = $headref;
-    }
 
     main::send_result("$target-Git",$status,\@gitlog)	if ($status);
     unless ($main::nosend && $main::nostatus)
