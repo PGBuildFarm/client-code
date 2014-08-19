@@ -615,8 +615,8 @@ sub checkout
 
     chdir "$target";
     my @gitstat = `git status --porcelain 2>&1`;
-	my $headref = `git show-ref --heads -- bf_$branch 2>&1`;
-	$self->{headref} = (split(/\s+/, $headref))[0];
+    my $headref = `git show-ref --heads -- bf_$branch 2>&1`;
+    $self->{headref} = (split(/\s+/, $headref))[0];
     chdir "..";
 
     main::send_result("$target-Git",$status,\@gitlog)	if ($status);
