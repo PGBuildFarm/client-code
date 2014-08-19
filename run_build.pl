@@ -710,12 +710,18 @@ foreach my $locale (@locales)
         make_isolation_check($locale);
     }
 
-    # releases 8.0 and earlier don't support the standard method for testing
-    # PLs so only check them for later versions
-
-    if (   ($branch eq 'HEAD' || $branch gt 'REL8_1')
-        && (grep {/--with-(perl|python|tcl)/ } @$config_opts)
-        && step_wanted('pl-install-check'))
+    if (
+        step_wanted('pl-install-check')
+        && (
+            (!$using_msvc && (grep {/--with-(perl|python|tcl)/ } @$config_opts))
+            || (
+                $using_msvc
+                && (   defined($config_opts->{perl})
+                    || defined($config_opts->{python})
+                    || defined($config_opts->{tcl}))
+            )
+        )
+      )
     {
 
         # restart the db to clear the log file
