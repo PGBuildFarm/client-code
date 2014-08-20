@@ -47,5 +47,12 @@ my $lrname = $ARGV[0] || 'lastrun-logs';
 
 my $res = PGBuild::WebTxn::run_web_txn($lrname);
 
-exit $res ? 0 : 1;
+if ($res)
+{
+    exit 0;
+}
+else
+{
+    exit 1;
+}
 
