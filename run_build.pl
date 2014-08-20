@@ -1897,6 +1897,7 @@ sub send_result
             exit(1);
         }
 
+        $ENV{PERL5LIB} = $aux_path;
         system("$aux_path/run_web_txn.pl $lrname");
         $txstatus = $? >> 8;
     }
