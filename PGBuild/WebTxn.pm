@@ -89,6 +89,10 @@ sub run_web_txn
     $sconf =~ s/.*(\$Script_Config)/$1/ms;
     my $Script_Config;
     eval $sconf;
+	# for some reason we see intermittent failures of above code
+	# so we also set this directly so it gets into frozen_sconf, which is what
+	# the server side script examines.
+	$Script_config->{web_script_version} = $VERSION;
 
     # very modern Storable modules choke on regexes
     # the server has no need of them anyway, so just chop them out
