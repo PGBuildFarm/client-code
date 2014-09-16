@@ -1331,7 +1331,8 @@ sub make_pl_install_check
         chdir($branch_root);
     }
     my $status = $? >>8;
-    my @logs = glob("$pgsql/src/pl/*/regression.diffs");
+    my @logs = (glob("$pgsql/src/pl/*/regression.diffs"),
+				glob("$pgsql/src/pl/*/*/regression.diffs"));
     push(@logs,"$installdir/logfile");
     foreach my $logfile (@logs)
     {
