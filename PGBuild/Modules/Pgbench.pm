@@ -13,15 +13,18 @@ use vars qw($VERSION); $VERSION = 'REL_4.11';
 
 my $hooks = {
     'checkout' => \&checkout,
-#    'setup-target' => \&setup_target,
-#    'need-run' => \&need_run,
+
+    #    'setup-target' => \&setup_target,
+    #    'need-run' => \&need_run,
     'configure' => \&configure,
-#    'build' => \&build,
-#    'check' => \&check,
-#    'install' => \&install,
+
+    #    'build' => \&build,
+    #    'check' => \&check,
+    #    'install' => \&install,
     'installcheck' => \&installcheck,
-#    'locale-end' => \&locale_end,
-#    'cleanup' => \&cleanup,
+
+    #    'locale-end' => \&locale_end,
+    #    'cleanup' => \&cleanup,
 };
 
 sub setup
@@ -33,11 +36,10 @@ sub setup
     my $conf = shift;  # ref to the whole config object
     my $pgsql = shift; # postgres build dir
 
+    return unless $branch ge 'REL9_0_STABLE' || $branch eq 'HEAD';
 
-	return unless $branch ge 'REL9_0_STABLE' || $branch eq 'HEAD';
-
-	die "must not run bench tests with assert enabled builds"
-	  if grep { /--enable-cassert/ } @{$conf->{config_opts}} ;
+    die "must not run bench tests with assert enabled builds"
+      if grep { /--enable-cassert/ } @{$conf->{config_opts}};
 
     # could even set up several of these (e.g. for different branches)
     my $self  = {
@@ -60,6 +62,7 @@ sub setup
     $self->{scm} = new PGBuild::SCM $scmconf, 'pgbench-tools';
     my $where = $self->{scm}->get_build_path();
     $self->{where} = $where;
+
     # for each instance you create, do:
     main::register_module_hooks($self,$hooks);
 
@@ -109,44 +112,43 @@ sub configure
 
     print main::time_str(), "configuring ",__PACKAGE__,"\n" if	$verbose;
 
-	my $installdir = "$self->{buildroot}/$self->{pgbranch}/inst";
+    my $installdir = "$self->{buildroot}/$self->{pgbranch}/inst";
     (my $buildport = $ENV{EXTRA_REGRESS_OPTS}) =~ s/--port=//;
 
-	chdir 'pgbench-tools';
-	local $/ = undef;
-	my $handle;
-	open($handle,">>config");
-	if (ref $self->{bfconf}->{pgbench_config} eq 'ARRAY')
-	{
-		foreach my $conf (@{ $self->{bfconf}->{pgbench_config}})
-		{
-			print $handle "$conf\n";
-		}
-	}
+    chdir 'pgbench-tools';
+    local $/ = undef;
+    my $handle;
+    open($handle,">>config");
+    if (ref $self->{bfconf}->{pgbench_config} eq 'ARRAY')
+    {
+        foreach my $conf (@{ $self->{bfconf}->{pgbench_config}})
+        {
+            print $handle "$conf\n";
+        }
+    }
 
-	print $handle "PGBENCHBIN=$installdir/bin/pgbench\n", 
-	              "export PATH=$installdir/bin:\$PATH\n",
-	              "TESTUSER=buildfarm\n",
-				  "TESTPORT=$buildport\n",
-	              "RESULTUSER=buildfarm\n",
-				  "RESULTPORT=$buildport\n",
-				  "MAX_WORKERS=4\n",
-				  "TESTDB=bf_pgbench\n",
-				  "RESULTDB=bf_pgbench_results\n";
+    print $handle "PGBENCHBIN=$installdir/bin/pgbench\n",
+      "export PATH=$installdir/bin:\$PATH\n",
+      "TESTUSER=buildfarm\n",
+      "TESTPORT=$buildport\n",
+      "RESULTUSER=buildfarm\n",
+      "RESULTPORT=$buildport\n",
+      "MAX_WORKERS=4\n",
+      "TESTDB=bf_pgbench\n",
+      "RESULTDB=bf_pgbench_results\n";
 
-	close($handle);
+    close($handle);
 
-	open($handle,"runset");
-	my $runset=<$handle>;
-	close $handle;
-	$runset =~ s!^([.]/webreport)!#$1!sm;
-	open($handle,">runset");
-	print $handle $runset;
-	close $handle;
-	
+    open($handle,"runset");
+    my $runset=<$handle>;
+    close $handle;
+    $runset =~ s!^([.]/webreport)!#$1!sm;
+    open($handle,">runset");
+    print $handle $runset;
+    close $handle;
 
-	chdir "..";
-	
+    chdir "..";
+
 }
 
 sub build
@@ -175,65 +177,67 @@ sub installcheck
     my $self = shift;
     my $locale = shift;
 
-	return unless $locale eq 'C';
+    return unless $locale eq 'C';
 
     print main::time_str(), "installchecking ",__PACKAGE__,"\n"
       if	$verbose;
 
-	my $installdir = "$self->{buildroot}/$self->{pgbranch}/inst";
+    my $installdir = "$self->{buildroot}/$self->{pgbranch}/inst";
 
     system("$installdir/bin/createdb bf_pgbench 2>&1");
 
-	my $createstat = $? >> 8; 
+    my $createstat = $? >> 8;
 
-	die "creating bf_pgbench: $createstat" if  $createstat;
+    die "creating bf_pgbench: $createstat" if  $createstat;
 
     system("$installdir/bin/createdb bf_pgbench_results");
 
-	$createstat = $? >> 8; 
+    $createstat = $? >> 8;
 
-	die "creating bf_pgbench_results: $createstat" if  $createstat;
+    die "creating bf_pgbench_results: $createstat" if  $createstat;
 
-	system("$installdir/bin/psql -d bf_pgbench_results -f pgbench-tools/init/resultdb.sql");
+    system(
+"$installdir/bin/psql -d bf_pgbench_results -f pgbench-tools/init/resultdb.sql"
+    );
 
-	$createstat = $? >> 8; 
+    $createstat = $? >> 8;
 
-	die "setting up bf_pgbench_results: $createstat" if  $createstat;
+    die "setting up bf_pgbench_results: $createstat" if  $createstat;
 
     local %ENV = %ENV;
+
     # delete $ENV{PGUSER};
 
     (my $buildport = $ENV{EXTRA_REGRESS_OPTS}) =~ s/--port=//;
     $ENV{PGPORT} = $buildport;
 
-	my @logs = `cd pgbench-tools && ./newset benchfarm && ./runset 2>&1`;
+    my @logs = `cd pgbench-tools && ./newset benchfarm && ./runset 2>&1`;
 
-	my $status = $? >> 8;
+    my $status = $? >> 8;
 
-	main::writelog("pgbench",\@logs);
+    main::writelog("pgbench",\@logs);
     print "======== pgbench log ===========\n",@logs
       if ($verbose > 1);
     main::send_result("pgbench",$status,\@logs) if $status;
 
-	no warnings 'once';
-	my ($animal, $branch, $snap) = 
-	  ($self->{bfconf}->{animal},
-	   $self->{pgbranch},
-	   $main::now);
+    no warnings 'once';
+    my ($animal, $branch, $snap) =
+      ($self->{bfconf}->{animal},$self->{pgbranch},$main::now);
 
-	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = gmtime($snap);
-	$year += 1900; $mon +=1;
-	my $snapshot=
-	  sprintf("%d-%.2d-%.2d %.2d:%.2d:%.2d",$year,$mon,$mday,$hour,$min,$sec);
+    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = gmtime($snap);
+    $year += 1900;
+    $mon +=1;
+    my $snapshot=sprintf("%d-%.2d-%.2d %.2d:%.2d:%.2d",
+        $year,$mon,$mday,$hour,$min,$sec);
 
-	print "snap = $snap, snapshot = $snapshot\n";
+    print "snap = $snap, snapshot = $snapshot\n";
 
-	my $copy = "copy (select '$animal', '$branch', '$snapshot', * from tests)" .
-	           "to stdout csv";
+    my $copy = "copy (select '$animal', '$branch', '$snapshot', * from tests)"
+      ."to stdout csv";
 
-	my @out= `$installdir/bin/psql -d bf_pgbench_results -c "$copy"`;
+    my @out= `$installdir/bin/psql -d bf_pgbench_results -c "$copy"`;
 
-	main::writelog("pgbench_results.csv", \@out);
+    main::writelog("pgbench_results.csv", \@out);
 
 }
 
@@ -252,7 +256,7 @@ sub cleanup
 
     print main::time_str(), "cleaning up ",__PACKAGE__,"\n" if	$verbose > 1;
 
-	system("cd pgbench-tools && git reset --hard && git clean -dfx");
+    system("cd pgbench-tools && git reset --hard && git clean -dfx");
 }
 
 1;
