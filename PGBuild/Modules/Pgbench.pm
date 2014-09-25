@@ -50,7 +50,7 @@ sub setup
 
     my $scmconf ={
         scm => 'git',
-        scmrepo => 'git://git.postgresql.org/git/pgbench-tools.git',
+        scmrepo => 'https://github.com/gregs1104/pgbench-tools.git',
         git_reference => undef,
         git_keep_mirror => 'true',
         git_ignore_mirror_failure => 'true',
