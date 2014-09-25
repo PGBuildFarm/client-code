@@ -206,7 +206,7 @@ sub installcheck
     (my $buildport = $ENV{EXTRA_REGRESS_OPTS}) =~ s/--port=//;
     $ENV{PGPORT} = $buildport;
 
-	my @logs = `cd pgbench-tools && ./runset 2>&1`;
+	my @logs = `cd pgbench-tools && ./newset benchfarm && ./runset 2>&1`;
 
 	my $status = $? >> 8;
 
