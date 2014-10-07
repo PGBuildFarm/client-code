@@ -660,6 +660,8 @@ make();
 
 make_check();
 
+make_bin_check();
+
 # contrib is builtunder standard build step for msvc
 make_contrib() unless ($using_msvc);
 
@@ -1410,6 +1412,34 @@ sub make_isolation_check
 
     send_result('IsolationCheck',$status,\@makeout) if $status;
     $steps_completed .= " IsolationCheck";
+}
+
+sub make_bin_check
+{
+    return unless step_wanted('bin-check');
+
+	# tests only came in with 9.4
+	return unless ($branch eq 'HEAD' or $branch ge 'REL9_4'); 
+
+	# Windows perls (except Cygwin) don't have IPC::Run, 
+	# so don't even think about running
+	return if ($using_msvc or $^O eq 'msys');
+
+    print time_str(),"running make bin check ...\n" if $verbose;
+
+    my @makeout = `cd $pgsql/src/bin && make NO_LOCALE=1 check 2>&1`;
+
+    my $status = $? >>8;
+
+	# my @bases = glob("$pgsql/src/bin/*/tmp_check");
+	# XXX clean these up
+
+    writelog('bin-check',\@makeout);
+    print "======== make bin-check log ===========\n",@makeout
+      if ($verbose > 1);
+
+    send_result('BinCheck',$status,\@makeout) if $status;
+    $steps_completed .= " BinCheck";
 }
 
 sub make_check
