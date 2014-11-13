@@ -1421,6 +1421,9 @@ sub make_bin_check
 	# tests only came in with 9.4
 	return unless ($branch eq 'HEAD' or $branch ge 'REL9_4'); 
 
+	# don't run unless the tests have been enabled
+	return unless grep {$_ eq '--enable-tap-tests' } @$config_opts;
+
 	# Windows perls (except Cygwin) don't have IPC::Run, 
 	# so don't even think about running
 	return if ($using_msvc or $^O eq 'msys');
