@@ -1430,7 +1430,7 @@ sub make_bin_check
 
     print time_str(),"running make bin check ...\n" if $verbose;
 
-    my @makeout = `cd $pgsql/src/bin && make NO_LOCALE=1 check 2>&1`;
+    my @makeout = `cd $pgsql/src/bin && $make NO_LOCALE=1 check 2>&1`;
 
     my $status = $? >>8;
 
