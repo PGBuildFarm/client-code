@@ -665,12 +665,16 @@ make_bin_check();
 # contrib is builtunder standard build step for msvc
 make_contrib() unless ($using_msvc);
 
+make_testmodules();
+
 make_doc() if (check_optional_step('build_docs'));
 
 make_install();
 
 # contrib is installed under standard install for msvc
 make_contrib_install() unless ($using_msvc);
+
+make_testmodules_install();
 
 process_module_hooks('configure');
 
@@ -751,6 +755,19 @@ foreach my $locale (@locales)
           if $verbose;
 
         make_contrib_install_check($locale);
+    }
+
+    if (step_wanted('testmodules-install-check'))
+    {
+        print time_str(),"restarting db ($locale)...\n" if $verbose;
+
+        stop_db($locale);
+        start_db($locale);
+
+        print time_str(),"running make test-modules installcheck ($locale)...\n"
+          if $verbose;
+
+        make_testmodules_install_check($locale);
     }
 
     print time_str(),"stopping db ($locale)...\n" if $verbose;
@@ -1062,6 +1079,23 @@ sub make_contrib
     $steps_completed .= " Contrib";
 }
 
+sub make_testmodules
+{
+    return unless step_wanted('testmodules');
+    print time_str(),"running make src/test/modules ...\n" if $verbose;
+
+    my $make_cmd = $make;
+    $make_cmd = "$make -j $make_jobs"
+      if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
+    my @makeout = `cd $pgsql/src/test/modules && $make_cmd 2>&1`;
+    my $status = $? >> 8;
+    writelog('make-testmodules',\@makeout);
+    print "======== make testmodules log ===========\n",@makeout
+      if ($verbose > 1);
+    send_result('TestModules',$status,\@makeout) if $status;
+    $steps_completed .= " TestModules";
+}
+
 sub make_contrib_install
 {
     return
@@ -1079,6 +1113,23 @@ sub make_contrib_install
       if ($verbose > 1);
     send_result('ContribInstall',$status,\@makeout) if $status;
     $steps_completed .= " ContribInstall";
+}
+
+sub make_testmodules_install
+{
+    return
+      unless (step_wanted('testmodules')
+        and step_wanted('install'));
+    print time_str(),"running make testmodules install ...\n"
+      if $verbose;
+
+    my @makeout = `cd $pgsql/src/test/modules && $make install 2>&1`;
+    my $status = $? >>8;
+    writelog('install-testmodules',\@makeout);
+    print "======== make testmodules install log ===========\n",@makeout
+      if ($verbose > 1);
+    send_result('TestModulesInstall',$status,\@makeout) if $status;
+    $steps_completed .= " TestModulesInstall";
 }
 
 sub initdb
@@ -1315,6 +1366,49 @@ sub make_contrib_install_check
       if ($verbose > 1);
     send_result("ContribCheck-$locale",$status,\@checklog) if $status;
     $steps_completed .= " ContribCheck-$locale";
+}
+
+sub make_testmodules_install_check
+{
+    my $locale = shift;
+    return unless step_wanted('testmodules-install-check');
+    my @checklog;
+    unless ($using_msvc)
+    {
+        @checklog =
+`cd $pgsql/src/test/modules && $make USE_MODULE_DB=1 installcheck 2>&1`;
+    }
+    else
+    {
+        chdir "$pgsql/src/tools/msvc";
+        @checklog = `perl vcregress.pl modulescheck 2>&1`;
+        chdir $branch_root;
+    }
+    my $status = $? >>8;
+    my @logs = glob("$pgsql/src/test/modules/*/regression.diffs");
+    push(@logs,"$installdir/logfile");
+    foreach my $logfile (@logs)
+    {
+        next unless (-e $logfile);
+        push(@checklog,"\n\n================= $logfile ===================\n");
+        my $handle;
+        open($handle,$logfile);
+        while(<$handle>)
+        {
+            push(@checklog,$_);
+        }
+        close($handle);
+    }
+    if ($status)
+    {
+        my @trace =get_stack_trace("$installdir/bin","$installdir/data");
+        push(@checklog,@trace);
+    }
+    writelog("testmodules-install-check-$locale",\@checklog);
+    print "======== make testmodules installcheck log ===========\n",@checklog
+      if ($verbose > 1);
+    send_result("TestModulesCheck-$locale",$status,\@checklog) if $status;
+    $steps_completed .= " TestModulesCheck-$locale";
 }
 
 sub make_pl_install_check
