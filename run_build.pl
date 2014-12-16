@@ -1333,8 +1333,10 @@ sub make_pl_install_check
         chdir($branch_root);
     }
     my $status = $? >>8;
-    my @logs = (glob("$pgsql/src/pl/*/regression.diffs"),
-				glob("$pgsql/src/pl/*/*/regression.diffs"));
+    my @logs = (
+        glob("$pgsql/src/pl/*/regression.diffs"),
+        glob("$pgsql/src/pl/*/*/regression.diffs")
+    );
     push(@logs,"$installdir/logfile");
     foreach my $logfile (@logs)
     {
@@ -1418,15 +1420,15 @@ sub make_bin_check
 {
     return unless step_wanted('bin-check');
 
-	# tests only came in with 9.4
-	return unless ($branch eq 'HEAD' or $branch ge 'REL9_4'); 
+    # tests only came in with 9.4
+    return unless ($branch eq 'HEAD' or $branch ge 'REL9_4');
 
-	# don't run unless the tests have been enabled
-	return unless grep {$_ eq '--enable-tap-tests' } @$config_opts;
+    # don't run unless the tests have been enabled
+    return unless grep {$_ eq '--enable-tap-tests' } @$config_opts;
 
-	# Windows perls (except Cygwin) don't have IPC::Run, 
-	# so don't even think about running
-	return if ($using_msvc or $^O eq 'msys');
+    # Windows perls (except Cygwin) don't have IPC::Run,
+    # so don't even think about running
+    return if ($using_msvc or $^O eq 'msys');
 
     print time_str(),"running make bin check ...\n" if $verbose;
 
@@ -1434,8 +1436,8 @@ sub make_bin_check
 
     my $status = $? >>8;
 
-	# my @bases = glob("$pgsql/src/bin/*/tmp_check");
-	# XXX clean these up
+    # my @bases = glob("$pgsql/src/bin/*/tmp_check");
+    # XXX clean these up
 
     writelog('bin-check',\@makeout);
     print "======== make bin-check log ===========\n",@makeout
