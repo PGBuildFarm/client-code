@@ -665,7 +665,8 @@ make_bin_check();
 # contrib is builtunder standard build step for msvc
 make_contrib() unless ($using_msvc);
 
-make_testmodules();
+make_testmodules()
+  if ($branch eq 'HEAD' || $branch ge 'REL9_5');
 
 make_doc() if (check_optional_step('build_docs'));
 
@@ -674,7 +675,8 @@ make_install();
 # contrib is installed under standard install for msvc
 make_contrib_install() unless ($using_msvc);
 
-make_testmodules_install();
+make_testmodules_install()
+  if ($branch eq 'HEAD' || $branch ge 'REL9_5');
 
 process_module_hooks('configure');
 
@@ -757,7 +759,8 @@ foreach my $locale (@locales)
         make_contrib_install_check($locale);
     }
 
-    if (step_wanted('testmodules-install-check'))
+    if (step_wanted('testmodules-install-check') &&
+		($branch eq 'HEAD' || $branch ge 'REL9_5'))
     {
         print time_str(),"restarting db ($locale)...\n" if $verbose;
 
@@ -1086,7 +1089,7 @@ sub make_testmodules
 
     my $make_cmd = $make;
     $make_cmd = "$make -j $make_jobs"
-      if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
+      if ($make_jobs > 1);
     my @makeout = `cd $pgsql/src/test/modules && $make_cmd 2>&1`;
     my $status = $? >> 8;
     writelog('make-testmodules',\@makeout);
