@@ -1085,7 +1085,7 @@ sub make_contrib
 sub make_testmodules
 {
     return unless step_wanted('testmodules');
-    print time_str(),"running make src/test/modules ...\n" if $verbose;
+    print time_str(),"running make testmodules ...\n" if $verbose;
 
     my $make_cmd = $make;
     $make_cmd = "$make -j $make_jobs"
