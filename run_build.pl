@@ -242,8 +242,13 @@ if ( `uname -s 2>&1 ` =~ /CYGWIN/i )
     my @procs = `ps -ef`;
     die "cygserver not running" unless(grep {/cygserver/} @procs);
 }
-my $ccachedir;
-if ( $ccachedir = $PGBuild::conf{build_env}->{CCACHE_DIR} )
+my $ccachedir = $PGBuild::conf{build_env}->{CCACHE_DIR};
+if (! $ccachedir && $PGBuild::conf{use_default_ccache_dir})
+{
+	$ccachedir = "$buildroot/ccache-$animal";
+	$ENV{CCACHE_DIR} = $ccachedir;
+}
+if ( $ccachedir )
 {
 
     # ccache is smart enough to create what you tell it is the cache dir, but
