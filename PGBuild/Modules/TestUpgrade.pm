@@ -85,7 +85,8 @@ sub check
         @checklog = `$cmd 2>&1`;
     }
 
-    my @logfiles = glob("$self->{pgsql}/contrib/pg_upgrade/*.log");
+    my @logfiles = glob("$self->{pgsql}/contrib/pg_upgrade/*.log
+                         $self->{pgsql}/src/test/regress/*.diffs");
     foreach my $log (@logfiles)
     {
         my $fname = basename $log;
