@@ -86,6 +86,7 @@ sub check
     }
 
     my @logfiles = glob("$self->{pgsql}/contrib/pg_upgrade/*.log
+                         $self->{pgsql}/contrib/pg_upgrade/log/*
                          $self->{pgsql}/src/test/regress/*.diffs");
     foreach my $log (@logfiles)
     {
