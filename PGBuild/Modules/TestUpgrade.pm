@@ -81,13 +81,25 @@ sub check
     }
     else
     {
-        my $cmd = "cd $self->{pgsql}/contrib/pg_upgrade && $make check";
+        my $cmd;
+        if ($self->{pgbranch} eq 'HEAD' || $self->{pgbranch} ge 'REL9_5')
+        {
+            $cmd = "cd $self->{pgsql}/src/bin/pg_upgrade && $make check";
+        }
+        else
+        {
+            $cmd = "cd $self->{pgsql}/contrib/pg_upgrade && $make check";
+        }
         @checklog = `$cmd 2>&1`;
     }
 
-    my @logfiles = glob("$self->{pgsql}/contrib/pg_upgrade/*.log
-                         $self->{pgsql}/contrib/pg_upgrade/log/*
-                         $self->{pgsql}/src/test/regress/*.diffs");
+    my @logfiles = glob(
+        "$self->{pgsql}/contrib/pg_upgrade/*.log
+         $self->{pgsql}/contrib/pg_upgrade/log/*
+         $self->{pgsql}/src/bin/pg_upgrade/*.log
+         $self->{pgsql}/src/bin/pg_upgrade/log/*
+         $self->{pgsql}/src/test/regress/*.diffs"
+    );
     foreach my $log (@logfiles)
     {
         my $fname = basename $log;
