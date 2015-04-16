@@ -1,6 +1,7 @@
 use strict;
 
 use File::Find;
+use File::Basename;
 
 =comment
 
@@ -454,6 +455,8 @@ sub new
         : abs_path("$conf->{build_root}") . "/$target-mirror.git"
     )if $conf->{git_keep_mirror};
     $self->{ignore_mirror_failure} = $conf->{git_ignore_mirror_failure};
+    $self->{use_workdirs} = $conf->{git_use_workdirs};
+    $self->{build_root} = $conf->{build_root};
     $self->{target} = $target;
     return bless $self, $class;
 }
@@ -571,6 +574,78 @@ sub checkout
         my @pulllog = `git pull 2>&1`;
         push(@gitlog,@pulllog);
         chdir '..';
+    }
+    elsif ($branch ne 'HEAD' && $self->{use_workdirs} &&
+		   ! defined($self->{reference}) && $^O ne "MSWin32")
+    {
+
+		# exclude Windows for now - need to make sure how to do symlinks portably there
+		# early versions don't have mklink
+
+		# not sure how this plays with --reference, so for now I'm excluding that, too
+		# currently the following 4 members use --reference:
+		#     castoroides protosciurus mastodon narwhal
+
+        my $head = 	$self->{build_root} . '/HEAD';
+        unless (-d "$head/$target/.git")
+        {
+            # clone HEAD even if not (yet) needed for a run, as it will be the
+            # non-symlinked repo linkd to by all the others.
+
+            my $base = $self->{mirror} || $gitserver;
+
+            my $char1 = substr($base,0,1);
+            $base = "$drive$base"
+              if ( $char1 eq '/' or $char1 eq '\\');
+
+            mkdir $head;
+
+            my @clonelog = `git clone -q $base "$head/$target" 2>&1`;
+            push(@gitlog,@clonelog);
+            $status = $? >>8;
+            if (!$status)
+            {
+                my $savedir = getcwd();
+                chdir "$head/$target";
+
+                # make sure we don't name the new branch HEAD
+                my @colog =`git checkout -b bf_HEAD --track origin/master 2>&1`;
+                push(@gitlog,@colog);
+                chdir $savedir;
+            }
+        }
+
+        # now we can set up the git dir symlinks like git-new-workdir does
+
+        mkdir $target;
+        chdir $target;
+        mkdir ".git";
+        mkdir ".git/logs";
+        my @links =
+          qw (config refs logs/refs objects info hooks packed-refs remotes rr-cache svn);
+        foreach my $link (@links)
+        {
+            system(qq{ln -s "$head/$target/.git/$link" ".git/$link"});
+        }
+        copy("$head/$target/.git/HEAD", ".git/HEAD");
+
+		my @branches = `git branch`;
+		chomp @branches;
+		my @colog;
+		if (grep {/\bbf_$branch\b/ } @branches)
+		{
+			# don't try to create an existing branch
+			# the target dir only might have been wiped away,
+			# so we need to handle this case
+			@colog =`git checkout -f bf_$branch 2>&1`;
+		}
+		else
+		{
+			@colog =`git checkout -f -b bf_$branch --track origin/$branch 2>&1`;
+		}
+        push(@gitlog,@colog);
+
+        chdir "..";
     }
     else
     {
