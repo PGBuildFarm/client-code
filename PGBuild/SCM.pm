@@ -575,14 +575,18 @@ sub checkout
         push(@gitlog,@pulllog);
         chdir '..';
     }
-    elsif ($branch ne 'HEAD' && $self->{use_workdirs} &&
-		   ! defined($self->{reference}) && $^O ne "MSWin32")
+    elsif ($branch ne 'HEAD'
+        && $self->{use_workdirs}
+        &&!defined($self->{reference})
+        && $^O ne "MSWin32")
     {
 
-		# exclude Windows for now - need to make sure how to do symlinks portably there
+		# exclude Windows for now - need to make sure how to do symlinks 
+		# portably there
 		# early versions don't have mklink
 
-		# not sure how this plays with --reference, so for now I'm excluding that, too
+		# not sure how this plays with --reference, so for now I'm excluding
+		# that, too
 		# currently the following 4 members use --reference:
 		#     castoroides protosciurus mastodon narwhal
 
@@ -622,27 +626,28 @@ sub checkout
         mkdir ".git";
         mkdir ".git/logs";
         my @links =
-          qw (config refs logs/refs objects info hooks packed-refs remotes rr-cache svn);
+          qw (config refs logs/refs objects info hooks 
+              packed-refs remotes rr-cache svn);
         foreach my $link (@links)
         {
             system(qq{ln -s "$head/$target/.git/$link" ".git/$link"});
         }
         copy("$head/$target/.git/HEAD", ".git/HEAD");
 
-		my @branches = `git branch`;
-		chomp @branches;
-		my @colog;
-		if (grep {/\bbf_$branch\b/ } @branches)
-		{
-			# don't try to create an existing branch
-			# the target dir only might have been wiped away,
-			# so we need to handle this case
-			@colog =`git checkout -f bf_$branch 2>&1`;
-		}
-		else
-		{
-			@colog =`git checkout -f -b bf_$branch --track origin/$branch 2>&1`;
-		}
+        my @branches = `git branch`;
+        chomp @branches;
+        my @colog;
+        if (grep {/\bbf_$branch\b/ } @branches)
+        {
+            # don't try to create an existing branch
+            # the target dir only might have been wiped away,
+            # so we need to handle this case
+            @colog =`git checkout -f bf_$branch 2>&1`;
+        }
+        else
+        {
+            @colog =`git checkout -f -b bf_$branch --track origin/$branch 2>&1`;
+        }
         push(@gitlog,@colog);
 
         chdir "..";

@@ -243,12 +243,12 @@ if ( `uname -s 2>&1 ` =~ /CYGWIN/i )
     die "cygserver not running" unless(grep {/cygserver/} @procs);
 }
 my $ccachedir = $PGBuild::conf{build_env}->{CCACHE_DIR};
-if (! $ccachedir && $PGBuild::conf{use_default_ccache_dir})
+if (!$ccachedir && $PGBuild::conf{use_default_ccache_dir})
 {
-	$ccachedir = "$buildroot/ccache-$animal";
-	$ENV{CCACHE_DIR} = $ccachedir;
+    $ccachedir = "$buildroot/ccache-$animal";
+    $ENV{CCACHE_DIR} = $ccachedir;
 }
-if ( $ccachedir )
+if ($ccachedir)
 {
 
     # ccache is smart enough to create what you tell it is the cache dir, but
@@ -764,8 +764,8 @@ foreach my $locale (@locales)
         make_contrib_install_check($locale);
     }
 
-    if (step_wanted('testmodules-install-check') &&
-		($branch eq 'HEAD' || $branch ge 'REL9_5'))
+    if (step_wanted('testmodules-install-check')
+        &&($branch eq 'HEAD' || $branch ge 'REL9_5'))
     {
         print time_str(),"restarting db ($locale)...\n" if $verbose;
 
