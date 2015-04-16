@@ -669,7 +669,7 @@ make_check();
 make_contrib() unless ($using_msvc);
 
 make_testmodules()
-  if ($branch eq 'HEAD' || $branch ge 'REL9_5');
+  if (!$using_msvc && ($branch eq 'HEAD' || $branch ge 'REL9_5'));
 
 make_doc() if (check_optional_step('build_docs'));
 
@@ -679,7 +679,7 @@ make_install();
 make_contrib_install() unless ($using_msvc);
 
 make_testmodules_install()
-  if ($branch eq 'HEAD' || $branch ge 'REL9_5');
+  if (!$using_msvc && ($branch eq 'HEAD' || $branch ge 'REL9_5'));
 
 process_module_hooks('configure');
 
