@@ -581,14 +581,14 @@ sub checkout
         && $^O ne "MSWin32")
     {
 
-		# exclude Windows for now - need to make sure how to do symlinks 
-		# portably there
-		# early versions don't have mklink
+        # exclude Windows for now - need to make sure how to do symlinks
+        # portably there
+        # early versions don't have mklink
 
-		# not sure how this plays with --reference, so for now I'm excluding
-		# that, too
-		# currently the following 4 members use --reference:
-		#     castoroides protosciurus mastodon narwhal
+        # not sure how this plays with --reference, so for now I'm excluding
+        # that, too
+        # currently the following 4 members use --reference:
+        #     castoroides protosciurus mastodon narwhal
 
         my $head = 	$self->{build_root} . '/HEAD';
         unless (-d "$head/$target/.git")
@@ -625,9 +625,8 @@ sub checkout
         chdir $target;
         mkdir ".git";
         mkdir ".git/logs";
-        my @links =
-          qw (config refs logs/refs objects info hooks 
-              packed-refs remotes rr-cache svn);
+        my @links =qw (config refs logs/refs objects info hooks
+          packed-refs remotes rr-cache svn);
         foreach my $link (@links)
         {
             system(qq{ln -s "$head/$target/.git/$link" ".git/$link"});
