@@ -19,7 +19,7 @@ See accompanying License file for license details
 
 package PGBuild::SCM;
 
-use vars qw($VERSION); $VERSION = 'REL_4.14';
+use vars qw($VERSION); $VERSION = 'REL_4.15';
 
 # factory function to return the right subclass
 sub new
