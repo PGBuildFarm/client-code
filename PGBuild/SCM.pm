@@ -578,7 +578,8 @@ sub checkout
     elsif ($branch ne 'HEAD'
         && $self->{use_workdirs}
         &&!defined($self->{reference})
-        && $^O ne "MSWin32")
+        && $^O ne "MSWin32"
+        && $^O ne "msys")
     {
 
         # exclude Windows for now - need to make sure how to do symlinks
