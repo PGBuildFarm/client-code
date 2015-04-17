@@ -37,10 +37,7 @@ tag:
 release:
 	@test -n "$(REL)" || (echo Missing REL && exit 1)
 	@echo REL = $(CREL)
-	mkdir build-farm-$(REL)
-	tar -cf - $(RELEASE_FILES) | tar -C build-farm-$(REL) -xf -
-	tar -z -cf build-farm-$(CREL).tgz build-farm-$(REL)
-	rm -rf build-farm-$(REL)
+	tar -z --xform="s,^,build-farm-$(REL)/,S" $(RELEASE_FILES) -cf build-farm-$(CREL).tgz
 
 tidy:
 	perltidy -b -bl -nsfs -naws -l=80 -ole=unix $(ALLPERLFILES) 
