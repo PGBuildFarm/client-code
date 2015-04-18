@@ -11,7 +11,7 @@ use Fcntl qw(:seek);
 
 use strict;
 
-use vars qw($VERSION); $VERSION = 'REL_4.15';
+use vars qw($VERSION); $VERSION = 'REL_4.15.1';
 
 my $hooks = {'installcheck' => \&installcheck,};
 
