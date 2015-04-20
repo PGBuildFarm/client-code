@@ -83,7 +83,7 @@ sub run_web_txn
     my $cts	= "'current_ts' => $current_ts,\n";
 
     # $2 here helps us to preserve the nice spacing from Data::Dumper
-    my $scriptline = "((.*)'script_version' => '(REL_)?\\d+\\.\\d+',\n)";
+    my $scriptline = "((.*)'script_version' => '(REL_)?\\d+(\\.\\d+)+',\n)";
     $confsum =~ s/$scriptline/$1$2$webscriptversion$2$cts/;
     my $sconf = $confsum;
     $sconf =~ s/.*(\$Script_Config)/$1/ms;
