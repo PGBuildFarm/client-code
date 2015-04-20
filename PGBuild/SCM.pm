@@ -76,6 +76,7 @@ sub copy_source
 # find_changed()
 # get_versions()
 # log_id()
+# rm_worktree()
 
 ##################################
 #
@@ -294,6 +295,11 @@ sub cleanup
     unlink keys %{$self->{ignore_files}};
 }
 
+sub rm_worktree
+{
+	# noop for cvs
+}
+
 # find_ignore is now a private method of the subclass.
 sub find_ignore
 {
@@ -434,8 +440,9 @@ sub get_versions
 
 package PGBuild::SCM::Git;
 
-use File::Copy;
 use Cwd qw(getcwd abs_path);
+use File::Copy;
+use File::Path;
 
 sub new
 {
@@ -571,8 +578,11 @@ sub checkout
             unshift @branches,"Missing checked out branch bf_$branch:\n";
             main::send_result("$target-Git",$status,\@branches);
         }
+		# do a checkout in case the work tree has been removed
+		# this is harmless if it hasn't
+		my @colog = `git checkout . 2>&1`;
         my @pulllog = `git pull 2>&1`;
-        push(@gitlog,@pulllog);
+        push(@gitlog,@colog,@pulllog);
         chdir '..';
     }
     elsif ($branch ne 'HEAD'
@@ -718,6 +728,26 @@ sub cleanup
     my $target = $self->{target};
     chdir $target;
     system("git clean -dfxq");
+    chdir "..";
+}
+
+sub rm_worktree
+{
+    my $self = shift;
+    my $target = $self->{target};
+    chdir $target;
+	foreach my $f (glob(".[a-z]* *"))
+	{
+		next if $f eq '.git';
+		if (-d $f)
+		{
+			rmtree($f);
+		}
+		else
+		{
+			unlink $f;
+		}
+	}
     chdir "..";
 }
 

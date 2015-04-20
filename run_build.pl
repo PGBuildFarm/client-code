@@ -409,6 +409,14 @@ END
     # removing things there should be safe.
     # there should only be anything to cleanup if we didn't have
     # success.
+
+	if ( $have_lock && ! -d "$pgsql" && $PGBuild::conf{rm_worktrees}
+		 && !$from_source)
+	{
+		# remove work tree on success, if configured
+		$scm->rm_worktree();
+    }
+
     if ( $have_lock && -d "$pgsql")
     {
         if ($dbstarted)
