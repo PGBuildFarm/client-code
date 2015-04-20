@@ -297,7 +297,7 @@ sub cleanup
 
 sub rm_worktree
 {
-	# noop for cvs
+    # noop for cvs
 }
 
 # find_ignore is now a private method of the subclass.
@@ -572,15 +572,33 @@ sub checkout
         my @branches = `git branch 2>&1`;
         unless (grep {/^\* bf_$branch$/} @branches)
         {
-            chdir '..';
-            print "Missing checked out branch bf_$branch:\n",@branches
-              if ($main::verbose);
-            unshift @branches,"Missing checked out branch bf_$branch:\n";
-            main::send_result("$target-Git",$status,\@branches);
+            if (-l ".git/config" && -f ".git/config")
+            {
+                # if it's a symlinked workdir, and the config link isn't into
+                # thin air, it's likely that the HEAD has been refreshed, so
+                # we'll just check out the branch again
+                # this shouldn't happen on HEAD/master, so we don't need
+                # special branch name logic
+                my @ncolog =
+                  `git checkout -b bf_$branch --track origin/$branch 2>&1`;
+                push(@gitlog,@ncolog);
+            }
+            else
+            {
+                # otherwise we expect the branch to be there, and it's a failure
+                # if it's not there
+
+                chdir '..';
+                print "Missing checked out branch bf_$branch:\n",@branches
+                  if ($main::verbose);
+                unshift @branches,"Missing checked out branch bf_$branch:\n";
+                main::send_result("$target-Git",$status,\@branches);
+            }
         }
-		# do a checkout in case the work tree has been removed
-		# this is harmless if it hasn't
-		my @colog = `git checkout . 2>&1`;
+
+        # do a checkout in case the work tree has been removed
+        # this is harmless if it hasn't
+        my @colog = `git checkout . 2>&1`;
         my @pulllog = `git pull 2>&1`;
         push(@gitlog,@colog,@pulllog);
         chdir '..';
@@ -736,18 +754,18 @@ sub rm_worktree
     my $self = shift;
     my $target = $self->{target};
     chdir $target;
-	foreach my $f (glob(".[a-z]* *"))
-	{
-		next if $f eq '.git';
-		if (-d $f)
-		{
-			rmtree($f);
-		}
-		else
-		{
-			unlink $f;
-		}
-	}
+    foreach my $f (glob(".[a-z]* *"))
+    {
+        next if $f eq '.git';
+        if (-d $f)
+        {
+            rmtree($f);
+        }
+        else
+        {
+            unlink $f;
+        }
+    }
     chdir "..";
 }
 
