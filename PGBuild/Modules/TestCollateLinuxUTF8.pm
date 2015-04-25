@@ -61,7 +61,10 @@ sub installcheck
     my $locale = shift;
 
     my $pgsql = $self->{pgsql};
-    my $buildroot = "$self->{buildroot}/$self->{pgbranch}";
+    my $branch = $self->{pgbranch};
+    my $buildroot = "$self->{buildroot}/$branch";
+    my $binswitch =
+      ($branch eq 'HEAD' || $branch ge 'REL9_5') ? 'bindir' : 'psqldir';
     my $installdir = "$buildroot/inst";
 
     return unless $locale =~ /utf8$/i;
@@ -82,7 +85,7 @@ sub installcheck
     my $logpos = -s "$installdir/logfile" || 0;
 
     my @checklog;
-    my $cmd ="./pg_regress --psqldir=$installdir/bin --dlpath=. "
+    my $cmd ="./pg_regress --$binswitch=$installdir/bin --dlpath=. "
       ."$inputdir --port=$buildport collate.linux.utf8";
     @checklog = `cd $pgsql/src/test/regress && $cmd 2>&1`;
 
