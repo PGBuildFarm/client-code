@@ -2157,6 +2157,19 @@ sub get_script_config_dump
         orig_env => $orig_env,
     };
     delete $conf->{secret};
+	my @modkeys = grep {/^PGBuild/} keys %INC;
+	foreach (@modkeys)
+	{
+		s!/!::!g;
+		s/\.pm$//;
+	}
+	my %versions;
+	foreach my $mod (sort @modkeys)
+	{
+		my $str = "\$versions{'$mod'} = \$${mod}::VERSION;";
+		eval $str;
+	}
+	$conf->{module_versions} = \%versions;
     return  Data::Dumper->Dump([$conf],['Script_Config']);
 }
 
