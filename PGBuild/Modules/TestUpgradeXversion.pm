@@ -182,18 +182,15 @@ sub installcheck
 
     # start the server
 
-    system(
-		   "$installdir/bin/pg_ctl -D $installdir/data-C -o '-F' " . 
-		   "-l '$upgrade_loc/db.log' -w start >'$upgrade_loc/ctl.log' 2>&1"
-		  );
+    system("$installdir/bin/pg_ctl -D $installdir/data-C -o '-F' "
+          ."-l '$upgrade_loc/db.log' -w start >'$upgrade_loc/ctl.log' 2>&1");
 
     # remove function that uses a setting that disappeared in 9.0
     if ($self->{pgbranch} lt 'REL9_0')
     {
         my $sql = 'drop function myfunc(integer)';
-        system("$installdir/bin/psql -A -t -c '$sql' regression " .
-			   "> '$upgrade_loc/fix.log' 2>&1"
-			  );
+        system("$installdir/bin/psql -A -t -c '$sql' regression "
+              ."> '$upgrade_loc/fix.log' 2>&1");
     }
 
     # fix the regression database so its functions point to $libdir rather than
@@ -237,34 +234,28 @@ sub installcheck
              };
         }
 
-		$sql =~ s/\n//g;
+        $sql =~ s/\n//g;
 
         my $opsql = "drop operator if exists public.=> (bigint, NONE)";
-        system("$installdir/bin/psql -A -t -c '$opsql' regression " .
-			   ">> '$upgrade_loc/fix.log' 2>&1"
-			  );
+        system("$installdir/bin/psql -A -t -c '$opsql' regression "
+              .">> '$upgrade_loc/fix.log' 2>&1");
         if ($self->{pgbranch} eq 'REL9_1_STABLE')
         {
             $opsql = "alter extension hstore drop operator => (text, text)";
-            system("$installdir/bin/psql -A -t -c '$opsql' " .
-				   "contrib_regression_hstore >> '$upgrade_loc/fix.log' 2>&1"
-				  );
+            system("$installdir/bin/psql -A -t -c '$opsql' "
+                  ."contrib_regression_hstore >> '$upgrade_loc/fix.log' 2>&1");
             $opsql = 'drop  operator if exists "public".=> (text, text)';
-            system("$installdir/bin/psql -A -t -c '$opsql' " .
-				   "contrib_regression_hstore >> '$upgrade_loc/fix.log' 2>&1"
-				  );
+            system("$installdir/bin/psql -A -t -c '$opsql' "
+                  ."contrib_regression_hstore >> '$upgrade_loc/fix.log' 2>&1");
         }
-        system("$installdir/bin/psql -A -t -c '$sql' regression " .
-			   ">> '$upgrade_loc/fix.log' 2>&1"
-			  );
-        system("$installdir/bin/psql -A -t -c '$sql' contrib_regression " .
-			   ">> '$upgrade_loc/fix.log' 2>&1"
-			  );
+        system("$installdir/bin/psql -A -t -c '$sql' regression "
+              .">> '$upgrade_loc/fix.log' 2>&1");
+        system("$installdir/bin/psql -A -t -c '$sql' contrib_regression "
+              .">> '$upgrade_loc/fix.log' 2>&1");
     }
 
-    system("pg_ctl -D $installdir/data-C -w stop " .
-		   ">> '$upgrade_loc/ctl.log' 2>&1"
-		  );
+    system("pg_ctl -D $installdir/data-C -w stop "
+          .">> '$upgrade_loc/ctl.log' 2>&1");
 
     if ($self->{pgbranch} eq 'HEAD')
     {
@@ -273,7 +264,7 @@ sub installcheck
     }
 
     # ok, we now have the persistent copy of pre-HEAD branches we can use
-	# to test upgrading of, plus the HEAD binaries
+    # to test upgrading of, plus the HEAD binaries
 
     # 9.1 is the earliest branch we test upgrading to
 
@@ -309,68 +300,61 @@ sub installcheck
                     "$other_branch/inst/upgrade_test" 
               > '$upgrade_loc/$oversion-copy.log' 2>&1
         };
-		$testcmd =~ s/\n//g;
-		system $testcmd;
+        $testcmd =~ s/\n//g;
+        system $testcmd;
 
         setinstenv($self, "$other_branch/inst", $save_env);
 
         my $sconfig = `$other_branch/inst/bin/pg_config --configure`;
         my $sport = $sconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
 
-        system("$other_branch/inst/bin/pg_ctl -D " .
-			   "$other_branch/inst/upgrade_test -o '-F' -l " .
-			   "$other_branch/inst/dump-$self->{pgbranch}.log -w start " .
-			   ">> '$upgrade_loc/ctl.log' 2>&1"
-			  );
+        system("$other_branch/inst/bin/pg_ctl -D "
+              ."$other_branch/inst/upgrade_test -o '-F' -l "
+              ."$other_branch/inst/dump-$self->{pgbranch}.log -w start "
+              .">> '$upgrade_loc/ctl.log' 2>&1");
 
         # use the NEW pg_dumpall so we're comparing apples with apples.
         setinstenv($self, "$installdir", $save_env);
-        system("$installdir/bin/pg_dumpall -p $sport -f " .
-			   "$upgrade_loc/origin-$oversion.sql " .
-			   ">'$upgrade_loc/$oversion-dump1.log' 2>&1"
-			  );
+        system("$installdir/bin/pg_dumpall -p $sport -f "
+              ."$upgrade_loc/origin-$oversion.sql "
+              .">'$upgrade_loc/$oversion-dump1.log' 2>&1");
         setinstenv($self, "$other_branch/inst", $save_env);
 
-        system("$other_branch/inst/bin/pg_ctl -D " .
-			   "$other_branch/inst/upgrade_test -w stop " .
-			   ">> '$upgrade_loc/ctl.log' 2>&1"
-			  );
+        system("$other_branch/inst/bin/pg_ctl -D "
+              ."$other_branch/inst/upgrade_test -w stop "
+              .">> '$upgrade_loc/ctl.log' 2>&1");
 
         # %ENV = %$save_env;
 
         setinstenv($self,$installdir, $save_env);
 
-        system("initdb -U buildfarm --locale=C " .
-			   "$installdir/$oversion-upgrade "
-			   "> '$upgrade_loc/initdb.log' 2>&1"
-			  );
+        system("initdb -U buildfarm --locale=C "
+              ."$installdir/$oversion-upgrade "
+              ."> '$upgrade_loc/initdb.log' 2>&1");
 
-        system("cd $installdir && pg_upgrade " .
-			   "--old-port=$sport " .
-			   "--new-port=$dport " .
-			   "--old-datadir=$other_branch/inst/upgrade_test " .
-			   "--new-datadir=$installdir/$oversion-upgrade " .
-			   "--old-bindir=$other_branch/inst/bin " .
-			   "--new-bindir=$installdir/bin " .
-			   ">> '$upgrade_loc/upgrade.log' 2>&1"
-			  );
+        system("cd $installdir && pg_upgrade "
+              ."--old-port=$sport "
+              ."--new-port=$dport "
+              ."--old-datadir=$other_branch/inst/upgrade_test "
+              ."--new-datadir=$installdir/$oversion-upgrade "
+              ."--old-bindir=$other_branch/inst/bin "
+              ."--new-bindir=$installdir/bin "
+              .">> '$upgrade_loc/upgrade.log' 2>&1");
 
-        system("pg_ctl -D $installdir/$oversion-upgrade -l " .
-			   "$installdir/upgrade_log -w start " .
-			   ">> '$upgrade_loc/ctl.log' 2>&1"
-			  );
+        system("pg_ctl -D $installdir/$oversion-upgrade -l "
+              ."$installdir/upgrade_log -w start "
+              .">> '$upgrade_loc/ctl.log' 2>&1");
 
-        system("cd $installdir && sh ./analyze_new_cluster.sh " .
-			   "> '$upgrade_loc/$oversion-analyse.log' 2>&1 "
-			  ) if -e "$installdir/analyze_new_cluster.sh";
+        system("cd $installdir && sh ./analyze_new_cluster.sh "
+              ."> '$upgrade_loc/$oversion-analyse.log' 2>&1 ")
+          if -e "$installdir/analyze_new_cluster.sh";
 
-        system("pg_dumpall -f " .
-			   "$upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql" .
-			  );
+        system("pg_dumpall -f "
+              ."$upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql"
+              .);
 
-        system("pg_ctl -D $installdir/$oversion-upgrade -w stop " .
-			   ">> '$upgrade_loc/ctl.log'"
-        );
+        system("pg_ctl -D $installdir/$oversion-upgrade -w stop "
+              .">> '$upgrade_loc/ctl.log'");
 
         system("cd $installdir && sh ./delete_old_cluster.sh")
           if -e "$installdir/delete_old_cluster.sh";
@@ -422,10 +406,9 @@ sub installcheck
             }
         };
 
-        system("diff -u $upgrade_loc/origin-$oversion.sql " .
-			   "$upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql " .
-			   "> $upgrade_loc/dumpdiff-$oversion 2>&1"
-			  );
+        system("diff -u $upgrade_loc/origin-$oversion.sql "
+              ."$upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql "
+              ."> $upgrade_loc/dumpdiff-$oversion 2>&1");
         my $difflines = `wc -l < $upgrade_loc/dumpdiff-$oversion`;
         chomp($difflines);
         my $expected = $expected_difflines->{$self->{pgbranch}}->{$oversion};
@@ -436,10 +419,10 @@ sub installcheck
         }
         else
         {
-            print 
-			  "dumps $upgrade_loc/origin-$oversion.sql ",
-			  "$upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql ",
-			   "- expected $expected got $difflines of diff\n";
+            print
+              "dumps $upgrade_loc/origin-$oversion.sql ",
+              "$upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql ",
+              "- expected $expected got $difflines of diff\n";
         }
 
         rmtree("$installdir/$oversion-upgrade");
