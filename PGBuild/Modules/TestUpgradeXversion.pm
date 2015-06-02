@@ -350,8 +350,7 @@ sub installcheck
           if -e "$installdir/analyze_new_cluster.sh";
 
         system("pg_dumpall -f "
-              ."$upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql"
-              .);
+              ."$upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql");
 
         system("pg_ctl -D $installdir/$oversion-upgrade -w stop "
               .">> '$upgrade_loc/ctl.log'");
