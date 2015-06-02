@@ -410,11 +410,13 @@ END
     # there should only be anything to cleanup if we didn't have
     # success.
 
-	if ( $have_lock && ! -d "$pgsql" && $PGBuild::conf{rm_worktrees}
-		 && !$from_source)
-	{
-		# remove work tree on success, if configured
-		$scm->rm_worktree();
+    if (   $have_lock
+        && !-d "$pgsql"
+        && $PGBuild::conf{rm_worktrees}
+        && !$from_source)
+    {
+        # remove work tree on success, if configured
+        $scm->rm_worktree();
     }
 
     if ( $have_lock && -d "$pgsql")
@@ -913,8 +915,9 @@ sub check_optional_step
 
     my $last_step = $last_status = find_last("$step") || 0;
 
-    return undef if  (exists($oconf->{min_hours_since}) &&
-					  time < $last_step + (3600 * $oconf->{min_hours_since}));
+    return undef
+      if  (exists($oconf->{min_hours_since})
+        &&time < $last_step + (3600 * $oconf->{min_hours_since}));
     set_last("$step") unless $nostatus;
 
     return 1;
@@ -2157,19 +2160,19 @@ sub get_script_config_dump
         orig_env => $orig_env,
     };
     delete $conf->{secret};
-	my @modkeys = grep {/^PGBuild/} keys %INC;
-	foreach (@modkeys)
-	{
-		s!/!::!g;
-		s/\.pm$//;
-	}
-	my %versions;
-	foreach my $mod (sort @modkeys)
-	{
-		my $str = "\$versions{'$mod'} = \$${mod}::VERSION;";
-		eval $str;
-	}
-	$conf->{module_versions} = \%versions;
+    my @modkeys = grep {/^PGBuild/} keys %INC;
+    foreach (@modkeys)
+    {
+        s!/!::!g;
+        s/\.pm$//;
+    }
+    my %versions;
+    foreach my $mod (sort @modkeys)
+    {
+        my $str = "\$versions{'$mod'} = \$${mod}::VERSION;";
+        eval $str;
+    }
+    $conf->{module_versions} = \%versions;
     return  Data::Dumper->Dump([$conf],['Script_Config']);
 }
 
