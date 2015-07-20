@@ -867,8 +867,8 @@ sub time_str
 sub step_wanted
 {
     my $step = shift;
-    return $only_steps{$step} if $only_steps;
-    return !$skip_steps{$step} if $skip_steps;
+    return $only_steps{$step} if (keys %only_steps);
+    return !$skip_steps{$step} if (keys %skip_steps);
     return 1; # default is everything is wanted
 }
 
