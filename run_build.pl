@@ -1581,7 +1581,8 @@ sub make_check
     my $status = $? >>8;
 
     # get the log files and the regression diffs
-    my @logs = glob("$pgsql/src/test/regress/log/*.log");
+    my @logs =
+      glob("$pgsql/src/test/regress/log/*.log $pgsql/tmp_install/log/*");
     unshift(@logs,"$pgsql/src/test/regress/regression.diffs")
       if (-e "$pgsql/src/test/regress/regression.diffs");
     foreach my $logfile (@logs)
@@ -1598,8 +1599,11 @@ sub make_check
     my $base = "$pgsql/src/test/regress/tmp_check";
     if ($status)
     {
-        my @trace =
-          get_stack_trace("$base/install$installdir/bin",	"$base/data");
+        my $binloc =
+          -d "$pgsql/tmp_install"
+          ? "$pgsql/tmp_install"
+          : "$base/install";
+        my @trace = get_stack_trace("$binloc$installdir/bin", "$base/data");
         push(@makeout,@trace);
     }
     else
