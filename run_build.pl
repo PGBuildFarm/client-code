@@ -1550,8 +1550,19 @@ sub make_bin_installcheck
 
     my $status = $? >>8;
 
-    # my @bases = glob("$pgsql/src/bin/*/tmp_check");
-    # XXX clean these up
+    my @logs = glob("$pgsql/src/bin/*/tmp_check/log/*");
+
+    foreach my $logfile (@logs)
+    {
+        push(@makeout,"\n\n================== $logfile ===================\n");
+        my $handle;
+        open($handle,$logfile);
+        while(<$handle>)
+        {
+            push(@makeout,$_);
+        }
+        close($handle);
+    }
 
     writelog('bin-check',\@makeout);
     print "======== make bin-install-check log ===========\n",@makeout
