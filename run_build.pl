@@ -910,14 +910,15 @@ sub check_optional_step
     my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =localtime(time);
     return undef if (exists $oconf->{min_hour} &&  $hour < $oconf->{min_hour});
     return undef if (exists $oconf->{max_hour} &&  $hour > $oconf->{max_hour});
-    return undef if (exists $oconf->{dow}
-        &&grep {$_ eq $wday} @{$oconf->{dow}});
+    return undef
+      if (exists $oconf->{dow}
+        && grep {$_ eq $wday} @{$oconf->{dow}});
 
     my $last_step = $last_status = find_last("$step") || 0;
 
     return undef
       if  (exists($oconf->{min_hours_since})
-        &&time < $last_step + (3600 * $oconf->{min_hours_since}));
+        && time < $last_step + (3600 * $oconf->{min_hours_since}));
     set_last("$step") unless $nostatus;
 
     return 1;
