@@ -1538,16 +1538,38 @@ sub make_bin_installcheck
     # tests only came in with 9.4
     return unless ($branch eq 'HEAD' or $branch ge 'REL9_4');
 
-    # Windows perls (except Cygwin) don't have IPC::Run,
-    # so don't even think about running
-    return if ($using_msvc or $^O eq 'msys');
-
     # don't run unless the tests have been enabled
-    return unless grep {$_ eq '--enable-tap-tests' } @$config_opts;
+    if ($using_msvc)
+    {
+        return unless $config_opts->{tap_tests};
+    }
+    else
+    {
+        return unless grep {$_ eq '--enable-tap-tests' } @$config_opts;
+    }
 
     print time_str(),"running make bin installcheck ...\n" if $verbose;
 
-    my @makeout = `cd $pgsql/src/bin && make NO_LOCALE=1 installcheck 2>&1`;
+    # fix path temporarily on msys
+    my $save_path = $ENV{PATH};
+    if ($^O eq 'msys')
+    {
+        my $perlpathdir = dirname($Config{perlpath});
+        $ENV{PATH} = "$perlpathdir:$ENV{PATH}";
+    }
+
+    my @makeout;
+
+    unless ($using_msvc)
+    {
+        @makeout =`cd $pgsql/src/bin && make NO_LOCALE=1 installcheck 2>&1`;
+    }
+    else
+    {
+        chdir "$pgsql/src/tools/msvc";
+        @makeout = `perl vcregress.pl bincheck 2>&1`;
+        chdir $branch_root;
+    }
 
     my $status = $? >>8;
 
@@ -1568,6 +1590,9 @@ sub make_bin_installcheck
     writelog('bin-check',\@makeout);
     print "======== make bin-install-check log ===========\n",@makeout
       if ($verbose > 1);
+
+    # restore path
+    $ENV{PATH} = $save_path;
 
     send_result('BinInstallCheck',$status,\@makeout) if $status;
     $steps_completed .= " BinInstallCheck";
