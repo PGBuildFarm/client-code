@@ -1538,6 +1538,10 @@ sub make_bin_installcheck
     # tests only came in with 9.4
     return unless ($branch eq 'HEAD' or $branch ge 'REL9_4');
 
+    # Msys perl crashes and burns on IPC::Run, and we can't use AS perl
+    # because it doesn't handle the virtua; paths. so don't even try.
+    return if ($^O eq 'msys');
+
     # don't run unless the tests have been enabled
     if ($using_msvc)
     {
@@ -1549,14 +1553,6 @@ sub make_bin_installcheck
     }
 
     print time_str(),"running make bin installcheck ...\n" if $verbose;
-
-    # fix path temporarily on msys
-    my $save_path = $ENV{PATH};
-    if ($^O eq 'msys')
-    {
-        my $perlpathdir = dirname($Config{perlpath});
-        $ENV{PATH} = "$perlpathdir:$ENV{PATH}";
-    }
 
     my @makeout;
 
@@ -1590,9 +1586,6 @@ sub make_bin_installcheck
     writelog('bin-check',\@makeout);
     print "======== make bin-install-check log ===========\n",@makeout
       if ($verbose > 1);
-
-    # restore path
-    $ENV{PATH} = $save_path;
 
     send_result('BinInstallCheck',$status,\@makeout) if $status;
     $steps_completed .= " BinInstallCheck";
