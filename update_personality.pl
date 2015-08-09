@@ -44,6 +44,9 @@ usage()
 usage("must specify at least one item to change")
   unless ($os_version or $compiler_version);
 
+# dummy branch in case it's used by the config file
+our($branch) = 'HEAD';
+
 #
 # process config file
 #
