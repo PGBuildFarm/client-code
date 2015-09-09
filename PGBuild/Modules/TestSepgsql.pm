@@ -106,6 +106,8 @@ sub install
     my @log = `sudo semodule -u sepgsql-regtest.pp 2>&1`;
     my $status = $? >>8;
 
+	$self->{module_installed} = $status == 0;
+
     chdir $dir;
 
     main::writelog("sepgsql-policy-install",\@log);
@@ -187,7 +189,7 @@ sub locale_end
 
     my @testlog = `cd $pgsql/contrib/sepgsql && ./test_sepgsql 2>&1`;
     push(@log,"============= sepgsql tests ============\n",@testlog);
-    my $status = $? >>8;
+    $status = $? >>8;
     if ($status)
     {
         push(@log,"============== postgresql.log =================\n");
@@ -217,6 +219,8 @@ sub locale_end
 sub cleanup
 {
     my $self = shift;
+
+	return unless $self->{module_installed};
 
     print main::time_str(), "cleaning up ",__PACKAGE__,"\n" if	$verbose > 1;
 
