@@ -1230,7 +1230,13 @@ sub start_db
     writelog("startdb-$locale-$started_times",\@ctlout);
     print "======== start db ($locale) : $started_times log ========\n",@ctlout
       if ($verbose > 1);
-    send_result("StartDb-$locale:$started_times",$status,\@ctlout) if $status;
+    if ($status)
+    {
+        chdir($installdir);
+        system(qq{"bin/pg_ctl" -t 120 -D data-$locale stop >/dev/null 2>&1});
+        chdir($branch_root);
+        send_result("StartDb-$locale:$started_times",$status,\@ctlout);
+    }
     $dbstarted=1;
 }
 
