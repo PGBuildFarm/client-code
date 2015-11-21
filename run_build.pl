@@ -1556,7 +1556,6 @@ sub make_bin_installcheck
 
     print time_str(),"running make bin installcheck ...\n" if $verbose;
 
-
     # fix path temporarily on msys
     my $save_path = $ENV{PATH};
     if ($^O eq 'msys')
@@ -1600,7 +1599,6 @@ sub make_bin_installcheck
 
     # restore path
     $ENV{PATH} = $save_path;
-
 
     send_result('BinInstallCheck',$status,\@makeout) if $status;
     $steps_completed .= " BinInstallCheck";

@@ -106,7 +106,7 @@ sub install
     my @log = `sudo semodule -u sepgsql-regtest.pp 2>&1`;
     my $status = $? >>8;
 
-	$self->{module_installed} = $status == 0;
+    $self->{module_installed} = $status == 0;
 
     chdir $dir;
 
@@ -220,7 +220,7 @@ sub cleanup
 {
     my $self = shift;
 
-	return unless $self->{module_installed};
+    return unless $self->{module_installed};
 
     print main::time_str(), "cleaning up ",__PACKAGE__,"\n" if	$verbose > 1;
 
