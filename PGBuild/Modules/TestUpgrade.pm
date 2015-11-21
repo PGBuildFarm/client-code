@@ -11,7 +11,7 @@ use File::Basename;
 
 use strict;
 
-use vars qw($VERSION); $VERSION = 'REL_4.15.1';
+use vars qw($VERSION); $VERSION = 'REL_4.16';
 
 my $hooks = {
 
