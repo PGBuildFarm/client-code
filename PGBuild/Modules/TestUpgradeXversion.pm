@@ -252,6 +252,15 @@ sub installcheck
               .">> '$upgrade_loc/fix.log' 2>&1");
         system("$installdir/bin/psql -A -t -c '$sql' contrib_regression "
               .">> '$upgrade_loc/fix.log' 2>&1");
+        if ($self->{pgbranch} ge 'REL9_5')
+        {
+            system(
+"$installdir/bin/psql -A -t -c '$sql' contrib_regression_dblink "
+                  .">> '$upgrade_loc/fix.log' 2>&1");
+            system( "$installdir/bin/psql -A "
+                  . "-c 'drop database if exists contrib_regression_test_ddl_deparse' postgres"
+                  . ">> '$upgrade_loc/fix.log' 2>&1");
+        }
     }
 
     system("pg_ctl -D $installdir/data-C -w stop "
@@ -332,6 +341,14 @@ sub installcheck
               ."$installdir/$oversion-upgrade "
               ."> '$upgrade_loc/initdb.log' 2>&1");
 
+        if ($self->{pgbranch} eq 'HEAD' && $oversion eq 'REL9_5_STABLE')
+        {
+            my $handle;
+            open($handle,">>$installdir/$oversion-upgrade/postgresql.conf");
+            print $handle "shared_preload_libraries = 'dummy_seclabel'\n";
+            close $handle;
+        }
+
         system("cd $installdir && pg_upgrade "
               ."--old-port=$sport "
               ."--new-port=$dport "
@@ -373,12 +390,21 @@ sub installcheck
     0 ./REL9_2_STABLE/inst/dumpdiff-REL9_1_STABLE
   116 ./REL9_2_STABLE/inst/dumpdiff-REL9_0_STABLE
   116 ./REL9_1_STABLE/inst/dumpdiff-REL9_0_STABLE
+                REL9_4_STABLE => 303,
 
 =cut
 
         #target    source
         my $expected_difflines = {
             HEAD => {
+                REL9_0_STABLE => 1910,
+                REL9_1_STABLE => 897,
+                REL9_2_STABLE => 1004,
+                REL9_3_STABLE => 285,
+                REL9_4_STABLE => 303,
+                REL9_5_STABLE => 335,
+            },
+            REL9_5_STABLE => {
                 REL9_0_STABLE => 1910,
                 REL9_1_STABLE => 897,
                 REL9_2_STABLE => 1004,
