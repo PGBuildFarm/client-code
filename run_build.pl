@@ -1544,11 +1544,6 @@ sub make_bin_installcheck
     # tests only came in with 9.4
     return unless ($branch eq 'HEAD' or $branch ge 'REL9_4');
 
-	if ($^O eq 'msys' || $using_msvc)
-	{
-		return unless $branch eq 'HEAD' || $branch gt 'REL9_6';
-	}
-
     # don't run unless the tests have been enabled
     if ($using_msvc)
     {
