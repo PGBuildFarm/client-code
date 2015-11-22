@@ -443,6 +443,7 @@ package PGBuild::SCM::Git;
 use Cwd qw(getcwd abs_path);
 use File::Copy;
 use File::Path;
+use Fcntl qw(:flock);
 
 sub new
 {
@@ -532,6 +533,23 @@ sub checkout
     my $drive = "";
     my $cwd = getcwd();
     $drive = substr($cwd,0,2) if $cwd =~ /^[A-Z]:/;
+
+	# we are currently in the branch directory.
+	# if we're using git_use_workdirs, open a file and wait for a lock on it in the HEAD directory
+
+	my $lockfile;
+
+	if ( $self->{use_workdirs}
+		 &&!defined($self->{reference})
+		 && $^O ne "MSWin32"
+		 && $^O ne "msys"
+		 && -d '../HEAD/')
+	{
+		open($lockfile, ">../HEAD/checkout.LCK") || die "opening checkout lockfile: $!";
+
+		die "acquiring lock on $self->{build_root}/HEAD/checkout.LCK"
+		  unless flock($lockfile,LOCK_EX); # no LOCK_NB here so we wait for the lock
+	}
 
     my @gitlog;
     if ($self->{mirror})
@@ -710,6 +728,8 @@ sub checkout
     $status = $? >>8;
     print "================== git log =====================\n",@gitlog
       if ($main::verbose > 1);
+
+	close($lockfile) if $lockfile;
 
     # can't call writelog here because we call cleanlogs after the
     # checkout stage, since we only clear out the logs if we find we need to
