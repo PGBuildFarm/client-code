@@ -1568,7 +1568,7 @@ sub make_bin_installcheck
 
     unless ($using_msvc)
     {
-        @makeout =`cd $pgsql/src/bin && make NO_LOCALE=1 installcheck 2>&1`;
+        @makeout =`cd $pgsql/src/bin && $make NO_LOCALE=1 installcheck 2>&1`;
     }
     else
     {
