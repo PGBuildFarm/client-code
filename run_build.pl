@@ -1201,9 +1201,9 @@ sub start_db
     {
 
         # give Windows some breathing room if necessary
-        sleep 5;
+        sleep(5) if $Config{osname} =~ /msys|MSWin|cygwin/;
         unlink "$installdir/logfile";
-        sleep 5;
+        sleep(5) if $Config{osname} =~ /msys|MSWin|cygwin/;
     }
 
     # must use -w here or we get horrid FATAL errors from trying to
