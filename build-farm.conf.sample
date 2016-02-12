@@ -158,6 +158,10 @@ my $branch;
 
         # see below for MSVC settings
 
+        # possibly set this to something high if you get pg_ctl failures
+        # default is 120
+        # PGCTLTIMEOUT => '120',
+
     },
 
     # env settings to pass to configure. These settings will only be seen by

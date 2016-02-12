@@ -283,6 +283,10 @@ while (my ($envkey,$envval) = each %{$PGBuild::conf{build_env}})
     $ENV{$envkey}=$envval;
 }
 
+# default value - supply unless set via the config file
+# or calling environment
+$ENV{PGCTLTIMEOUT} = 120 unless exists $ENV{PGCTLTIMEOUT};
+
 # change to buildroot for this branch or die
 
 die "no buildroot" unless $buildroot;
@@ -1233,7 +1237,7 @@ sub start_db
     if ($status)
     {
         chdir($installdir);
-        system(qq{"bin/pg_ctl" -t 120 -D data-$locale stop >/dev/null 2>&1});
+        system(qq{"bin/pg_ctl" -D data-$locale stop >/dev/null 2>&1});
         chdir($branch_root);
         send_result("StartDb-$locale:$started_times",$status,\@ctlout);
     }
@@ -1245,8 +1249,7 @@ sub stop_db
     my $locale = shift;
     my $logpos = -s "$installdir/logfile" || 0;
     chdir($installdir);
-    my $timeout =($branch eq 'HEAD' || $branch ge 'REL8_3') ? "-t 120" : "";
-    my $cmd = qq{"bin/pg_ctl" $timeout -D data-$locale stop >stoplog 2>&1};
+    my $cmd = qq{"bin/pg_ctl" -D data-$locale stop >stoplog 2>&1};
     system($cmd);
     my $status = $? >>8;
     chdir($branch_root);
