@@ -678,8 +678,10 @@ make_check();
 # contrib is builtunder standard build step for msvc
 make_contrib() unless ($using_msvc);
 
+make_contrib_check() unless ($using_msvc);
+
 make_testmodules()
-  if (!$using_msvc && ($branch eq 'HEAD' || $branch ge 'REL9_5'));
+  if (!$using_msvc && ($branch eq 'HEAD' || $branch ge 'REL9_5' ));
 
 make_doc() if (check_optional_step('build_docs'));
 
@@ -1662,6 +1664,60 @@ sub make_check
     $steps_completed .= " Check";
 }
 
+sub make_contrib_check
+{
+    return unless step_wanted('check');
+    print time_str(),"running make  contrib check ...\n" if $verbose;
+
+    my @makeout;
+    unless ($using_msvc)
+    {
+        @makeout =`cd $pgsql/contrib && $make NO_LOCALE=1 check 2>&1`;
+    }
+    else
+    {
+        chdir "$pgsql/src/tools/msvc";
+        @makeout = `perl vcregress.pl contribcheck 2>&1`;
+        chdir $branch_root;
+    }
+
+    my $status = $? >>8;
+
+    # get the log files and the regression diffs
+    my @logs =
+      glob("$pgsql/src/test/regress/log/*.log $pgsql/tmp_install/log/*");
+    unshift(@logs,"$pgsql/src/test/regress/regression.diffs")
+      if (-e "$pgsql/src/test/regress/regression.diffs");
+    foreach my $logfile (@logs)
+    {
+        push(@makeout,"\n\n================== $logfile ===================\n");
+        my $handle;
+        open($handle,$logfile);
+        while(<$handle>)
+        {
+            push(@makeout,$_);
+        }
+        close($handle);
+    }
+    my $base = "$pgsql/contrib";
+    if ($status)
+    {
+        my $binloc =
+          -d "$pgsql/tmp_install"
+          ? "$pgsql/tmp_install"
+          : "$base/install";
+	for (f in glob("$base/*/tmp_check")) {
+		my @trace = get_stack_trace("$binloc$installdir/bin", "$base/data");
+		push(@makeout,@trace);
+	}
+    }
+    writelog('contrib-check',\@makeout);
+    print "======== make check logs ===========\n",@makeout
+      if ($verbose > 1);
+
+    send_result('ContribCheck',$status,\@makeout) if $status;
+    $steps_completed .= " ContribCheck";
+}
 sub make_ecpg_check
 {
     return unless step_wanted('ecpg-check');
