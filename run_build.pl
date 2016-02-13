@@ -1706,8 +1706,8 @@ sub make_contrib_check
           -d "$pgsql/tmp_install"
           ? "$pgsql/tmp_install"
           : "$base/install";
-	for ($f in glob("$base/*/tmp_check")) {
-		my @trace = get_stack_trace("$binloc$installdir/bin", "$base/data");
+	for my $f (glob("$base/*/tmp_check")) {
+		my @trace = get_stack_trace("$binloc$installdir/bin", "$f/data");
 		push(@makeout,@trace);
 	}
     }
