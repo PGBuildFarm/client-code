@@ -705,6 +705,8 @@ process_module_hooks('install');
 
 make_bin_installcheck();
 
+make_recovery_check();
+
 foreach my $locale (@locales)
 {
     last unless step_wanted('install');
@@ -1605,6 +1607,73 @@ sub make_bin_installcheck
 
     send_result('BinInstallCheck',$status,\@makeout) if $status;
     $steps_completed .= " BinInstallCheck";
+}
+
+sub make_recovery_check
+{
+    return unless step_wanted('recovery-check');
+
+    # tests only came in with 9.6
+    return unless ($branch eq 'HEAD');
+
+    # don't run unless the tests have been enabled
+    if ($using_msvc)
+    {
+        return unless $config_opts->{tap_tests};
+    }
+    else
+    {
+        return unless grep {$_ eq '--enable-tap-tests' } @$config_opts;
+    }
+
+    print time_str(),"running make recovery check ...\n" if $verbose;
+
+    # fix path temporarily on msys
+    my $save_path = $ENV{PATH};
+    if ($^O eq 'msys')
+    {
+        my $perlpathdir = dirname($Config{perlpath});
+        $ENV{PATH} = "$perlpathdir:$ENV{PATH}";
+    }
+
+    my @makeout;
+
+    unless ($using_msvc)
+    {
+        @makeout =`cd $pgsql/src/test/recovery && $make NO_LOCALE=1 check 2>&1`;
+    }
+    else
+    {
+        chdir "$pgsql/src/tools/msvc";
+        @makeout = `perl vcregress.pl recoverycheck 2>&1`;
+        chdir $branch_root;
+    }
+
+    my $status = $? >>8;
+
+    my @logs = glob("$pgsql/src/test/recovery/tmp_check/log/*");
+
+    foreach my $logfile (@logs)
+    {
+        push(@makeout,"\n\n================== $logfile ===================\n");
+        my $handle;
+        open($handle,$logfile);
+        while(<$handle>)
+        {
+            push(@makeout,$_);
+        }
+        close($handle);
+    }
+
+    writelog('recovery-check',\@makeout);
+    print "======== make recovery-check log ===========\n",@makeout
+      if ($verbose > 1);
+
+    # restore path
+    $ENV{PATH} = $save_path;
+
+    send_result('RecoveryCheck',$status,\@makeout) if $status;
+    $steps_completed .= " RecoveryCheck";
 }
 
 sub make_check
