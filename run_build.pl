@@ -1723,7 +1723,7 @@ sub make_contrib_check
 
 sub collect_extra_base_config {
 	my $locale = shift;
-	my @addopts=();
+	my %addopts=();
 	MODULE:
 	for my $module (glob("$pgsql/contrib/*")) {
 		my $f;
@@ -1744,17 +1744,33 @@ sub collect_extra_base_config {
 			}
 			open my $g, "<", $filename;
 			while (<$g>) {
-				push @addopts,$_;
+				if (/(\w\S*\w)\s*=\s*(\S.*)\s*$/) {
+					my ($opt,$value);
+					$opt = $1;
+					$value = $2;
+					if (exists $addopts{$opt}) {
+						if (substr($value,0,1) eq "'") {
+							$addopts{$opt} = substr($addopts{$opt},0,-1).", ".substr($value,1);
+						} else {
+						  $addopts{$opt} .= ", ".$value;
+						}
+					} else {
+					    $addopts{$opt} = $value;
+					}
+				}
 			}
 		}
 	}
 
-	if (@addopts) {
+	if (%addopts) {
 		my $config = "$installdir/data-$locale/postgresql.conf";
 		print "Appending $config\n" if $verbose;
 		my $f;
 		open $f, ">>",$config;
-		print $f join("",@addopts);
+		while (my ($opt,$value) = each %addopts) {
+			print $f " $opt = $value\n";
+			print " $opt = $value\n" if $verbose;
+		}
 		close $f;
 	}
 }
