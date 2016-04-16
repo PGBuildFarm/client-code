@@ -688,16 +688,18 @@ sub checkout
         my @colog;
         if (grep {/\bbf_$branch\b/ } @branches)
         {
-            # don't try to create an existing branch
+            # Don't try to create an existing branch
             # the target dir only might have been wiped away,
-            # so we need to handle this case
+            # so we need to handle this case.
             @colog =`git checkout -f bf_$branch 2>&1`;
         }
         else
         {
             @colog =`git checkout -f -b bf_$branch --track origin/$branch 2>&1`;
         }
-        push(@gitlog,@colog);
+		# Make sure the branch we just checked out is up to date.
+		my @pull_log = `git pull 2>&1`;
+        push(@gitlog,@colog,@pull_log);
 
         chdir "..";
     }
