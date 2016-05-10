@@ -2208,7 +2208,7 @@ sub get_script_config_dump
         invocation_args => \@invocation_args,
         steps_completed => $steps_completed,
         orig_env => $orig_env,
-        bf_perl_version => "$^V",
+        bf_perl_version => "$Config{version}",
     };
     delete $conf->{secret};
     my @modkeys = grep {/^PGBuild/} keys %INC;
