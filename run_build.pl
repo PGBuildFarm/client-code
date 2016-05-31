@@ -1687,7 +1687,7 @@ sub make_contrib_check
 
     # get the log files and the regression diffs
     my @logs =
-      glob("$pgsql/src/test/regress/log/*.log $pgsql/tmp_install/log/*");
+      glob("$pgsql/contrib/*/regression.diffs $pgsql/src/test/regress/log/*.log $pgsql/tmp_install/log/*");
     unshift(@logs,"$pgsql/src/test/regress/regression.diffs")
       if (-e "$pgsql/src/test/regress/regression.diffs");
     foreach my $logfile (@logs)
