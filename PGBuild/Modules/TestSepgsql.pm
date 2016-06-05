@@ -77,7 +77,7 @@ sub build
     chdir $dir;
 
     main::writelog("sepgsql-policy-build",\@log);
-    print "======== build sepgsql policy log ========\n",@log
+    print "="x15 . " build sepgsql policy log " . "="x15 . "\n",@log
       if ($verbose > 1);
     main::send_result("sepgsql-policy-build",$status,\@log)
       if $status;
@@ -111,7 +111,7 @@ sub install
     chdir $dir;
 
     main::writelog("sepgsql-policy-install",\@log);
-    print "======== install sepgsql policy log ========\n",@log
+    print "="x15 . " install sepgsql policy log " . "="x15 . "\n",@log
       if ($verbose > 1);
     main::send_result("sepgsql-policy-install",$status,\@log)
       if $status;
@@ -159,7 +159,7 @@ sub locale_end
         my $cmd = "inst/bin/postgres --single -F -c exit_on_error=true $db";
         my @nlog = `$cmd < $sepgsql 2>&1 1>/dev/null`;
         push(@log,
-            "====== installing sepgsql in single user mode in $db =========\n",
+            "="x15 . " installing sepgsql in single user mode in $db " . "="x15 . "\n",
             @nlog);
         $status = $? >> 8;
     }
@@ -167,20 +167,20 @@ sub locale_end
     if ($status)
     {
         main::writelog("sepgsql-test",\@log);
-        print "======== test sepgsql setup ========\n",@log
+        print "="x15 . " test sepgsql setup " . "="x15 . "\n",@log
           if ($verbose > 1);
         main::send_result("test-sepgsql",$status,\@log);
     }
 
     my @startlog =
       `cd inst && bin/pg_ctl -D sepgsql -l sepgsql.log -w start 2>&1`;
-    push(@log,"============ sepgsql start log\n",@startlog);
+    push(@log,"="x15 . " sepgsql start log\n",@startlog);
     $status = $? >>8;
 
     if ($status)
     {
         main::writelog("sepgsql-test",\@log);
-        print "======== test sepgsql ========\n",@log
+        print "="x15 . " test sepgsql " . "="x15 . "\n",@log
           if ($verbose > 1);
         main::send_result("test-sepgsql",$status,\@log);
     }
@@ -188,24 +188,24 @@ sub locale_end
     system("sudo setsebool sepgsql_regression_test_mode on");
 
     my @testlog = `cd $pgsql/contrib/sepgsql && ./test_sepgsql 2>&1`;
-    push(@log,"============= sepgsql tests ============\n",@testlog);
+    push(@log,"="x15 . " sepgsql tests " . "="x15 . "\n",@testlog);
     $status = $? >>8;
     if ($status)
     {
-        push(@log,"============== postgresql.log =================\n");
+        push(@log,"="x15 . " postgresql.log " . "="x15 . "\n");
         open(my $handle,"inst/sepgsql.log");
         push(@log,$_) while (<$handle>);
         close($handle);
     }
 
     my @stoplog = `cd inst && bin/pg_ctl -D sepgsql stop 2>&1`;
-    push(@log,"============ sepgsql stop log\n",@stoplog);
+    push(@log,"="x15 . " sepgsql stop log\n",@stoplog);
     $status ||= $? >>8;
     main::writelog("sepgsql-test",\@log);
 
     if ($status)
     {
-        print "======== test sepgsql ========\n",@log
+        print "="x15 . " test sepgsql " . "="x15 . "\n",@log
           if ($verbose > 1);
         main::send_result("test-sepgsql",$status,\@log);
     }

@@ -139,7 +139,7 @@ sub build
 
     my $status = $? >>8;
     main::writelog("$MODULE-build",\@makeout);
-    print "======== make log ===========\n",@makeout if ($verbose > 1);
+    print "="x15 . " make log " . "="x15 . "\n",@makeout if ($verbose > 1);
     main::send_result("$MODULE-build",$status,\@makeout) if $status;
 
 }
@@ -156,7 +156,7 @@ sub install
 
     my $status = $? >>8;
     main::writelog("$MODULE-install",\@log);
-    print "======== install log ===========\n",@log if ($verbose > 1);
+    print "="x15 . " install log " . "="x15 . "\n",@log if ($verbose > 1);
     main::send_result("$MODULE-install",$status,\@log) if $status;
 
 }
@@ -186,7 +186,7 @@ sub installcheck
     {
         last unless $status;
         next unless (-e $logfile );
-        push(@log,"\n\n================== $logfile ==================\n");
+        push(@log,"\n\n" . "="x15 . " $logfile " . "="x15 . "\n");
         my $handle;
         open($handle,$logfile);
         while(<$handle>)
@@ -197,7 +197,7 @@ sub installcheck
     }
 
     main::writelog("$MODULE-installcheck-$locale",\@log);
-    print "======== installcheck ($locale) log ===========\n",@log
+    print "="x15 . " installcheck ($locale) log " . "="x15 . "\n",@log
       if ($verbose > 1);
     main::send_result("$MODULE-installcheck-$locale",$status,\@log) if $status;
 

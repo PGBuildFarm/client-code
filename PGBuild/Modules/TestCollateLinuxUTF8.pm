@@ -95,7 +95,7 @@ sub installcheck
     foreach my $logfile(@logfiles)
     {
         next unless (-e $logfile );
-        push(@checklog,"\n\n================== $logfile ==================\n");
+        push(@checklog,"\n\n" . "="x15 . " $logfile " . "="x15 . "\n");
         my $handle;
         open($handle,$logfile);
         seek($handle, $logpos, SEEK_SET) if $logfile =~ m!/logfile$!;
@@ -112,7 +112,7 @@ sub installcheck
         push(@checklog,@trace);
     }
     main::writelog("install-check-collate-$locale",\@checklog);
-    print "======== make installcheck collate-$locale log ========\n",@checklog
+    print "="x15 . " make installcheck collate-$locale log " . "="x15 . "\n",@checklog
       if ($verbose > 1);
     main::send_result("InstallCheck-collate-$locale",$status,\@checklog)
       if $status;

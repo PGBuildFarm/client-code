@@ -241,7 +241,7 @@ sub checkout
         }
     }
     my $status = $? >>8;
-    print "======== cvs $cvsmethod log ===========\n",@cvslog
+    print "="x15 . " cvs $cvsmethod log " . "="x15 . "\n",@cvslog
       if ($main::verbose > 1);
 
     # can't call writelog here because we call cleanlogs after the
@@ -399,7 +399,7 @@ sub get_versions
         my @res = `cd $target && cvs status @chunk 2>&1`;
         push(@cvs_status,@res);
         my $status = $? >>8;
-        print "======== $target-cvs status log ===========\n",@cvs_status
+        print "="x15 . " $target-cvs status log " . "="x15 . "\n",@cvs_status
           if ($main::verbose > 1);
         main::send_result("$target-CVS-status",$status,\@cvs_status)
           if ($status);
@@ -731,7 +731,7 @@ sub checkout
         }
     }
     $status = $? >>8;
-    print "================== git log =====================\n",@gitlog
+    print "="x15 . " git log " . "="x15 . "\n",@gitlog
       if ($main::verbose > 1);
 
     close($lockfile) if $lockfile;
@@ -755,7 +755,7 @@ sub checkout
     main::send_result("$target-Git",$status,\@gitlog)	if ($status);
     unless ($main::nosend && $main::nostatus)
     {
-        push(@gitlog,"===========",@gitstat);
+        push(@gitlog,"="x15,@gitstat);
         main::send_result("$target-Git-Dirty",99,\@gitlog)
           if (@gitstat);
     }
