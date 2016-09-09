@@ -363,8 +363,8 @@ elsif ( !flock($lockfile,LOCK_EX|LOCK_NB) )
     exit(0);
 }
 
-die "$buildroot/$branch has $pgsql or inst directories!"
-  if ((!$from_source && -d $pgsql) || -d "inst");
+rmtree("inst");
+rmtree("$pgsql") unless ($from_source);
 
 # we are OK to run if we get here
 $have_lock = 1;
@@ -2187,16 +2187,16 @@ sub check_port_is_ok
     }
     if ($found)
     {
+		eval
+		{
+			unlink glob "/tmp/.s.PGSQL.$port /tmp/.s.PGSQL.$port.*" || die $!;
+		};
 
-        # If we want to kill the process, do something likethis,
-        # but only in a Post checvk - don't kill any pre-existing
-        # process on the port:
-        # system("fuser -k /tmp/.s.PGSQL.$port") if $report eq 'Post';
-
-        # In either case finding this process is an error, so call
-        # send_result.
-        push(@log,"socket found listening to port $port");
-        send_result($stage,99,\@log);
+		if ($@)
+		{
+			push(@log,"unable to clear listening port $port\n$@");
+			send_result($stage,99,\@log);
+		}
     }
 }
 
