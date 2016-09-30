@@ -45,12 +45,11 @@ sub setup
     my $conf = shift;  # ref to the whole config object
     my $pgsql = shift; # postgres build dir
 
-    return unless ($branch eq 'HEAD' or $branch ge 'REL9_0');
+	return if $from_source;
 
     my $upgrade_install_root = $conf->{upgrade_install_root};
     die "No upgrade_install_root" unless $upgrade_install_root;
 
-    # could even set up several of these (e.g. for different branches)
     my $self  = {
         buildroot => $buildroot,
         pgbranch=> $branch,
@@ -60,7 +59,6 @@ sub setup
     };
     bless($self, $class);
 
-    # for each instance you create, do:
     main::register_module_hooks($self,$hooks);
 
 }
@@ -185,21 +183,13 @@ sub installcheck
     system("$installdir/bin/pg_ctl -D $installdir/data-C -o '-F' "
           ."-l '$upgrade_loc/db.log' -w start >'$upgrade_loc/ctl.log' 2>&1");
 
-    # remove function that uses a setting that disappeared in 9.0
-    if ($self->{pgbranch} lt 'REL9_0')
-    {
-        my $sql = 'drop function myfunc(integer)';
-        system("$installdir/bin/psql -A -t -c '$sql' regression "
-              ."> '$upgrade_loc/fix.log' 2>&1");
-    }
-
     # fix the regression database so its functions point to $libdir rather than
     # the source directory, which won't persist past this build.
 
     my $sql =
       'select probin::text from pg_proc where probin not like $$$libdir%$$';
 
-    my @regresslibs = `psql -A -t -c '$sql' regression`;
+    my @regresslibs = `psql -A -X -t -c '$sql' regression`;
 
     chomp @regresslibs;
 
@@ -237,30 +227,29 @@ sub installcheck
         $sql =~ s/\n//g;
 
         my $opsql = "drop operator if exists public.=> (bigint, NONE)";
-        system("$installdir/bin/psql -A -t -c '$opsql' regression "
+        system("$installdir/bin/psql -A -X -t -c '$opsql' regression "
               .">> '$upgrade_loc/fix.log' 2>&1");
         if ($self->{pgbranch} eq 'REL9_1_STABLE')
         {
             $opsql = "alter extension hstore drop operator => (text, text)";
-            system("$installdir/bin/psql -A -t -c '$opsql' "
+            system("$installdir/bin/psql -A -X -t -c '$opsql' "
                   ."contrib_regression_hstore >> '$upgrade_loc/fix.log' 2>&1");
             $opsql = 'drop  operator if exists "public".=> (text, text)';
-            system("$installdir/bin/psql -A -t -c '$opsql' "
+            system("$installdir/bin/psql -A -X -t -c '$opsql' "
                   ."contrib_regression_hstore >> '$upgrade_loc/fix.log' 2>&1");
         }
-        system("$installdir/bin/psql -A -t -c '$sql' regression "
+        system("$installdir/bin/psql -A -X -t -c '$sql' regression "
               .">> '$upgrade_loc/fix.log' 2>&1");
-        system("$installdir/bin/psql -A -t -c '$sql' contrib_regression "
+        system("$installdir/bin/psql -A -X -t -c '$sql' contrib_regression "
               .">> '$upgrade_loc/fix.log' 2>&1");
         if ($self->{pgbranch} ge 'REL9_5')
-        {
-            system(
-"$installdir/bin/psql -A -t -c '$sql' contrib_regression_dblink "
-                  .">> '$upgrade_loc/fix.log' 2>&1");
-            system( "$installdir/bin/psql -A "
-                  . "-c 'drop database if exists contrib_regression_test_ddl_deparse' postgres"
-                  . ">> '$upgrade_loc/fix.log' 2>&1");
-        }
+		{
+			system("$installdir/bin/psql -A -X -t -c '$sql' contrib_regression_dblink "
+				   .">> '$upgrade_loc/fix.log' 2>&1");
+			system("$installdir/bin/psql -A "
+				   . "-c 'drop database if exists contrib_regression_test_ddl_deparse' postgres"
+				   . ">> '$upgrade_loc/fix.log' 2>&1");
+		}
     }
 
     system("pg_ctl -D $installdir/data-C -w stop "
@@ -341,13 +330,13 @@ sub installcheck
               ."$installdir/$oversion-upgrade "
               ."> '$upgrade_loc/initdb.log' 2>&1");
 
-        if ($self->{pgbranch} eq 'HEAD' && $oversion eq 'REL9_5_STABLE')
-        {
-            my $handle;
-            open($handle,">>$installdir/$oversion-upgrade/postgresql.conf");
-            print $handle "shared_preload_libraries = 'dummy_seclabel'\n";
-            close $handle;
-        }
+		if ($oversion ge 'REL9_5_STABLE')
+		{
+			my $handle;
+			open($handle,">>$installdir/$oversion-upgrade/postgresql.conf");
+			print $handle "shared_preload_libraries = 'dummy_seclabel'\n";
+			close $handle;
+		}
 
         system("cd $installdir && pg_upgrade "
               ."--old-port=$sport "
@@ -397,41 +386,41 @@ sub installcheck
         #target    source
         my $expected_difflines = {
             HEAD => {
-                REL9_0_STABLE => 1910,
-                REL9_1_STABLE => 897,
-                REL9_2_STABLE => 1004,
-                REL9_3_STABLE => 285,
-                REL9_4_STABLE => 303,
-                REL9_5_STABLE => 335,
+                REL9_1_STABLE => 1175,
+                REL9_2_STABLE => 1346,
+                REL9_3_STABLE => 610,
+                REL9_4_STABLE => 644,
+                REL9_5_STABLE => 757,
+                REL9_6_STABLE => 0,
+            },
+            REL9_6_STABLE => {
+                REL9_1_STABLE => 1175,
+                REL9_2_STABLE => 1346,
+                REL9_3_STABLE => 610,
+                REL9_4_STABLE => 644,
+                REL9_5_STABLE => 757,
             },
             REL9_5_STABLE => {
-                REL9_0_STABLE => 1910,
-                REL9_1_STABLE => 897,
-                REL9_2_STABLE => 1004,
-                REL9_3_STABLE => 285,
-                REL9_4_STABLE => 303,
+                REL9_1_STABLE => 672,
+                REL9_2_STABLE => 770,
+                REL9_3_STABLE => 51,
+                REL9_4_STABLE => 51,
             },
             REL9_4_STABLE => {
-                REL9_0_STABLE => 1715,
                 REL9_1_STABLE => 643,
                 REL9_2_STABLE => 741,
                 REL9_3_STABLE => 0,
             },
             REL9_3_STABLE => {
-                REL9_0_STABLE => 1715,
                 REL9_1_STABLE => 643,
                 REL9_2_STABLE => 741,
             },
             REL9_2_STABLE => {
                 REL9_1_STABLE => 0,
-                REL9_0_STABLE => 1085,
             },
-            REL9_1_STABLE => {
-                REL9_0_STABLE => 1085,
-            }
         };
 
-        system("diff -u $upgrade_loc/origin-$oversion.sql "
+        system("diff -I '^-- ' -u $upgrade_loc/origin-$oversion.sql "
               ."$upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql "
               ."> $upgrade_loc/dumpdiff-$oversion 2>&1");
         my $difflines = `wc -l < $upgrade_loc/dumpdiff-$oversion`;
