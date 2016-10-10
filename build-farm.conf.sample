@@ -52,6 +52,10 @@ my $branch;
     tar_log_cmd => undef, # default is "tar -z -cf runlogs.tgz *.log"
     # replacement must have the same effect
 
+	# max time in seconds allowed for a single branch run
+	# undef/0 means unlimited
+	wait_timeout => undef,
+
     # where and how to build
     # must be absolute, can be either Unix or Windows style for MSVC
     build_root => '/path/to/buildroot',

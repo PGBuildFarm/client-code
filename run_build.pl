@@ -147,13 +147,14 @@ my (
     $secret,$keep_errs,$force_every,
     $make, $optional_steps,$use_vpath,
     $tar_log_cmd, $using_msvc, $extra_config,
-    $make_jobs,$core_file_glob, $ccache_failure_remove
+    $make_jobs,$core_file_glob, $ccache_failure_remove,
+    $wait_timeout
   )
   =@PGBuild::conf{
     qw(build_root target animal aux_path trigger_exclude
       trigger_include secret keep_error_builds force_every make optional_steps
       use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob
-      ccache_failure_remove)
+      ccache_failure_remove wait_timeout)
   };
 
 #default is no parallel build
@@ -402,9 +403,15 @@ my $dbstarted;
 
 my $extraconf;
 
+my $main_pid = $$;
+my $waiter_pid;
+
 # cleanup handler for all exits
 END
 {
+    return if (defined($waiter_pid) && $waiter_pid == $$);
+
+    kill('TERM', $waiter_pid) if $waiter_pid;
 
     # clean up temp file
     unlink $ENV{TEMP_CONFIG} if $extraconf;
@@ -481,6 +488,8 @@ END
         unlink("builder.LCK");
     }
 }
+
+$waiter_pid = spawn(&wait_timeout,$wait_timeout) if $wait_timeout;
 
 # Prepend the DEFAULT settings (if any) to any settings for the
 # branch. Since we're mangling this, deep clone $extra_config
@@ -2248,6 +2257,13 @@ sub scm_timeout
     }
 }
 
+sub wait_timeout
+{
+    my $wait_time = shift;
+    sleep($wait_time);
+    kill 'TERM', $main_pid;
+}
+
 sub spawn
 {
     my $coderef = shift;
@@ -2258,4 +2274,3 @@ sub spawn
     }
     return $pid;
 }
-
