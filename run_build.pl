@@ -2260,6 +2260,10 @@ sub scm_timeout
 sub wait_timeout
 {
     my $wait_time = shift;
+    foreach my $sig (qw(INT TERM HUP QUIT))
+    {
+        $SIG{$sig}='DEFAULT';
+    }
     sleep($wait_time);
     kill 'TERM', $main_pid;
 }
