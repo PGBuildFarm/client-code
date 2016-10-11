@@ -489,7 +489,7 @@ END
     }
 }
 
-$waiter_pid = spawn(&wait_timeout,$wait_timeout) if $wait_timeout;
+$waiter_pid = spawn(\&wait_timeout,$wait_timeout) if $wait_timeout;
 
 # Prepend the DEFAULT settings (if any) to any settings for the
 # branch. Since we're mangling this, deep clone $extra_config
