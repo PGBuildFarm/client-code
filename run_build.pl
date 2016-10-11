@@ -2257,13 +2257,19 @@ sub scm_timeout
     }
 }
 
+sub silent_terminate
+{
+	exit 0;
+}
+
 sub wait_timeout
 {
     my $wait_time = shift;
-    foreach my $sig (qw(INT TERM HUP QUIT))
+    foreach my $sig (qw(INT HUP QUIT))
     {
         $SIG{$sig}='DEFAULT';
     }
+	$SIG{'TERM'} = \&silent_terminate;
     sleep($wait_time);
     kill 'TERM', $main_pid;
 }
