@@ -45,9 +45,10 @@ sub setup
     my $conf = shift;  # ref to the whole config object
     my $pgsql = shift; # postgres build dir
 
-	return if $from_source;
+    return if $from_source;
 
-    my $upgrade_install_root = $conf->{upgrade_install_root} || "$buildroot/upgrade";
+    my $upgrade_install_root =
+      $conf->{upgrade_install_root} || "$buildroot/upgrade";
 
     my $self  = {
         buildroot => $buildroot,
@@ -201,51 +202,53 @@ sub installcheck
         chmod 0755, $dest;
     }
 
-	$sql = q{
+    $sql = q{
                update pg_proc set probin = 
                   regexp_replace(probin,$$.*/$$,$$$libdir/$$) 
                where probin not like $$$libdir/%$$ returning proname,probin;
              };
 
-	$sql =~ s/\n//g;
+    $sql =~ s/\n//g;
 
-	my $opsql = "drop operator if exists public.=> (bigint, NONE)";
-	system("$installdir/bin/psql -A -X -t -c '$opsql' regression "
-		   .">> '$upgrade_loc/fix.log' 2>&1");
-	if ($self->{pgbranch} eq 'REL9_1_STABLE')
-	{
-		$opsql = "alter extension hstore drop operator => (text, text)";
-		system("$installdir/bin/psql -A -X -t -c '$opsql' "
-			   ."contrib_regression_hstore >> '$upgrade_loc/fix.log' 2>&1");
-		$opsql = 'drop  operator if exists "public".=> (text, text)';
-		system("$installdir/bin/psql -A -X -t -c '$opsql' "
-			   ."contrib_regression_hstore >> '$upgrade_loc/fix.log' 2>&1");
-	}
-	system("$installdir/bin/psql -A -X -t -c '$sql' regression "
+    my $opsql = "drop operator if exists public.=> (bigint, NONE)";
+    system("$installdir/bin/psql -A -X -t -c '$opsql' regression "
+          .">> '$upgrade_loc/fix.log' 2>&1");
+    if ($self->{pgbranch} eq 'REL9_1_STABLE')
+    {
+        $opsql = "alter extension hstore drop operator => (text, text)";
+        system("$installdir/bin/psql -A -X -t -c '$opsql' "
+              ."contrib_regression_hstore >> '$upgrade_loc/fix.log' 2>&1");
+        $opsql = 'drop  operator if exists "public".=> (text, text)';
+        system("$installdir/bin/psql -A -X -t -c '$opsql' "
+              ."contrib_regression_hstore >> '$upgrade_loc/fix.log' 2>&1");
+    }
+    system("$installdir/bin/psql -A -X -t -c '$sql' regression "
+          .">> '$upgrade_loc/fix.log' 2>&1");
+    system("$installdir/bin/psql -A -X -t -c '$sql' contrib_regression "
+          .">> '$upgrade_loc/fix.log' 2>&1");
+    if ($self->{pgbranch} ge 'REL9_5' || $self->{pgbranch} eq 'HEAD')
+    {
+        system(
+            "$installdir/bin/psql -A -X -t -c '$sql' contrib_regression_dblink "
               .">> '$upgrade_loc/fix.log' 2>&1");
-	system("$installdir/bin/psql -A -X -t -c '$sql' contrib_regression "
-		   .">> '$upgrade_loc/fix.log' 2>&1");
-	if ($self->{pgbranch} ge 'REL9_5' || $self->{pgbranch} eq 'HEAD')
-	{
-		system("$installdir/bin/psql -A -X -t -c '$sql' contrib_regression_dblink "
-			   .">> '$upgrade_loc/fix.log' 2>&1");
-	}
+    }
 
-	# disable modules known to cause pg_upgrade to fail
+    # disable modules known to cause pg_upgrade to fail
 
-	foreach my $bad_module ("test_ddl_parse",
-#							"hstore_plpython2","ltree_plpython2",
-#							"hstore_plpython3","ltree_plpython3"
-						   )
-	{
-		system("$installdir/bin/psql -A "
-			   . "-c 'drop database if exists contrib_regression_$bad_module' postgres"
-			   . ">> '$upgrade_loc/fix.log' 2>&1");
-	}
-	
+    foreach my $bad_module (
+        "test_ddl_parse",
+
+        #							"hstore_plpython2","ltree_plpython2",
+        #							"hstore_plpython3","ltree_plpython3"
+      )
+    {
+        system( "$installdir/bin/psql -A "
+              . "-c 'drop database if exists contrib_regression_$bad_module' postgres"
+              . ">> '$upgrade_loc/fix.log' 2>&1");
+    }
+
     system("pg_ctl -D $installdir/data-C -w stop "
           .">> '$upgrade_loc/ctl.log' 2>&1");
-
 
     # ok, we now have the persistent copy of all branches we can use
     # to test upgrading from
@@ -255,7 +258,9 @@ sub installcheck
 
     # %ENV = %$save_env;
 
-    foreach my $other_branch (sort {$a =~ "HEAD" ? 999 : $b =~ "HEAD" ? -999 : $a cmp $b  }  glob("$upgrade_install_root/*"))
+    foreach my $other_branch (
+        sort {$a =~ "HEAD" ? 999 : $b =~ "HEAD" ? -999 : $a cmp $b  }
+        glob("$upgrade_install_root/*"))
     {
         my $oversion = basename $other_branch;
 
@@ -307,13 +312,13 @@ sub installcheck
               ."$installdir/$oversion-upgrade "
               ."> '$upgrade_loc/initdb.log' 2>&1");
 
-		if ($oversion ge 'REL9_5_STABLE' || $oversion eq 'HEAD')
-		{
-			my $handle;
-			open($handle,">>$installdir/$oversion-upgrade/postgresql.conf");
-			print $handle "shared_preload_libraries = 'dummy_seclabel'\n";
-			close $handle;
-		}
+        if ($oversion ge 'REL9_5_STABLE' || $oversion eq 'HEAD')
+        {
+            my $handle;
+            open($handle,">>$installdir/$oversion-upgrade/postgresql.conf");
+            print $handle "shared_preload_libraries = 'dummy_seclabel'\n";
+            close $handle;
+        }
 
         system("cd $installdir && pg_upgrade "
               ."--old-port=$sport "
@@ -322,8 +327,8 @@ sub installcheck
               ."--new-datadir=$installdir/$oversion-upgrade "
               ."--old-bindir=$other_branch/inst/bin "
               ."--new-bindir=$installdir/bin "
-			  .">> '$upgrade_loc/upgrade.log' 2>&1");
-		
+              .">> '$upgrade_loc/upgrade.log' 2>&1");
+
         system("pg_ctl -D $installdir/$oversion-upgrade -l "
               ."$installdir/upgrade_log -w start "
               .">> '$upgrade_loc/ctl.log' 2>&1");
@@ -422,21 +427,21 @@ sub installcheck
 
 =cut
 
-		# the above is all really a crock. If the versions match we should
-		# expect 0 diffs if not we heuristically allow up to 2000 lines
-		# of diff
+        # the above is all really a crock. If the versions match we should
+        # expect 0 diffs if not we heuristically allow up to 2000 lines
+        # of diff
 
-		if (($oversion ne $self->{pgbranch} && $difflines < 2000) ||
-			($oversion eq $self->{pgbranch}) && $difflines == 0)
-		{
+        if (  ($oversion ne $self->{pgbranch} && $difflines < 2000)
+            ||($oversion eq $self->{pgbranch}) && $difflines == 0)
+        {
             print "***SUCCESS!\n";
-		}
-		else
-		{
-			print "FAILURE: $upgrade_loc/origin-$oversion.sql to ",
-			  "$upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql ",
-			  " contains too may lines of diff: $difflines\n";
-		}
+        }
+        else
+        {
+            print "FAILURE: $upgrade_loc/origin-$oversion.sql to ",
+              "$upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql ",
+              " contains too may lines of diff: $difflines\n";
+        }
 
         rmtree("$installdir/$oversion-upgrade");
 

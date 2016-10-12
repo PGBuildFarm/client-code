@@ -2196,16 +2196,14 @@ sub check_port_is_ok
     }
     if ($found)
     {
-		eval
-		{
-			unlink glob "/tmp/.s.PGSQL.$port /tmp/.s.PGSQL.$port.*" || die $!;
-		};
+        eval{unlink glob "/tmp/.s.PGSQL.$port /tmp/.s.PGSQL.$port.*"
+              || die $!;};
 
-		if ($@)
-		{
-			push(@log,"unable to clear listening port $port\n$@");
-			send_result($stage,99,\@log);
-		}
+        if ($@)
+        {
+            push(@log,"unable to clear listening port $port\n$@");
+            send_result($stage,99,\@log);
+        }
     }
 }
 
@@ -2259,7 +2257,7 @@ sub scm_timeout
 
 sub silent_terminate
 {
-	exit 0;
+    exit 0;
 }
 
 sub wait_timeout
@@ -2269,7 +2267,7 @@ sub wait_timeout
     {
         $SIG{$sig}='DEFAULT';
     }
-	$SIG{'TERM'} = \&silent_terminate;
+    $SIG{'TERM'} = \&silent_terminate;
     sleep($wait_time);
     kill 'TERM', $main_pid;
 }

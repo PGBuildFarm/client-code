@@ -54,12 +54,12 @@ sub run_web_txn
     require Storable;
     import Storable qw(nfreeze);
 
-	# not a hard requirement so we only try this at runtime
-	# A number of perl installations won't have JSON::PP installed, although
-	# since it's pure perl installing it should be fairly simple.
-	my $json_available;
-	eval "require JSON::PP; import JSON::PP;";
-	$json_available = 1 unless $@;
+    # not a hard requirement so we only try this at runtime
+    # A number of perl installations won't have JSON::PP installed, although
+    # since it's pure perl installing it should be fairly simple.
+    my $json_available;
+    eval "require JSON::PP; import JSON::PP;";
+    $json_available = 1 unless $@;
 
     my $txfname = "$lrname/web-txn.data";
     my $txdhandle;
@@ -111,12 +111,13 @@ sub run_web_txn
           if ref($Script_Config->{$k}) eq q(Regexp);
     }
 
-	# if we have an available json encoder from JSON::PP then use it and
-	# send json. Otherwise fall back to sending a serialized blob made with
-	# Storable's nfreeze. The server knows how to tell the difference.
-    my $frozen_sconf = $json_available ?
-	  encode_json($Script_Config) :
-	  nfreeze($Script_Config);
+    # if we have an available json encoder from JSON::PP then use it and
+    # send json. Otherwise fall back to sending a serialized blob made with
+    # Storable's nfreeze. The server knows how to tell the difference.
+    my $frozen_sconf =
+      $json_available
+      ?encode_json($Script_Config)
+      :nfreeze($Script_Config);
 
     # make the base64 data escape-proof; = is probably ok but no harm done
     # this ensures that what is seen at the other end is EXACTLY what we

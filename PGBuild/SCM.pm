@@ -697,8 +697,9 @@ sub checkout
         {
             @colog =`git checkout -f -b bf_$branch --track origin/$branch 2>&1`;
         }
-		# Make sure the branch we just checked out is up to date.
-		my @pull_log = `git pull 2>&1`;
+
+        # Make sure the branch we just checked out is up to date.
+        my @pull_log = `git pull 2>&1`;
         push(@gitlog,@colog,@pull_log);
 
         chdir "..";
