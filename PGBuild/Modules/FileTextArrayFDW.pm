@@ -12,7 +12,7 @@ use strict;
 # strip required namespace from package name
 (my $MODULE = __PACKAGE__ ) =~ s/PGBuild::Modules:://;
 
-use vars qw($VERSION); $VERSION = 'REL_4.16';
+use vars qw($VERSION); $VERSION = 'REL_4.18';
 
 my $hooks = {
     'checkout' => \&checkout,

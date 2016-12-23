@@ -19,7 +19,7 @@ See accompanying License file for license details
 
 package PGBuild::SCM;
 
-use vars qw($VERSION); $VERSION = 'REL_4.16';
+use vars qw($VERSION); $VERSION = 'REL_4.18';
 
 # factory function to return the right subclass
 sub new
@@ -534,22 +534,25 @@ sub checkout
     my $cwd = getcwd();
     $drive = substr($cwd,0,2) if $cwd =~ /^[A-Z]:/;
 
-	# we are currently in the branch directory.
-	# if we're using git_use_workdirs, open a file and wait for a lock on it in the HEAD directory
+    # we are currently in the branch directory.
+    # If we're using git_use_workdirs, open a file and wait for a lock on it
+    # in the HEAD directory
 
-	my $lockfile;
+    my $lockfile;
 
-	if ( $self->{use_workdirs}
-		 &&!defined($self->{reference})
-		 && $^O ne "MSWin32"
-		 && $^O ne "msys"
-		 && -d '../HEAD/')
-	{
-		open($lockfile, ">../HEAD/checkout.LCK") || die "opening checkout lockfile: $!";
+    if (  $self->{use_workdirs}
+        &&!defined($self->{reference})
+        && $^O ne "MSWin32"
+        && $^O ne "msys"
+        && -d '../HEAD/')
+    {
+        open($lockfile, ">../HEAD/checkout.LCK")
+          || die "opening checkout lockfile: $!";
 
-		die "acquiring lock on $self->{build_root}/HEAD/checkout.LCK"
-		  unless flock($lockfile,LOCK_EX); # no LOCK_NB here so we wait for the lock
-	}
+        # no LOCK_NB here so we wait for the lock
+        die "acquiring lock on $self->{build_root}/HEAD/checkout.LCK"
+          unless flock($lockfile,LOCK_EX);
+    }
 
     my @gitlog;
     if ($self->{mirror})
@@ -685,16 +688,19 @@ sub checkout
         my @colog;
         if (grep {/\bbf_$branch\b/ } @branches)
         {
-            # don't try to create an existing branch
+            # Don't try to create an existing branch
             # the target dir only might have been wiped away,
-            # so we need to handle this case
+            # so we need to handle this case.
             @colog =`git checkout -f bf_$branch 2>&1`;
         }
         else
         {
             @colog =`git checkout -f -b bf_$branch --track origin/$branch 2>&1`;
         }
-        push(@gitlog,@colog);
+
+        # Make sure the branch we just checked out is up to date.
+        my @pull_log = `git pull 2>&1`;
+        push(@gitlog,@colog,@pull_log);
 
         chdir "..";
     }
@@ -729,7 +735,7 @@ sub checkout
     print "================== git log =====================\n",@gitlog
       if ($main::verbose > 1);
 
-	close($lockfile) if $lockfile;
+    close($lockfile) if $lockfile;
 
     # can't call writelog here because we call cleanlogs after the
     # checkout stage, since we only clear out the logs if we find we need to

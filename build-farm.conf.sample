@@ -17,7 +17,7 @@ use warnings FATAL => 'qw';
 
 use vars qw(%conf);
 
-# use vars qw($VERSION); $VERSION = 'REL_4.16';
+# use vars qw($VERSION); $VERSION = 'REL_4.18';
 
 my $branch;
 {
@@ -51,6 +51,10 @@ my $branch;
     make_jobs => undef, # >1 for parallel "make" and "make check" steps
     tar_log_cmd => undef, # default is "tar -z -cf runlogs.tgz *.log"
     # replacement must have the same effect
+
+    # max time in seconds allowed for a single branch run
+    # undef/0 means unlimited
+    wait_timeout => undef,
 
     # where and how to build
     # must be absolute, can be either Unix or Windows style for MSVC
@@ -157,6 +161,10 @@ my $branch;
         # BF_PROXY => 'http://my.proxy.server:portnum/',
 
         # see below for MSVC settings
+
+        # possibly set this to something high if you get pg_ctl failures
+        # default is 120
+        # PGCTLTIMEOUT => '120',
 
     },
 

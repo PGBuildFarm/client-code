@@ -32,7 +32,7 @@ See accompanying License file for license details
 
 ###################################################
 
-use vars qw($VERSION); $VERSION = 'REL_4.16';
+use vars qw($VERSION); $VERSION = 'REL_4.18';
 
 use strict;
 use warnings;
@@ -147,13 +147,14 @@ my (
     $secret,$keep_errs,$force_every,
     $make, $optional_steps,$use_vpath,
     $tar_log_cmd, $using_msvc, $extra_config,
-    $make_jobs,$core_file_glob, $ccache_failure_remove
+    $make_jobs,$core_file_glob, $ccache_failure_remove,
+    $wait_timeout
   )
   =@PGBuild::conf{
     qw(build_root target animal aux_path trigger_exclude
       trigger_include secret keep_error_builds force_every make optional_steps
       use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob
-      ccache_failure_remove)
+      ccache_failure_remove wait_timeout)
   };
 
 #default is no parallel build
@@ -283,6 +284,10 @@ while (my ($envkey,$envval) = each %{$PGBuild::conf{build_env}})
     $ENV{$envkey}=$envval;
 }
 
+# default value - supply unless set via the config file
+# or calling environment
+$ENV{PGCTLTIMEOUT} = 120 unless exists $ENV{PGCTLTIMEOUT};
+
 # change to buildroot for this branch or die
 
 die "no buildroot" unless $buildroot;
@@ -359,8 +364,8 @@ elsif ( !flock($lockfile,LOCK_EX|LOCK_NB) )
     exit(0);
 }
 
-die "$buildroot/$branch has $pgsql or inst directories!"
-  if ((!$from_source && -d $pgsql) || -d "inst");
+rmtree("inst");
+rmtree("$pgsql") unless ($from_source);
 
 # we are OK to run if we get here
 $have_lock = 1;
@@ -398,9 +403,15 @@ my $dbstarted;
 
 my $extraconf;
 
+my $main_pid = $$;
+my $waiter_pid;
+
 # cleanup handler for all exits
 END
 {
+    return if (defined($waiter_pid) && $waiter_pid == $$);
+
+    kill('TERM', $waiter_pid) if $waiter_pid;
 
     # clean up temp file
     unlink $ENV{TEMP_CONFIG} if $extraconf;
@@ -477,6 +488,8 @@ END
         unlink("builder.LCK");
     }
 }
+
+$waiter_pid = spawn(\&wait_timeout,$wait_timeout) if $wait_timeout;
 
 # Prepend the DEFAULT settings (if any) to any settings for the
 # branch. Since we're mangling this, deep clone $extra_config
@@ -1237,7 +1250,7 @@ sub start_db
     if ($status)
     {
         chdir($installdir);
-        system(qq{"bin/pg_ctl" -t 120 -D data-$locale stop >/dev/null 2>&1});
+        system(qq{"bin/pg_ctl" -D data-$locale stop >/dev/null 2>&1});
         chdir($branch_root);
         send_result("StartDb-$locale:$started_times",$status,\@ctlout);
     }
@@ -1249,8 +1262,7 @@ sub stop_db
     my $locale = shift;
     my $logpos = -s "$installdir/logfile" || 0;
     chdir($installdir);
-    my $timeout =($branch eq 'HEAD' || $branch ge 'REL8_3') ? "-t 120" : "";
-    my $cmd = qq{"bin/pg_ctl" $timeout -D data-$locale stop >stoplog 2>&1};
+    my $cmd = qq{"bin/pg_ctl" -D data-$locale stop >stoplog 2>&1};
     system($cmd);
     my $status = $? >>8;
     chdir($branch_root);
@@ -2297,16 +2309,14 @@ sub check_port_is_ok
     }
     if ($found)
     {
+        eval{unlink glob "/tmp/.s.PGSQL.$port /tmp/.s.PGSQL.$port.*"
+              || die $!;};
 
-        # If we want to kill the process, do something likethis,
-        # but only in a Post checvk - don't kill any pre-existing
-        # process on the port:
-        # system("fuser -k /tmp/.s.PGSQL.$port") if $report eq 'Post';
-
-        # In either case finding this process is an error, so call
-        # send_result.
-        push(@log,"socket found listening to port $port");
-        send_result($stage,99,\@log);
+        if ($@)
+        {
+            push(@log,"unable to clear listening port $port\n$@");
+            send_result($stage,99,\@log);
+        }
     }
 }
 
@@ -2318,6 +2328,7 @@ sub get_script_config_dump
         invocation_args => \@invocation_args,
         steps_completed => $steps_completed,
         orig_env => $orig_env,
+        bf_perl_version => "$Config{version}",
     };
     delete $conf->{secret};
     my @modkeys = grep {/^PGBuild/} keys %INC;
@@ -2357,6 +2368,23 @@ sub scm_timeout
     }
 }
 
+sub silent_terminate
+{
+    exit 0;
+}
+
+sub wait_timeout
+{
+    my $wait_time = shift;
+    foreach my $sig (qw(INT HUP QUIT))
+    {
+        $SIG{$sig}='DEFAULT';
+    }
+    $SIG{'TERM'} = \&silent_terminate;
+    sleep($wait_time);
+    kill 'TERM', $main_pid;
+}
+
 sub spawn
 {
     my $coderef = shift;
@@ -2367,4 +2395,3 @@ sub spawn
     }
     return $pid;
 }
-
