@@ -1681,7 +1681,7 @@ sub make_check
 sub make_contrib_check
 {
     return unless step_wanted('check');
-    print time_str(),"running make  contrib check ...\n" if $verbose;
+    print time_str(),"running make -C contrib check ...\n" if $verbose;
 
     my @makeout;
     unless ($using_msvc)
