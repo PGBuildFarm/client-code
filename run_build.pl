@@ -191,10 +191,11 @@ use vars qw($buildport);
 if (exists $PGBuild::conf{base_port})
 {
     $buildport = $PGBuild::conf{base_port};
-    if ($branch =~ /REL(\d+)_(\d+)/)
-    {
-        $buildport += (10 * ($1 - 7)) + $2;
-    }
+	# Use name of branch to to modify port number.
+	# To avoid clashes between different branches
+    my $j = 0; map {$j ^= $_} unpack("S*",$branch);
+    $buildport += $j % 220; # This strange constant is to avoid clash
+	# with  VNC ports with default base port
 }
 else
 {
@@ -227,13 +228,6 @@ if ($from_source || $from_source_clean)
 }
 
 my @locales;
-if ($branch eq 'HEAD' || $branch ge 'REL8_4')
-{
-
-    # non-C locales are not regression-safe before 8.4
-    @locales = @{$PGBuild::conf{locales}} if exists $PGBuild::conf{locales};
-}
-unshift(@locales,'C') unless grep {$_ eq "C"} @locales;
 
 # sanity checks
 # several people have run into these
@@ -677,8 +671,22 @@ my $started_times = 0;
 # on any error, so each step depends on success in the previous
 # steps.
 
-print time_str(),"running configure ...\n" if $verbose;
 
+# Determine version
+
+my $build_version=get_pg_version("$pgsql/configure.in");
+
+print time_str(),"Found version $build_version\n" if $verbose;
+print time_str(),"running configure ...\n" if $verbose;
+# Setup list of locales as soon as we would be able to check for
+# versions
+if ($build_version ge "8.4")
+{
+
+    # non-C locales are not regression-safe before 8.4
+    @locales = @{$PGBuild::conf{locales}} if exists $PGBuild::conf{locales};
+}
+unshift(@locales,'C') unless grep {$_ eq "C"} @locales;
 configure();
 
 # module configure has to wait until we have built and installed the base
@@ -688,13 +696,38 @@ make();
 
 make_check();
 
+# Elements of check world
+
+
 # contrib is builtunder standard build step for msvc
 make_contrib() unless ($using_msvc);
 
 make_contrib_check() unless ($using_msvc);
 
+make_bin_check();
+
+if (
+	step_wanted('pl-check')
+	&& (
+		(!$using_msvc && (grep {/--with-(perl|python|tcl)/ } @$config_opts))
+		|| (
+			$using_msvc
+			&& (   defined($config_opts->{perl})
+				|| defined($config_opts->{python})
+				|| defined($config_opts->{tcl}))
+		)
+	)
+  ) 
+{
+	make_pl_check();
+}
+
+make_perl_check() unless ($build_version lt "9.5.0");
+
+make_recovery_check() unless ($build_version lt "9.6.0");
+
 make_testmodules()
-  if (!$using_msvc && ($branch eq 'HEAD' || $branch ge 'REL9_5' || $branch =~ /PGPRO/i ));
+  if (!$using_msvc && $build_version ge "9.5.0" );
 
 make_doc() if (check_optional_step('build_docs'));
 
@@ -704,7 +737,7 @@ make_install();
 make_contrib_install() unless ($using_msvc);
 
 make_testmodules_install()
-  if (!$using_msvc && ($branch eq 'HEAD' || $branch ge 'REL9_5' || $branch =~ /PGPRO/i));
+  if (!$using_msvc && ($build_version ge "9.5.0"));
 
 process_module_hooks('configure');
 
@@ -792,8 +825,8 @@ foreach my $locale (@locales)
     }
 
     if (step_wanted('testmodules-install-check')
-        &&($branch eq 'HEAD' || $branch ge 'REL9_5' || $branch =~ /PGPRO/i))
-    {
+        &&($build_version ge "9.5.0"))
+	{
         print time_str(),"restarting db ($locale)...\n" if $verbose;
 
         stop_db($locale);
@@ -816,7 +849,8 @@ foreach my $locale (@locales)
 }
 
 # ecpg checks are not supported in 8.1 and earlier
-if (($branch eq 'HEAD' || $branch gt 'REL8_2') && step_wanted('ecpg-check'))
+if ($build_version ge "8.2" && step_wanted('ecpg-check'))
+
 {
     print time_str(),"running make ecpg check ...\n" if $verbose;
 
@@ -988,6 +1022,23 @@ sub check_make
     return 'OK';
 }
 
+sub get_pg_version {
+	my $filename = shift;
+	my $fh;
+	my $ver;
+	open ($fh,"<",$filename) || die $!;
+	while (<$fh>) {
+		if (/AC_INIT\(\[\S+\],\s*\[([\d\.]+)\],/) {
+			$ver= $1;
+			last; 
+		}	
+	}
+	close $fh;
+	die "Couldn't determine PostgreSQL version from $filename " unless $ver;
+	return $ver;
+}
+
+
 sub make
 {
     return unless step_wanted('make');
@@ -998,7 +1049,7 @@ sub make
     {
         my $make_cmd = $make;
         $make_cmd = "$make -j $make_jobs"
-          if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
+          if ($make_jobs > 1 && ($build_version ge "9.1"));
         @makeout = `cd $pgsql && $make_cmd 2>&1`;
     }
     else
@@ -1108,7 +1159,7 @@ sub make_contrib
 
     my $make_cmd = $make;
     $make_cmd = "$make -j $make_jobs"
-      if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
+      if ($make_jobs > 1 && ($build_version ge "9.1"));
     my @makeout = `cd $pgsql/contrib && $make_cmd 2>&1`;
     my $status = $? >>8;
     writelog('make-contrib',\@makeout);
@@ -1454,6 +1505,171 @@ sub make_testmodules_install_check
     $steps_completed .= " TestModulesCheck-$locale";
 }
 
+sub make_recovery_check
+{
+    return unless step_wanted('recovery-check');
+    if ($using_msvc)
+    {
+        return unless $config_opts->{tap_tests};
+    }
+    else
+    {
+        return unless grep {$_ eq '--enable-tap-tests' } @$config_opts;
+    }
+    print time_str(),"running recovery check ...\n" if $verbose;
+    my @checklog;
+    unless ($using_msvc)
+    {
+        @checklog = `cd $pgsql/src/test/recovery && $make check 2>&1`;
+    }
+    else
+    {
+        chdir("$pgsql/src/tools/msvc");
+        @checklog = `perl vcregress.pl recoverycheck 2>&1`;
+        chdir($branch_root);
+    }
+    my $status = $? >>8;
+    my @logs = (
+        glob("$pgsql/src/test/recovery/*/regression.diffs"),
+        glob("$pgsql/src/test/recovery/*/*/regression.diffs")
+    );
+    foreach my $logfile (@logs)
+    {
+        next unless (-e $logfile);
+        push(@checklog,"\n\n================= $logfile ===================\n");
+        my $handle;
+        open($handle,$logfile);
+        while(<$handle>)
+        {
+            push(@checklog,$_);
+        }
+        close($handle);
+    }
+	my $binloc = "$pgsql/tmp_install";
+    if ($status)
+    {
+        my @trace =
+          get_stack_trace("$binloc$installdir/bin");
+        push(@checklog,@trace);
+    }
+    writelog("recovery-check",\@checklog);
+    print "======== make recovery check log ===========\n",@checklog
+      if ($verbose > 1);
+    send_result("RecoveryCheck",$status,\@checklog) if $status;
+
+    $steps_completed .= " RecoveryCheck"
+}
+sub make_perl_check
+{
+    return unless step_wanted('perl-check');
+    if ($using_msvc)
+    {
+        return unless $config_opts->{tap_tests};
+    }
+    else
+    {
+        return unless grep {$_ eq '--enable-tap-tests' } @$config_opts;
+    }
+
+    print time_str(),"running make perl check ...\n" if $verbose;
+    # fix path temporarily on msys
+    my $save_path = $ENV{PATH};
+    if ($^O eq 'msys')
+    {
+        my $perlpathdir = dirname($Config{perlpath});
+        $ENV{PATH} = "$perlpathdir:$ENV{PATH}";
+    }
+    my @checklog;
+    unless ($using_msvc)
+    {
+        @checklog = `cd $pgsql/src/test/perl && $make check 2>&1`;
+    }
+    else
+    {
+        chdir("$pgsql/src/tools/msvc");
+        @checklog = `perl vcregress.pl tapcheck 2>&1`;
+        chdir($branch_root);
+    }
+    my $status = $? >>8;
+    my @logs = (
+        glob("$pgsql/src/test/perl/*/regression.diffs"),
+        glob("$pgsql/src/test/perl/*/*/regression.diffs")
+    );
+    foreach my $logfile (@logs)
+    {
+        next unless (-e $logfile);
+        push(@checklog,"\n\n================= $logfile ===================\n");
+        my $handle;
+        open($handle,$logfile);
+        while(<$handle>)
+        {
+            push(@checklog,$_);
+        }
+        close($handle);
+    }
+	my $binloc = "$pgsql/tmp_install";
+    if ($status)
+    {
+        my @trace =
+          get_stack_trace("$binloc$installdir/bin");
+        push(@checklog,@trace);
+    }
+    writelog("perl-check",\@checklog);
+    print "======== make perl check log ===========\n",@checklog
+      if ($verbose > 1);
+    send_result("PerlCheck",$status,\@checklog) if $status;
+
+    $steps_completed .= " PerlCheck"
+}
+sub make_pl_check
+{
+    my $locale = shift;
+    return unless step_wanted('pl-check');
+    my @checklog;
+    unless ($using_msvc)
+    {
+        @checklog = `cd $pgsql/src/pl && $make check 2>&1`;
+    }
+    else
+    {
+        chdir("$pgsql/src/tools/msvc");
+        @checklog = `perl vcregress.pl plcheck 2>&1`;
+        chdir($branch_root);
+    }
+    my $status = $? >>8;
+    my @logs = (
+        glob("$pgsql/src/pl/*/regression.diffs"),
+        glob("$pgsql/src/pl/*/*/regression.diffs")
+    );
+    push(@logs,"$installdir/logfile");
+    foreach my $logfile (@logs)
+    {
+        next unless (-e $logfile);
+        push(@checklog,"\n\n================= $logfile ===================\n");
+        my $handle;
+        open($handle,$logfile);
+        while(<$handle>)
+        {
+            push(@checklog,$_);
+        }
+        close($handle);
+    }
+	my $binloc = "$pgsql/tmp_install";
+    if ($status)
+    {
+        my @trace =
+          get_stack_trace("$binloc$installdir/bin");
+        push(@checklog,@trace);
+    }
+    writelog("pl-check",\@checklog);
+    print "======== make pl check log ===========\n",@checklog
+      if ($verbose > 1);
+    send_result("PLCheck-$locale",$status,\@checklog) if $status;
+
+    # only report PLCheck as a step if it actually tried to do anything
+    $steps_completed .= " PLCheck"
+      if (grep {/pg_regress|Checking pl/} @checklog);
+}
 sub make_pl_install_check
 {
     my $locale = shift;
@@ -1553,12 +1769,77 @@ sub make_isolation_check
     $steps_completed .= " IsolationCheck";
 }
 
+sub make_bin_check {
+    return unless step_wanted('bin-installcheck');
+
+    # tests only came in with 9.4
+    return unless ($build_version ge "9.4.0");
+    if ($using_msvc)
+    {
+        return unless $config_opts->{tap_tests};
+    }
+    else
+    {
+        return unless grep {$_ eq '--enable-tap-tests' } @$config_opts;
+    }
+
+    print time_str(),"running make bin check ...\n" if $verbose;
+    # fix path temporarily on msys
+    my $save_path = $ENV{PATH};
+    if ($^O eq 'msys')
+    {
+        my $perlpathdir = dirname($Config{perlpath});
+        $ENV{PATH} = "$perlpathdir:$ENV{PATH}";
+    }
+
+    my @makeout;
+
+    unless ($using_msvc)
+    {
+        @makeout =`cd $pgsql/src/bin && $make check 2>&1`;
+    }
+    else
+    {
+        chdir "$pgsql/src/tools/msvc";
+        @makeout = `perl vcregress.pl bincheck 2>&1`;
+        chdir $branch_root;
+    }
+
+    my $status = $? >>8;
+
+    my @logs = glob("$pgsql/src/bin/*/tmp_check/log/*");
+
+    foreach my $logfile (@logs)
+    {
+        push(@makeout,"\n\n================== $logfile ===================\n");
+        my $handle;
+        open($handle,$logfile);
+        while(<$handle>)
+        {
+            push(@makeout,$_);
+        }
+        close($handle);
+    }
+
+    writelog('bin-check',\@makeout);
+    print "======== make bin-check log ===========\n",@makeout
+      if ($verbose > 1);
+
+    # restore path
+    $ENV{PATH} = $save_path;
+
+    send_result('BinCheck',$status,\@makeout) if $status;
+    $steps_completed .= " BinCheck";
+
+
+}
+
 sub make_bin_installcheck
 {
     return unless step_wanted('bin-installcheck');
 
     # tests only came in with 9.4
-    return unless ($branch eq 'HEAD' or $branch ge 'REL9_4');
+    return unless ($build_version ge "9.4.0");
 
     # don't run unless the tests have been enabled
     if ($using_msvc)
@@ -1750,7 +2031,7 @@ sub collect_extra_base_config {
 		if (exists $vars{'EXTRA_REGRESS_OPTS'} &&
 			$vars{'EXTRA_REGRESS_OPTS'}=~/--temp-config=(\S+)/) {
 			my $filename = $1;
-			print "$module - --temp-config found\n" if $verbose;
+			print time_str(),"$module - --temp-config found\n" if $verbose;
 			while ($filename=~s/\$\((\w+)\)/$vars{$1}/) {
 
 			}
@@ -1776,12 +2057,13 @@ sub collect_extra_base_config {
 
 	if (%addopts) {
 		my $config = "$installdir/data-$locale/postgresql.conf";
-		print "Appending $config\n" if $verbose;
+		print time_str(),"appending $config\n" if $verbose;
 		my $f;
 		open $f, ">>",$config;
 		while (my ($opt,$value) = each %addopts) {
 			print $f " $opt = $value\n";
-			print " $opt = $value\n" if $verbose;
+			print time_str(),"    $opt = $value\n" if $verbose;
+
 		}
 		close $f;
 	}
