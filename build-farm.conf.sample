@@ -70,10 +70,10 @@ my $branch;
     core_file_glob => "core*",   # Linux style, use "*.core" for BSD
 
     # where to report status
-    target => "http://www.pgbuildfarm.org/cgi-bin/pgstatus.pl",
+    target => "http://buildfarm.postgresql.org/cgi-bin/pgstatus.pl",
 
     # where to report change in OS version or compiler version
-    upgrade_target => "http://www.pgbuildfarm.org/cgi-bin/upgrade.pl",
+    upgrade_target => "http://buildfarm.postgresql.org/cgi-bin/upgrade.pl",
 
     # change this to a true value if using MSVC, in which case also
     # see MSVC section below
