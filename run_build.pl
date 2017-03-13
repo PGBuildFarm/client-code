@@ -724,6 +724,8 @@ if (
 
 make_perl_check() unless ($build_version lt "9.5.0");
 
+make_certification_check() unless ($build_version lt "9.5.0");
+
 make_recovery_check() unless ($build_version lt "9.6.0");
 
 make_testmodules()
@@ -1558,6 +1560,71 @@ sub make_recovery_check
     send_result("RecoveryCheck",$status,\@checklog) if $status;
 
     $steps_completed .= " RecoveryCheck"
+}
+sub make_certification_check
+{
+    return unless step_wanted('cert-check');
+	return unless -d "$pgsql/src/test/certification";
+    if ($using_msvc)
+    {
+        return;
+		#return unless $config_opts->{tap_tests};
+    }
+    else
+    {
+        return unless grep {$_ eq '--enable-tap-tests' } @$config_opts;
+        return unless grep {$_ eq '--enable-svt5' } @$config_opts;
+    }
+
+    print time_str(),"running make certification check ...\n" if $verbose;
+    # fix path temporarily on msys
+    my $save_path = $ENV{PATH};
+    if ($^O eq 'msys')
+    {
+        my $perlpathdir = dirname($Config{perlpath});
+        $ENV{PATH} = "$perlpathdir:$ENV{PATH}";
+    }
+    my @checklog;
+    unless ($using_msvc)
+    {
+        @checklog = `cd $pgsql/src/test/certification && $make check 2>&1`;
+    }
+    else
+    {
+        chdir("$pgsql/src/tools/msvc");
+        @checklog = `perl vcregress.pl tapcheck 2>&1`;
+        chdir($branch_root);
+    }
+    my $status = $? >>8;
+    my @logs = (
+        glob("$pgsql/src/test/certification/*/regression.diffs"),
+        glob("$pgsql/src/test/certification/*/*/regression.diffs")
+    );
+    foreach my $logfile (@logs)
+    {
+        next unless (-e $logfile);
+        push(@checklog,"\n\n================= $logfile ===================\n");
+        my $handle;
+        open($handle,$logfile);
+        while(<$handle>)
+        {
+            push(@checklog,$_);
+        }
+        close($handle);
+    }
+	my $binloc = "$pgsql/tmp_install";
+    if ($status)
+    {
+        my @trace =
+          get_stack_trace("$binloc$installdir/bin");
+        push(@checklog,@trace);
+    }
+    writelog("cert-check",\@checklog);
+    print "======== make certification check log ===========\n",@checklog
+      if ($verbose > 1);
+    send_result("CertCheck",$status,\@checklog) if $status;
+
+    $steps_completed .= " CertCheck"
 }
 sub make_perl_check
 {
