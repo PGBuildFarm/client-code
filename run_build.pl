@@ -1030,7 +1030,7 @@ sub get_pg_version {
 	my $ver;
 	open ($fh,"<",$filename) || die $!;
 	while (<$fh>) {
-		if (/AC_INIT\(\[\S+\],\s*\[([\d\.]+)\],/) {
+		if (/AC_INIT\(\[\S+\],\s*\[([\d\.]+)(?:devel)?\],/) {
 			$ver= $1;
 			last; 
 		}	
@@ -1597,6 +1597,7 @@ sub make_certification_check
     }
     my $status = $? >>8;
     my @logs = (
+	    glob("$pgsql/src/test/certification/tmp_check/log/*.log"),
         glob("$pgsql/src/test/certification/*/regression.diffs"),
         glob("$pgsql/src/test/certification/*/*/regression.diffs")
     );
