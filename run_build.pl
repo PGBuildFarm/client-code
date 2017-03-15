@@ -1437,7 +1437,7 @@ sub make_contrib_install_check
         chdir $branch_root;
     }
     my $status = $? >>8;
-    my @logs = glob("$pgsql/contrib/*/regression.diffs");
+    my @logs = glob("$pgsql/contrib/*/regression.diffs $pgsql/contrib/*/*/regression.diffs");
     push(@logs,"$installdir/logfile");
     foreach my $logfile (@logs)
     {
@@ -2047,9 +2047,8 @@ sub make_contrib_check
 
     # get the log files and the regression diffs
     my @logs =
-      glob("$pgsql/contrib/*/regression.diffs $pgsql/src/test/regress/log/*.log $pgsql/tmp_install/log/*");
-    unshift(@logs,"$pgsql/src/test/regress/regression.diffs")
-      if (-e "$pgsql/src/test/regress/regression.diffs");
+      glob("$pgsql/contrib/*/regression.diffs $pgsql/contrib/*/*/regression.diffs $pgsql/contrib/*/log/*.log $pgsql/tmp_install/log/*");
+    	
     foreach my $logfile (@logs)
     {
         push(@makeout,"\n\n================== $logfile ===================\n");
