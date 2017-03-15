@@ -1532,6 +1532,8 @@ sub make_recovery_check
     }
     my $status = $? >>8;
     my @logs = (
+        glob("$pgsql/src/test/recovery/tmp_check/log/*.log"),
+        glob("$pgsql/src/test/recovery/tmp_check/log/regress_log_*"),
         glob("$pgsql/src/test/recovery/*/regression.diffs"),
         glob("$pgsql/src/test/recovery/*/*/regression.diffs")
     );
@@ -1597,6 +1599,7 @@ sub make_certification_check
     }
     my $status = $? >>8;
     my @logs = (
+	    glob("$pgsql/src/test/certification/tmp_check/log/regress_log_*"),
 	    glob("$pgsql/src/test/certification/tmp_check/log/*.log"),
         glob("$pgsql/src/test/certification/*/regression.diffs"),
         glob("$pgsql/src/test/certification/*/*/regression.diffs")
@@ -1660,6 +1663,8 @@ sub make_perl_check
     }
     my $status = $? >>8;
     my @logs = (
+        glob("$pgsql/src/test/perl/tmp_check/log/*.log"),
+        glob("$pgsql/src/test/perl/tmp_check/log/regress_log_*"),
         glob("$pgsql/src/test/perl/*/regression.diffs"),
         glob("$pgsql/src/test/perl/*/*/regression.diffs")
     );
@@ -2048,7 +2053,7 @@ sub make_contrib_check
 
     # get the log files and the regression diffs
     my @logs =
-      glob("$pgsql/contrib/*/regression.diffs $pgsql/contrib/*/*/regression.diffs $pgsql/contrib/*/log/*.log $pgsql/tmp_install/log/*");
+      glob("$pgsql/contrib/*/regression.diffs $pgsql/contrib/*/*/regression.diffs $pgsql/contrib/*/log/*.log $pgsql/contrib/*/tmp_check/log/*  $pgsql/tmp_install/log/*");
     	
     foreach my $logfile (@logs)
     {
