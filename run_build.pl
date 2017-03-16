@@ -1696,8 +1696,9 @@ sub make_perl_check
 }
 sub make_pl_check
 {
-    my $locale = shift;
     return unless step_wanted('pl-check');
+	return if $using_msvc;
+    print time_str(),"running make pl check ...\n" if $verbose;
     my @checklog;
     unless ($using_msvc)
     {
@@ -1731,13 +1732,13 @@ sub make_pl_check
     if ($status)
     {
         my @trace =
-          get_stack_trace("$binloc$installdir/bin");
+          get_stack_trace("$binloc$installdir/bin","$pgsql/src/pl/*/*");
         push(@checklog,@trace);
     }
     writelog("pl-check",\@checklog);
     print "======== make pl check log ===========\n",@checklog
       if ($verbose > 1);
-    send_result("PLCheck-$locale",$status,\@checklog) if $status;
+    send_result("PLCheck",$status,\@checklog) if $status;
 
     # only report PLCheck as a step if it actually tried to do anything
     $steps_completed .= " PLCheck"
