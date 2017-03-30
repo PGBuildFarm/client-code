@@ -109,13 +109,13 @@ sub check
         my $contents = <$handle>;
         close($handle);
         push(@checklog,
-            "=========================== $fname ================\n",$contents);
+            "="x15 . " $fname " . "="x15 . "\n",$contents);
     }
 
     my $status = $? >>8;
 
     main::writelog("check-pg_upgrade",\@checklog);
-    print "======== pg_upgrade check log ===========\n",@checklog
+    print "="x15 . " pg_upgrade check log " . "="x15 . "\n",@checklog
       if ($verbose > 1);
     main::send_result("pg_upgradeCheck",$status,\@checklog) if $status;
     {

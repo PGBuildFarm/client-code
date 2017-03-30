@@ -946,7 +946,7 @@ sub clean_from_source
         my @makeout = `cd $pgsql && $make distclean 2>&1`;
         my $status = $? >>8;
         writelog('distclean',\@makeout);
-        print "======== distclean log ===========\n",@makeout if ($verbose > 1);
+        print "="x15 . " distclean log " . "="x15 . "\n",@makeout if ($verbose > 1);
         send_result('distclean',$status,\@makeout) if $status;
     }
 }
@@ -1005,7 +1005,7 @@ sub make
     }
     my $status = $? >>8;
     writelog('make',\@makeout);
-    print "======== make log ===========\n",@makeout if ($verbose > 1);
+    print "="x15 . " make log " . "="x15 . "\n",@makeout if ($verbose > 1);
     send_result('Make',$status,\@makeout) if $status;
     $steps_completed .= " Make";
 }
@@ -1028,7 +1028,7 @@ sub make_doc
     }
     my $status = $? >>8;
     writelog('make-doc',\@makeout);
-    print "======== make doc log ===========\n",@makeout if ($verbose > 1);
+    print "="x15 . " make doc log " . "="x15 . "\n",@makeout if ($verbose > 1);
     send_result('Doc',$status,\@makeout) if $status;
     $steps_completed .= " Doc";
 }
@@ -1051,7 +1051,7 @@ sub make_install
     }
     my $status = $? >>8;
     writelog('make-install',\@makeout);
-    print "======== make install log ===========\n",@makeout if ($verbose > 1);
+    print "="x15 . " make install log " . "="x15 . "\n",@makeout if ($verbose > 1);
     send_result('Install',$status,\@makeout) if $status;
 
     # On Windows and Cygwin avoid path problems associated with DLLs
@@ -1108,7 +1108,7 @@ sub make_contrib
     my @makeout = `cd $pgsql/contrib && $make_cmd 2>&1`;
     my $status = $? >>8;
     writelog('make-contrib',\@makeout);
-    print "======== make contrib log ===========\n",@makeout if ($verbose > 1);
+    print "="x15 . " make contrib log " . "="x15 . "\n",@makeout if ($verbose > 1);
     send_result('Contrib',$status,\@makeout) if $status;
     $steps_completed .= " Contrib";
 }
@@ -1124,7 +1124,7 @@ sub make_testmodules
     my @makeout = `cd $pgsql/src/test/modules && $make_cmd 2>&1`;
     my $status = $? >> 8;
     writelog('make-testmodules',\@makeout);
-    print "======== make testmodules log ===========\n",@makeout
+    print "="x15 . " make testmodules log " . "="x15 . "\n",@makeout
       if ($verbose > 1);
     send_result('TestModules',$status,\@makeout) if $status;
     $steps_completed .= " TestModules";
@@ -1143,7 +1143,7 @@ sub make_contrib_install
     my @makeout = `cd $pgsql/contrib && $make install 2>&1`;
     my $status = $? >>8;
     writelog('install-contrib',\@makeout);
-    print "======== make contrib install log ===========\n",@makeout
+    print "="x15 . " make contrib install log " . "="x15 . "\n",@makeout
       if ($verbose > 1);
     send_result('ContribInstall',$status,\@makeout) if $status;
     $steps_completed .= " ContribInstall";
@@ -1160,7 +1160,7 @@ sub make_testmodules_install
     my @makeout = `cd $pgsql/src/test/modules && $make install 2>&1`;
     my $status = $? >>8;
     writelog('install-testmodules',\@makeout);
-    print "======== make testmodules install log ===========\n",@makeout
+    print "="x15 . " make testmodules install log " . "="x15 . "\n",@makeout
       if ($verbose > 1);
     send_result('TestModulesInstall',$status,\@makeout) if $status;
     $steps_completed .= " TestModulesInstall";
@@ -1199,7 +1199,7 @@ sub initdb
     }
 
     writelog("initdb-$locale",\@initout);
-    print "======== initdb log ($locale) ===========\n",@initout
+    print "="x15 . " initdb log ($locale) " . "="x15 . "\n",@initout
       if ($verbose > 1);
     send_result("Initdb-$locale",$status,\@initout) if $status;
     $steps_completed .= " Initdb-$locale";
@@ -1238,10 +1238,10 @@ sub start_db
     {
         my @loglines = <$handle>;
         close($handle);
-        push(@ctlout,"=========== db log file ==========\n",@loglines);
+        push(@ctlout,"="x15 . " db log file " . "="x15 . "\n",@loglines);
     }
     writelog("startdb-$locale-$started_times",\@ctlout);
-    print "======== start db ($locale) : $started_times log ========\n",@ctlout
+    print "="x15 . " start db ($locale) : $started_times log " . "="x15 . "\n",@ctlout
       if ($verbose > 1);
     if ($status)
     {
@@ -1274,10 +1274,10 @@ sub stop_db
         seek($handle, $logpos, SEEK_SET);
         my @loglines = <$handle>;
         close($handle);
-        push(@ctlout,"=========== db log file ==========\n",@loglines);
+        push(@ctlout,"="x15 . " ddb log file " . "="x15 . "\n",@loglines);
     }
     writelog("stopdb-$locale-$started_times",\@ctlout);
-    print "======== stop db ($locale): $started_times log ==========\n",@ctlout
+    print "="x15 . " stop db ($locale): $started_times log " . "="x15 . "\n",@ctlout
       if ($verbose > 1);
     send_result("StopDb-$locale:$started_times",$status,\@ctlout) if $status;
     $dbstarted=undef;
@@ -1309,7 +1309,7 @@ sub get_stack_trace
     {
         my @onetrace = `gdb -x $cmdfile --batch $bindir/postgres $core 2>&1`;
         push(@trace,
-            "\n\n================== stack trace: $core ==================\n",
+            "\n\n" . "="x15 . " stack trace: $core " . "="x15 . "\n",
             @onetrace);
     }
 
@@ -1341,7 +1341,7 @@ sub make_install_check
     foreach my $logfile(@logfiles)
     {
         next unless (-e $logfile );
-        push(@checklog,"\n\n================== $logfile ==================\n");
+        push(@checklog,"\n\n" . "="x15 . " $logfile " . "="x15 . "\n");
         my $handle;
         open($handle,$logfile);
         while(<$handle>)
@@ -1357,7 +1357,7 @@ sub make_install_check
         push(@checklog,@trace);
     }
     writelog("install-check-$locale",\@checklog);
-    print "======== make installcheck log ===========\n",@checklog
+    print "="x15 . " make installcheck log " . "="x15 . "\n",@checklog
       if ($verbose > 1);
     send_result("InstallCheck-$locale",$status,\@checklog) if $status;
     $steps_completed .= " InstallCheck-$locale";
@@ -1385,7 +1385,7 @@ sub make_contrib_install_check
     foreach my $logfile (@logs)
     {
         next unless (-e $logfile);
-        push(@checklog,"\n\n================= $logfile ===================\n");
+        push(@checklog,"\n\n" . "="x15 . " $logfile " . "="x15 . "\n");
         my $handle;
         open($handle,$logfile);
         while(<$handle>)
@@ -1401,7 +1401,7 @@ sub make_contrib_install_check
         push(@checklog,@trace);
     }
     writelog("contrib-install-check-$locale",\@checklog);
-    print "======== make contrib installcheck log ===========\n",@checklog
+    print "="x15 . " make contrib installcheck log " . "="x15 . "\n",@checklog
       if ($verbose > 1);
     send_result("ContribCheck-$locale",$status,\@checklog) if $status;
     $steps_completed .= " ContribCheck-$locale";
@@ -1429,7 +1429,7 @@ sub make_testmodules_install_check
     foreach my $logfile (@logs)
     {
         next unless (-e $logfile);
-        push(@checklog,"\n\n================= $logfile ===================\n");
+        push(@checklog,"\n\n" . "="x15 . " $logfile " . "="x15 . "\n");
         my $handle;
         open($handle,$logfile);
         while(<$handle>)
@@ -1444,7 +1444,7 @@ sub make_testmodules_install_check
         push(@checklog,@trace);
     }
     writelog("testmodules-install-check-$locale",\@checklog);
-    print "======== make testmodules installcheck log ===========\n",@checklog
+    print "="x15 . " make testmodules installcheck log " . "="x15 . "\n",@checklog
       if ($verbose > 1);
     send_result("TestModulesCheck-$locale",$status,\@checklog) if $status;
     $steps_completed .= " TestModulesCheck-$locale";
@@ -1474,7 +1474,7 @@ sub make_pl_install_check
     foreach my $logfile (@logs)
     {
         next unless (-e $logfile);
-        push(@checklog,"\n\n================= $logfile ===================\n");
+        push(@checklog,"\n\n" . "="x15 . " $logfile " . "="x15 . "\n");
         my $handle;
         open($handle,$logfile);
         while(<$handle>)
@@ -1490,7 +1490,7 @@ sub make_pl_install_check
         push(@checklog,@trace);
     }
     writelog("pl-install-check-$locale",\@checklog);
-    print "======== make pl installcheck log ===========\n",@checklog
+    print "="x15 . " make pl installcheck log " . "="x15 . "\n",@checklog
       if ($verbose > 1);
     send_result("PLCheck-$locale",$status,\@checklog) if $status;
 
@@ -1526,7 +1526,7 @@ sub make_isolation_check
       if (-e "$pgsql/src/test/isolation/regression.diffs");
     foreach my $logfile (@logs)
     {
-        push(@makeout,"\n\n================== $logfile ===================\n");
+        push(@makeout,"\n\n" . "="x15 . " $logfile " . "="x15 . "\n");
         my $handle;
         open($handle,$logfile);
         while(<$handle>)
@@ -1542,7 +1542,7 @@ sub make_isolation_check
         push(@makeout,@trace);
     }
     writelog('isolation-check',\@makeout);
-    print "======== make isolation check logs ===========\n",@makeout
+    print "="x15 . " make isolation check logs " . "="x15 . "\n",@makeout
       if ($verbose > 1);
 
     send_result('IsolationCheck',$status,\@makeout) if $status;
@@ -1595,7 +1595,7 @@ sub make_bin_installcheck
 
     foreach my $logfile (@logs)
     {
-        push(@makeout,"\n\n================== $logfile ===================\n");
+        push(@makeout,"\n\n" . "="x15 . " $logfile " . "="x15 . "\n");
         my $handle;
         open($handle,$logfile);
         while(<$handle>)
@@ -1606,7 +1606,7 @@ sub make_bin_installcheck
     }
 
     writelog('bin-check',\@makeout);
-    print "======== make bin-install-check log ===========\n",@makeout
+    print "="x15 . " make bin-install-check log " . "="x15 . "\n",@makeout
       if ($verbose > 1);
 
     # restore path
@@ -1642,7 +1642,7 @@ sub make_check
       if (-e "$pgsql/src/test/regress/regression.diffs");
     foreach my $logfile (@logs)
     {
-        push(@makeout,"\n\n================== $logfile ===================\n");
+        push(@makeout,"\n\n" . "="x15 . " $logfile " . "="x15 . "\n");
         my $handle;
         open($handle,$logfile);
         while(<$handle>)
@@ -1667,7 +1667,7 @@ sub make_check
           unless $keepall;
     }
     writelog('check',\@makeout);
-    print "======== make check logs ===========\n",@makeout
+    print "="x15 . " make check logs " . "="x15 . "\n",@makeout
       if ($verbose > 1);
 
     send_result('Check',$status,\@makeout) if $status;
@@ -1697,7 +1697,7 @@ sub make_ecpg_check
       if (-e "$ecpg_dir/test/regression.diffs");
     foreach my $logfile (@logs)
     {
-        push(@makeout,"\n\n================== $logfile ===================\n");
+        push(@makeout,"\n\n" . "="x15 . " $logfile " . "="x15 . "\n");
         my $handle;
         open($handle,$logfile);
         while(<$handle>)
@@ -1714,7 +1714,7 @@ sub make_ecpg_check
         push(@makeout,@trace);
     }
     writelog('ecpg-check',\@makeout);
-    print "======== make ecpg check logs ===========\n",@makeout
+    print "="x15 . " make ecpg check logs " . "="x15 . "\n",@makeout
       if ($verbose > 1);
 
     send_result('ECPG-Check',$status,\@makeout) if $status;
@@ -1937,7 +1937,7 @@ sub configure
 
     my $status = $? >> 8;
 
-    print "======== configure output ===========\n",@confout
+    print "="x15 . " configure output " . "="x15 . "\n",@confout
       if ($verbose > 1);
 
     writelog('configure',\@confout);
@@ -1958,7 +1958,7 @@ sub configure
     {
 
         push(@confout,
-            "\n\n================= config.log ================\n\n",@config);
+            "\n\n" . "="x15 . " config.log " . "="x15 . "\n\n",@config);
 
         send_result('Configure',$status,\@confout);
     }
@@ -2000,13 +2000,13 @@ sub send_result
     my $ts = $now || time;
     my $status=shift || 0;
     my $log = shift || [];
-    print "======== log passed to send_result ===========\n",@$log
+    print "="x15 . " log passed to send_result " . "="x15 . "\n",@$log
       if ($verbose > 1);
 
     unshift(@$log,
         "Last file mtime in snapshot: ",
         scalar(gmtime($current_snap)),
-        " GMT\n","===================================================\n")
+        " GMT\n","="x30 . "\n")
       unless ($from_source || !$current_snap);
 
     my $log_data = join("",@$log);
@@ -2176,7 +2176,7 @@ sub get_config_summary
         }
         close($handle);
         $config .=
-          "\n========================================================\n";
+          "\n" . "="x30 . "\n";
     }
     $config .= get_script_config_dump();
     return $config;
