@@ -691,8 +691,10 @@ make_check();
 # contrib is builtunder standard build step for msvc
 make_contrib() unless ($using_msvc);
 
+make_contrib_check() unless ($using_msvc);
+
 make_testmodules()
-  if (!$using_msvc && ($branch eq 'HEAD' || $branch ge 'REL9_5'));
+  if (!$using_msvc && ($branch eq 'HEAD' || $branch ge 'REL9_5' || $branch =~ /PGPRO/i ));
 
 make_doc() if (check_optional_step('build_docs'));
 
@@ -702,7 +704,7 @@ make_install();
 make_contrib_install() unless ($using_msvc);
 
 make_testmodules_install()
-  if (!$using_msvc && ($branch eq 'HEAD' || $branch ge 'REL9_5'));
+  if (!$using_msvc && ($branch eq 'HEAD' || $branch ge 'REL9_5' || $branch =~ /PGPRO/i));
 
 process_module_hooks('configure');
 
@@ -774,8 +776,10 @@ foreach my $locale (@locales)
 
     if (step_wanted('contrib-install-check'))
     {
-
+		# Collect extra DB configuration from the contrib modules
+		# and append it to the test claster postgresql.conf
         # restart the db to clear the log file
+	collect_extra_base_config($locale);
         print time_str(),"restarting db ($locale)...\n" if $verbose;
 
         stop_db($locale);
@@ -788,7 +792,7 @@ foreach my $locale (@locales)
     }
 
     if (step_wanted('testmodules-install-check')
-        &&($branch eq 'HEAD' || $branch ge 'REL9_5'))
+        &&($branch eq 'HEAD' || $branch ge 'REL9_5' || $branch =~ /PGPRO/i))
     {
         print time_str(),"restarting db ($locale)...\n" if $verbose;
 
@@ -1175,13 +1179,13 @@ sub initdb
     {
         chdir $installdir;
         @initout =
-          `"bin/initdb" -U buildfarm --locale=$locale data-$locale 2>&1`;
+          `"bin/initdb" -U buildfarm -E UTF8 --locale=$locale data-$locale 2>&1`;
         chdir $branch_root;
     }
     else
     {
         chdir $installdir;
-        @initout =`bin/initdb -U buildfarm --locale=$locale data-$locale 2>&1`;
+        @initout =`bin/initdb -U buildfarm -E UTF8 --locale=$locale data-$locale 2>&1`;
         chdir $branch_root;
     }
 
@@ -1672,6 +1676,115 @@ sub make_check
 
     send_result('Check',$status,\@makeout) if $status;
     $steps_completed .= " Check";
+}
+
+sub make_contrib_check
+{
+    return unless step_wanted('check');
+    print time_str(),"running make  contrib check ...\n" if $verbose;
+
+    my @makeout;
+    unless ($using_msvc)
+    {
+        @makeout =`cd $pgsql/contrib && $make NO_LOCALE=1 check 2>&1`;
+    }
+    else
+    {
+        chdir "$pgsql/src/tools/msvc";
+        @makeout = `perl vcregress.pl contribcheck 2>&1`;
+        chdir $branch_root;
+    }
+
+    my $status = $? >>8;
+
+    # get the log files and the regression diffs
+    my @logs =
+      glob("$pgsql/contrib/*/regression.diffs $pgsql/src/test/regress/log/*.log $pgsql/tmp_install/log/*");
+    unshift(@logs,"$pgsql/src/test/regress/regression.diffs")
+      if (-e "$pgsql/src/test/regress/regression.diffs");
+    foreach my $logfile (@logs)
+    {
+        push(@makeout,"\n\n================== $logfile ===================\n");
+        my $handle;
+        open($handle,$logfile);
+        while(<$handle>)
+        {
+            push(@makeout,$_);
+        }
+        close($handle);
+    }
+    my $base = "$pgsql/contrib";
+    if ($status)
+    {
+        my $binloc =
+          -d "$pgsql/tmp_install"
+          ? "$pgsql/tmp_install"
+          : "$base/install";
+	for my $f (glob("$base/*/tmp_check")) {
+		my @trace = get_stack_trace("$binloc$installdir/bin", "$f/data");
+		push(@makeout,@trace);
+	}
+    }
+    writelog('contrib-check',\@makeout);
+    print "======== make check logs ===========\n",@makeout
+      if ($verbose > 1);
+
+    send_result('ContribCheck',$status,\@makeout) if $status;
+    $steps_completed .= " ContribCheck";
+}
+
+sub collect_extra_base_config {
+	my $locale = shift;
+	my %addopts=();
+	MODULE:
+	for my $module (glob("$pgsql/contrib/*")) {
+		my $f;
+		open $f,"<","$module/GNUmakefile" or
+			open $f,"<","$module/Makefile" or
+				next MODULE;
+		my %vars=(top_srcdir=>$pgsql);
+		while (<$f>) {
+			$vars{$1}=$2 if /^\s*(\w+)\s*=\s*(.*)$/	;
+		}
+		close $f;
+		if (exists $vars{'EXTRA_REGRESS_OPTS'} &&
+			$vars{'EXTRA_REGRESS_OPTS'}=~/--temp-config=(\S+)/) {
+			my $filename = $1;
+			print "$module - --temp-config found\n" if $verbose;
+			while ($filename=~s/\$\((\w+)\)/$vars{$1}/) {
+
+			}
+			open my $g, "<", $filename;
+			while (<$g>) {
+				if (/(\w\S*\w)\s*=\s*(\S.*)\s*$/) {
+					my ($opt,$value);
+					$opt = $1;
+					$value = $2;
+					if (exists $addopts{$opt}) {
+						if (substr($value,0,1) eq "'") {
+							$addopts{$opt} = substr($addopts{$opt},0,-1).", ".substr($value,1);
+						} else {
+						  $addopts{$opt} .= ", ".$value;
+						}
+					} else {
+					    $addopts{$opt} = $value;
+					}
+				}
+			}
+		}
+	}
+
+	if (%addopts) {
+		my $config = "$installdir/data-$locale/postgresql.conf";
+		print "Appending $config\n" if $verbose;
+		my $f;
+		open $f, ">>",$config;
+		while (my ($opt,$value) = each %addopts) {
+			print $f " $opt = $value\n";
+			print " $opt = $value\n" if $verbose;
+		}
+		close $f;
+	}
 }
 
 sub make_ecpg_check
