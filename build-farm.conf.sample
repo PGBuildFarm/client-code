@@ -57,8 +57,9 @@ my $branch;
     wait_timeout => undef,
 
     # where and how to build
-    # must be absolute, can be either Unix or Windows style for MSVC
-    build_root => '/path/to/buildroot',
+	# must be absolute, can be either Unix or Windows style for MSVC
+	# undef means default, buildroot dir in script directory
+    build_root =>   undef , #  or '/path/to/buildroot',
     use_vpath => undef, # set true to do vpath builds
 
     # path to directory with auxiliary web script
