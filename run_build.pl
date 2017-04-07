@@ -141,7 +141,7 @@ print_help() if ($help);
 require $buildconf;
 
 # default buildroot
-$PGBuild::conf{build_root} ||= abs_path(basename(__FILE__)) . "/buildroot";
+$PGBuild::conf{build_root} ||= abs_path(dirname(__FILE__)) . "/buildroot";
 
 # get the config data into some local variables
 my (
@@ -301,7 +301,7 @@ unless ($buildroot =~ m!^/!
     die "buildroot $buildroot not absolute";
 }
 
-mkdir $buildroot unless -d $buildroot;
+mkpath $buildroot unless -d $buildroot;
 
 die "$buildroot does not exist or is not a directory" unless -d $buildroot;
 
