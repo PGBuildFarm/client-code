@@ -215,12 +215,15 @@ my $logdirname = "lastrun-logs";
 if ($from_source || $from_source_clean)
 {
     $from_source ||= $from_source_clean;
-    die "sourceroot $from_source not absolute"
-      unless $from_source =~ m!^/!;
+	$from_source = abs_path($from_source)
+	  unless File::Spec->file_name_is_absolute($from_source);
 
     # we need to know where the lock should go, so unless the path
-    # contains HEAD we require it to be specified.
-    die "must specify branch explicitly with from_source"
+    # contains HEAD or they have explicitly said the branch let
+	# them know where things are going.
+    print
+	  "branch not specified, locks, logs, ",
+	  "build artefacts etc will go in HEAD\n"
       unless ($explicit_branch || $from_source =~ m!/HEAD/!);
     $verbose ||= 1;
     $nosend=1;
