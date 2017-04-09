@@ -724,6 +724,8 @@ process_module_hooks('install');
 
 make_bin_installcheck();
 
+run_misc_tests();
+
 foreach my $locale (@locales)
 {
     last unless step_wanted('install');
@@ -1559,6 +1561,58 @@ sub make_isolation_check
     $steps_completed .= " IsolationCheck";
 }
 
+sub run_tap_test
+{
+	my $dir = shift;
+	my $testname = shift;
+	my $is_install_check = shift;
+
+	my $target = $is_install_check ? "installcheck" : "check";
+
+	die "no msvc support yet in run_tap_test" if $using_msvc;
+
+    # fix path temporarily on msys
+    my $save_path = $ENV{PATH};
+    if ($^O eq 'msys')
+    {
+        my $perlpathdir = dirname($Config{perlpath});
+        $ENV{PATH} = "$perlpathdir:$ENV{PATH}";
+    }
+
+    my @makeout;
+
+	@makeout =`cd $dir && $make NO_LOCALE=1 $target 2>&1`;
+
+    my $status = $? >>8;
+
+    my @logs = glob("$dir/tmp_check/log/*");
+
+    foreach my $logfile (@logs)
+    {
+        push(@makeout,"\n\n================== $logfile ===================\n");
+        my $handle;
+        open($handle,$logfile);
+        while(<$handle>)
+        {
+            push(@makeout,$_);
+        }
+        close($handle);
+    }
+
+    writelog("$testname-$target",\@makeout);
+    print "======== make $testname-$target log ===========\n",@makeout
+      if ($verbose > 1);
+
+    # restore path
+    $ENV{PATH} = $save_path;
+
+    my $captarget = $is_install_check ? "InstallCheck" : "Check";
+    my $captest = $testname; $captest =~ s/(.)/\U$1/;
+
+    send_result("$captest$captarget",$status,\@makeout) if $status;
+    $steps_completed .= " $captest$captarget";
+}
+
 sub make_bin_installcheck
 {
     return unless step_wanted('bin-installcheck');
@@ -1578,19 +1632,16 @@ sub make_bin_installcheck
 
     print time_str(),"running make bin installcheck ...\n" if $verbose;
 
-    # fix path temporarily on msys
-    my $save_path = $ENV{PATH};
-    if ($^O eq 'msys')
-    {
-        my $perlpathdir = dirname($Config{perlpath});
-        $ENV{PATH} = "$perlpathdir:$ENV{PATH}";
-    }
-
     my @makeout;
 
     unless ($using_msvc)
     {
-        @makeout =`cd $pgsql/src/bin && $make NO_LOCALE=1 installcheck 2>&1`;
+		foreach my $bin (glob("$pgsql/src/bin/*"))
+		{
+			next unless -d "$bin/t";
+			run_tap_test($bin, basename($bin), 'true');
+		}
+		return;
     }
     else
     {
@@ -1619,11 +1670,40 @@ sub make_bin_installcheck
     print "======== make bin-install-check log ===========\n",@makeout
       if ($verbose > 1);
 
-    # restore path
-    $ENV{PATH} = $save_path;
-
     send_result('BinInstallCheck',$status,\@makeout) if $status;
     $steps_completed .= " BinInstallCheck";
+}
+
+sub run_misc_tests
+{
+    return unless step_wanted('misc-check');
+
+    # tests only came in with 9.4
+    return unless ($branch eq 'HEAD' or $branch ge 'REL9_4');
+
+    # don't run unless the tests have been enabled
+    if ($using_msvc)
+    {
+        return unless $config_opts->{tap_tests};
+		return; # not yet supported on MSVC
+    }
+    else
+    {
+        return unless grep {$_ eq '--enable-tap-tests' } @$config_opts;
+    }
+
+    print time_str(),"running make misc checks ...\n" if $verbose;
+
+    my @makeout;
+
+    unless ($using_msvc)
+    {
+		foreach my $test (qw(recovery subscription authentication))
+		{
+			next unless -d "$pgsql/src/test/$test/t";
+			run_tap_test("$pgsql/src/test/$test", $test , undef); # use check, not installcheck for these
+		}
+    }
 }
 
 sub make_check
