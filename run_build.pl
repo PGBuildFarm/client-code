@@ -140,6 +140,8 @@ print_help() if ($help);
 #
 require $buildconf;
 
+PGBuild::Options::fixup_conf(\$PGBuild::conf, \@config_set);
+
 # default buildroot
 $PGBuild::conf{build_root} ||= abs_path(dirname(__FILE__)) . "/buildroot";
 

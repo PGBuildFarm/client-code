@@ -54,6 +54,8 @@ $branch = 'global';
 #
 require $buildconf;
 
+PGBuild::Options::fixup_conf(\$PGBuild::conf, \@config_set);
+
 unless (
     (
         ref $PGBuild::conf{branches_to_build} eq 'ARRAY'

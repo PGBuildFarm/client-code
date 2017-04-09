@@ -23,7 +23,7 @@ BEGIN
       $forcerun $buildconf $keepall $help
       $quiet $from_source $from_source_clean $testmode
       $test_mode $skip_steps $only_steps $find_typedefs
-      $nosend $nostatus $verbose
+      $nosend $nostatus $verbose @config_set
     );
 }
 
@@ -41,7 +41,7 @@ our (
     $forcerun, $buildconf, $keepall,$help,
     $quiet, $from_source,$from_source_clean, $testmode,
     $test_mode, $skip_steps,$only_steps, $find_typedefs,
-    $nosend, $nostatus, $verbose,
+    $nosend, $nostatus, $verbose, @config_set
 );
 
 my (%standard_options);
@@ -60,7 +60,8 @@ my (%standard_options);
     'help' => \$help,
     'quiet' => \$quiet,
     'skip-steps=s' => \$skip_steps,
-    'only-steps=s' => \$only_steps,
+	'only-steps=s' => \$only_steps,
+	'config-set=s' => \@config_set,
 );
 
 $buildconf = "build-farm.conf"; # default value
@@ -84,10 +85,92 @@ sub standard_option_list
         my $vref = $standard_options{$k};
         next unless defined($$vref);
         (my $nicekey = $k) =~ s/[=:].*//;
-        push(@result, "--$nicekey");
-        push(@result,$$vref) if $$vref && $k =~ /[:=]/;
+		if (ref $vref ne 'ARRAY')
+		{
+			push(@result, "--$nicekey");
+			push(@result,$$vref) if $$vref && $k =~ /[:=]/;
+		}
+		else
+		{
+			foreach my $val (@$vref)
+			{
+				push(@result, "--$nicekey", $val);
+			}
+		}
     }
     return @result;
+}
+
+sub fixup_conf
+{
+	my $conf = shift;
+	my $list = shift;
+	foreach my $confset (@$list)
+	{
+		if ($confset =~ /^([A-Za-z_]+)(\.([A-Za-z_]+))?(\+?=)(.*)/)
+		{
+			my ($key, $subkey, $op, $val) = ($1, $3, $4, $5);
+
+			if ($key eq 'mail_events' || $key eq 'alerts' ||
+				$key eq 'branches_to_build' || $key eq 'global_lock_dir')
+			{
+				die "unsupported setting via command line: $key";
+			}
+			elsif (! exists $conf->{$key})
+			{
+				die "Invalid config key: $key";
+			}
+			elsif (!ref $conf->{$key})
+			{
+				# scalars can;t have subkeys and we can't add to them
+				if (defined $subkey || $op ne '=')
+				{
+					die "invalid setting: $confset"
+				}
+				$conf->{$key} = $val;
+			}
+			elsif (ref $conf->{$key} eq 'ARRAY')
+			{
+				if ($op eq '+=')
+				{
+					push @{$conf->{$key}}, $val;
+				}
+				else
+				{
+					@{$conf->{$key}} = split(/,/,$val);
+				}
+			}
+			elsif ($key =~ /_env$/)
+			{
+				if ($op ne '=')
+				{
+					die "cannot append to $key.$subkey";
+				}
+				$conf->{$key}->{$subkey} = $val;
+			}
+			else
+			{
+				if ($key ne 'extra_config')
+				{
+					die "missing logic for $key";
+				}
+				$conf->{$key}->{$subkey} ||= [];
+
+				if ($op eq '+=')
+				{
+					push @{$conf->{$key}->{$subkey}}, $val;
+				}
+				else
+				{
+					@{$conf->{$key}->{$subkey}} = split(/,/,$val);
+				}
+			}
+		}
+		else
+		{
+			die "invalid conf_set argument: $confset";
+		}
+	}
 }
 
 1;
