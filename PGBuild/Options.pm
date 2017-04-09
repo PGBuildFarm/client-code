@@ -83,7 +83,8 @@ sub standard_option_list
     foreach my $k ( keys %standard_options )
     {
         my $vref = $standard_options{$k};
-        next unless defined($$vref);
+        next unless (ref $vref eq 'SCALAR' && defined($$vref)) ||
+		  (ref $vref eq 'ARRAY' && @$vref);
         (my $nicekey = $k) =~ s/[=:].*//;
 		if (ref $vref ne 'ARRAY')
 		{
