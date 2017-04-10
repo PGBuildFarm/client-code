@@ -1127,7 +1127,7 @@ sub make_contrib
     my $make_cmd = $make;
     $make_cmd = "$make -j $make_jobs"
       if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
-    my @makeout = run_log("$pgsql/contrib && $make_cmd");
+    my @makeout = run_log("cd $pgsql/contrib && $make_cmd");
     my $status = $? >>8;
     writelog('make-contrib',\@makeout);
     print "======== make contrib log ===========\n",@makeout if ($verbose > 1);
