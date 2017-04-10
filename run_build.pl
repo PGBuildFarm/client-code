@@ -1485,7 +1485,7 @@ sub make_pl_install_check
     else
     {
         chdir("$pgsql/src/tools/msvc");
-        @checklog = run_log("perl vcregress.pl plcheck";
+        @checklog = run_log("perl vcregress.pl plcheck");
         chdir($branch_root);
     }
     my $status = $? >>8;
