@@ -592,7 +592,7 @@ sub checkout
     if (-d $target)
     {
         chdir $target;
-        my @branches = `git branch`); # too trivial for run_log
+        my @branches = `git branch`; # too trivial for run_log
         unless (grep {/^\* bf_$branch$/} @branches)
         {
             if (-l ".git/config" && -f ".git/config")
