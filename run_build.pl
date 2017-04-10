@@ -230,7 +230,6 @@ if ($from_source || $from_source_clean)
     $verbose ||= 1;
     $nosend=1;
     $nostatus=1;
-    $use_vpath = undef;
     $logdirname = "fromsource-logs";
 }
 
@@ -284,8 +283,6 @@ if (!$from_source)
 
 my $st_prefix = "$animal.";
 
-my $pgsql = $from_source  || $scm->get_build_path($use_vpath);
-
 # set environment from config
 while (my ($envkey,$envval) = each %{$PGBuild::conf{build_env}})
 {
@@ -323,6 +320,16 @@ foreach my $oldfile (glob("last*"))
 }
 
 my $branch_root = getcwd();
+
+my $pgsql;
+if ($from_source)
+{
+	$pgsql = $use_vpath ?  "$branch_root/pgsql.build" : $from_source
+}
+else
+{
+	$pgsql = $scm->get_build_path($use_vpath);
+}
 
 # make sure we are using GNU make (except for MSVC)
 unless ($using_msvc)
@@ -375,7 +382,7 @@ elsif ( !flock($lockfile,LOCK_EX|LOCK_NB) )
 }
 
 rmtree("inst");
-rmtree("$pgsql") unless ($from_source);
+rmtree("$pgsql") unless ($from_source && ! $use_vpath);
 
 # we are OK to run if we get here
 $have_lock = 1;
@@ -487,9 +494,8 @@ END
 
     if ($have_lock)
     {
-        if ($use_vpath)
+        if ($use_vpath && ! $from_source)
         {
-
             # vpath builds leave some stuff lying around in the
             # source dir, unfortunately. This should clean it up.
             $scm->cleanup();
@@ -2021,7 +2027,9 @@ sub configure
         $envstr .= "$key='$val' ";
     }
 
-    my $conf_path = $use_vpath ? "../pgsql/configure" : "./configure";
+    my $conf_path = $use_vpath ?
+	  ($from_source ? "$from_source/configure" : "../pgsql/configure")
+	  : "./configure";
 
     my @confout = `cd $pgsql && $envstr $conf_path $confstr 2>&1`;
 
