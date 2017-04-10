@@ -320,7 +320,8 @@ foreach my $oldfile (glob("last*"))
     move $oldfile, "$st_prefix$oldfile";
 }
 
-my $branch_root = getcwd();
+use vars qw($branch_root);
+$branch_root = getcwd();
 
 my $pgsql;
 if ($from_source)
