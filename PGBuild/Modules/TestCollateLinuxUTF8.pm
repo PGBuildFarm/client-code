@@ -80,7 +80,14 @@ sub installcheck
     my $inputdir = "";
     if ($self->{bfconf}->{use_vpath})
     {
-        $inputdir = "--inputdir=$buildroot/pgsql/src/test/regress";
+		if ($from_source)
+		{
+			$inputdir = "--inputdir=$from_source/src/test/regress";
+		}
+		else
+		{
+			$inputdir = "--inputdir=$buildroot/pgsql/src/test/regress";
+		}
     }
 
     my $logpos = -s "$installdir/logfile" || 0;
