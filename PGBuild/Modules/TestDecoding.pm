@@ -3,6 +3,8 @@ package PGBuild::Modules::TestDecoding;
 
 use PGBuild::Options;
 use PGBuild::SCM;
+use PGBuild::Utils;
+
 use File::Basename;
 
 use strict;
@@ -60,7 +62,7 @@ sub check
     else
     {
         my $cmd = "cd $self->{pgsql}/contrib/test_decoding && $make check";
-        @checklog = `$cmd 2>&1`;
+        @checklog = run_log($cmd);
     }
 
     my @logfiles = glob(

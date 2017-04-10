@@ -6,6 +6,8 @@ package PGBuild::Modules::TestSepgsql;
 
 use PGBuild::Options;
 use PGBuild::SCM;
+use PGBuild::Utils;
+
 use File::Find;
 
 use Cwd;
@@ -70,7 +72,7 @@ sub build
     chdir "$pgsql/contrib/sepgsql";
 
     my $make = $self->{bfconf}->{make};
-    my @log = `$make -f /usr/share/selinux/devel/Makefile 2>&1`
+    my @log = run_log("$make -f /usr/share/selinux/devel/Makefile");
       ; #  && sudo semodule -u sepgsql-regtest.pp 2>&1`;
     my $status = $? >>8;
 
@@ -103,7 +105,7 @@ sub install
     chdir "$pgsql/contrib/sepgsql";
 
     my $make = $self->{bfconf}->{make};
-    my @log = `sudo semodule -u sepgsql-regtest.pp 2>&1`;
+    my @log = run_log("sudo semodule -u sepgsql-regtest.pp");
     my $status = $? >>8;
 
     $self->{module_installed} = $status == 0;
@@ -133,7 +135,8 @@ sub locale_end
       if	$verbose;
 
     # set up a different data directory for selinux
-    my @log = `cd inst && bin/initdb -U buildfarm --no-locale sepgsql 2>&1`;
+    my @log =
+	  run_log("cd inst && bin/initdb -U buildfarm --no-locale sepgsql");
 
     my $status = $? >>8;
 
@@ -157,6 +160,7 @@ sub locale_end
     {
         last if $status;
         my $cmd = "inst/bin/postgres --single -F -c exit_on_error=true $db";
+		# no run_log due to redirections
         my @nlog = `$cmd < $sepgsql 2>&1 1>/dev/null`;
         push(@log,
             "====== installing sepgsql in single user mode in $db =========\n",
@@ -173,7 +177,7 @@ sub locale_end
     }
 
     my @startlog =
-      `cd inst && bin/pg_ctl -D sepgsql -l sepgsql.log -w start 2>&1`;
+      run_log("cd inst && bin/pg_ctl -D sepgsql -l sepgsql.log -w start");
     push(@log,"============ sepgsql start log\n",@startlog);
     $status = $? >>8;
 
@@ -187,7 +191,7 @@ sub locale_end
 
     system("sudo setsebool sepgsql_regression_test_mode on");
 
-    my @testlog = `cd $pgsql/contrib/sepgsql && ./test_sepgsql 2>&1`;
+    my @testlog = run_log("cd $pgsql/contrib/sepgsql && ./test_sepgsql");
     push(@log,"============= sepgsql tests ============\n",@testlog);
     $status = $? >>8;
     if ($status)
@@ -198,7 +202,7 @@ sub locale_end
         close($handle);
     }
 
-    my @stoplog = `cd inst && bin/pg_ctl -D sepgsql stop 2>&1`;
+    my @stoplog = run_log("cd inst && bin/pg_ctl -D sepgsql stop");
     push(@log,"============ sepgsql stop log\n",@stoplog);
     $status ||= $? >>8;
     main::writelog("sepgsql-test",\@log);

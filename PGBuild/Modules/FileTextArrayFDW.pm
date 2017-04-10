@@ -6,6 +6,7 @@ package PGBuild::Modules::FileTextArrayFDW;
 
 use PGBuild::Options;
 use PGBuild::SCM;
+use PGBuild::Utils;
 
 use strict;
 
@@ -135,7 +136,7 @@ sub build
 
     my $cmd = "PATH=../inst:$ENV{PATH} make USE_PGXS=1";
 
-    my @makeout = `cd $self->{where} && $cmd 2>&1`;
+    my @makeout = run_log("cd $self->{where} && $cmd");
 
     my $status = $? >>8;
     main::writelog("$MODULE-build",\@makeout);
@@ -152,7 +153,7 @@ sub install
 
     my $cmd = "PATH=../inst:$ENV{PATH} make USE_PGXS=1 install";
 
-    my @log = `cd $self->{where} && $cmd 2>&1`;
+    my @log = run_log("cd $self->{where} && $cmd");
 
     my $status = $? >>8;
     main::writelog("$MODULE-install",\@log);
@@ -177,7 +178,7 @@ sub installcheck
 
     my $cmd = "PATH=../inst:$ENV{PATH} make USE_PGXS=1 installcheck";
 
-    my @log = `cd $self->{where} && $cmd 2>&1`;
+    my @log = run_log("cd $self->{where} && $cmd");
 
     my $status = $? >>8;
     my $installdir = "$self->{buildroot}/$self->{pgbranch}/inst";

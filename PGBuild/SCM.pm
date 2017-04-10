@@ -3,6 +3,8 @@ use strict;
 use File::Find;
 use File::Basename;
 
+use PGBuild::Utils;
+
 =comment
 
 Copyright (c) 2003-2010, Andrew Dunstan
@@ -562,7 +564,7 @@ sub checkout
 
         if (-d $self->{mirror})
         {
-            @gitlog = `git --git-dir="$self->{mirror}" fetch 2>&1`;
+            @gitlog = run_log(qq{git --git-dir="$self->{mirror}" fetch});
             $status = $self->{ignore_mirror_failure} ? 0 : $? >> 8;
         }
         else
@@ -576,7 +578,7 @@ sub checkout
             #   git clone --bare $gitserver pgmirror.git
             #   (cd pgmirror.git && git remote add --mirror origin $gitserver)
             # or equivalent for other targets
-            @gitlog = `git clone --mirror $gitserver $self->{mirror} 2>&1`;
+            @gitlog = run_log("git clone --mirror $gitserver $self->{mirror}");
             $status = $? >>8;
         }
         if ($status)
@@ -590,7 +592,7 @@ sub checkout
     if (-d $target)
     {
         chdir $target;
-        my @branches = `git branch 2>&1`;
+        my @branches = `git branch`); # too trivial for run_log
         unless (grep {/^\* bf_$branch$/} @branches)
         {
             if (-l ".git/config" && -f ".git/config")
@@ -601,7 +603,7 @@ sub checkout
                 # this shouldn't happen on HEAD/master, so we don't need
                 # special branch name logic
                 my @ncolog =
-                  `git checkout -b bf_$branch --track origin/$branch 2>&1`;
+                  run_log("git checkout -b bf_$branch --track origin/$branch");
                 push(@gitlog,@ncolog);
             }
             else
@@ -619,8 +621,8 @@ sub checkout
 
         # do a checkout in case the work tree has been removed
         # this is harmless if it hasn't
-        my @colog = `git checkout . 2>&1`;
-        my @pulllog = `git pull 2>&1`;
+        my @colog = run_log("git checkout . ");
+        my @pulllog = run_log("git pull");
         push(@gitlog,@colog,@pulllog);
         chdir '..';
     }
@@ -654,7 +656,7 @@ sub checkout
 
             mkdir $head;
 
-            my @clonelog = `git clone -q $base "$head/$target" 2>&1`;
+            my @clonelog = run_log(qq{git clone -q $base "$head/$target"});
             push(@gitlog,@clonelog);
             $status = $? >>8;
             if (!$status)
@@ -663,7 +665,8 @@ sub checkout
                 chdir "$head/$target";
 
                 # make sure we don't name the new branch HEAD
-                my @colog =`git checkout -b bf_HEAD --track origin/master 2>&1`;
+                my @colog =
+				  run_log("git checkout -b bf_HEAD --track origin/master");
                 push(@gitlog,@colog);
                 chdir $savedir;
             }
@@ -691,15 +694,16 @@ sub checkout
             # Don't try to create an existing branch
             # the target dir only might have been wiped away,
             # so we need to handle this case.
-            @colog =`git checkout -f bf_$branch 2>&1`;
+            @colog = run_log("git checkout -f bf_$branch");
         }
         else
         {
-            @colog =`git checkout -f -b bf_$branch --track origin/$branch 2>&1`;
+            @colog =
+			  run_log("git checkout -f -b bf_$branch --track origin/$branch");
         }
 
         # Make sure the branch we just checked out is up to date.
-        my @pull_log = `git pull 2>&1`;
+        my @pull_log = run_log("git pull");
         push(@gitlog,@colog,@pull_log);
 
         chdir "..";
@@ -715,7 +719,7 @@ sub checkout
         $base = "$drive$base"
           if ( $char1 eq '/' or $char1 eq '\\');
 
-        my @clonelog = `git clone -q $reference $base $target 2>&1`;
+        my @clonelog = run_log("git clone -q $reference $base $target");
         push(@gitlog,@clonelog);
         $status = $? >>8;
         if (!$status)
@@ -726,7 +730,7 @@ sub checkout
             # also, safer to checkout origin/master than origin/HEAD, I think
             my $rbranch = $branch eq 'HEAD' ? 'master' : $branch;
             my @colog =
-              `git checkout -b bf_$branch --track origin/$rbranch 2>&1`;
+              run_log("git checkout -b bf_$branch --track origin/$rbranch");
             push(@gitlog,@colog);
             chdir "..";
         }
@@ -748,8 +752,8 @@ sub checkout
     # loudly.
 
     chdir "$target";
-    my @gitstat = `git status --porcelain 2>&1`;
-    my $headref = `git show-ref --heads -- bf_$branch 2>&1`;
+    my @gitstat = `git status --porcelain`; # too trivial for run_log
+    my $headref = `git show-ref --heads -- bf_$branch 2>&1`; # ditto
     $self->{headref} = (split(/\s+/, $headref))[0];
     chdir "..";
 
@@ -799,7 +803,7 @@ sub rm_worktree
 sub parse_log
 {
     my $cmd = shift;
-    my @lines = `$cmd`;
+    my @lines = run_log($cmd);
     chomp(@lines);
     my $commit;
     my $list = {};
@@ -832,6 +836,7 @@ sub find_changed
     my $changed_files = shift;
     my $changed_since_success = shift;
 
+	# too trivial to use run_log
     my $cmd = qq{git --git-dir=$target/.git log -n 1 "--pretty=format:%ct"};
     $$current_snap = `$cmd` +0;
 

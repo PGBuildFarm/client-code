@@ -6,6 +6,7 @@ package PGBuild::Modules::TestICU;
 
 use PGBuild::Options;
 use PGBuild::SCM;
+use PGBuild::Utils;
 
 use Fcntl qw(:seek);
 
@@ -75,7 +76,7 @@ sub installcheck
     my @checklog;
     my $cmd ="./pg_regress --$binswitch=$installdir/bin --dlpath=. "
       ."$inputdir --port=$buildport collate.icu.utf8";
-    @checklog = `cd $pgsql/src/test/regress && $cmd 2>&1`;
+    @checklog = run_log("cd $pgsql/src/test/regress && $cmd");
 
     my $status = $? >>8;
     my @logfiles =

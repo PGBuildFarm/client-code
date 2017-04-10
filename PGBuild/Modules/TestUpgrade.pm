@@ -6,6 +6,7 @@ package PGBuild::Modules::TestUpgrade;
 
 use PGBuild::Options;
 use PGBuild::SCM;
+use PGBuild::Utils;
 
 use File::Basename;
 
@@ -76,7 +77,7 @@ sub check
     if ($self->{bfconf}->{using_msvc})
     {
         chdir "$self->{pgsql}/src/tools/msvc";
-        @checklog = `perl vcregress.pl upgradecheck 2>&1`;
+        @checklog = run_log("perl vcregress.pl upgradecheck");
         chdir "$self->{buildroot}/$self->{pgbranch}";
     }
     else
@@ -90,7 +91,7 @@ sub check
         {
             $cmd = "cd $self->{pgsql}/contrib/pg_upgrade && $make check";
         }
-        @checklog = `$cmd 2>&1`;
+        @checklog = run_log($cmd);
     }
 
     my @logfiles = glob(

@@ -75,6 +75,7 @@ BEGIN
 use PGBuild::SCM;
 use PGBuild::Options;
 use PGBuild::WebTxn;
+use PGBuild::Utils;
 
 my %module_hooks;
 my $orig_dir = getcwd();
@@ -961,7 +962,7 @@ sub clean_from_source
     {
 
         # fixme for MSVC
-        my @makeout = `cd $pgsql && $make distclean 2>&1`;
+        my @makeout = run_log("cd $pgsql && $make distclean");
         my $status = $? >>8;
         writelog('distclean',\@makeout);
         print "======== distclean log ===========\n",@makeout if ($verbose > 1);
@@ -997,7 +998,7 @@ sub writelog
 
 sub check_make
 {
-    my @out = `$make -v 2>&1`;
+    my @out = run_log("$make -v");
     return undef unless ($? == 0 && grep {/GNU Make/} @out);
     return 'OK';
 }
@@ -1013,12 +1014,12 @@ sub make
         my $make_cmd = $make;
         $make_cmd = "$make -j $make_jobs"
           if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
-        @makeout = `cd $pgsql && $make_cmd 2>&1`;
+        @makeout = run_log("cd $pgsql && $make_cmd");
     }
     else
     {
         chdir "$pgsql/src/tools/msvc";
-        @makeout = `perl build.pl 2>&1`;
+        @makeout = run_log("perl build.pl");
         chdir $branch_root;
     }
     my $status = $? >>8;
@@ -1036,12 +1037,12 @@ sub make_doc
     my (@makeout);
     unless ($using_msvc)
     {
-        @makeout = `cd $pgsql/doc && $make 2>&1`;
+        @makeout = run_log("cd $pgsql/doc && $make");
     }
     else
     {
         chdir "$pgsql/src/tools/msvc";
-        @makeout = `perl builddoc.pl 2>&1`;
+        @makeout = run_log("perl builddoc.pl");
         chdir $branch_root;
     }
     my $status = $? >>8;
@@ -1059,12 +1060,12 @@ sub make_install
     my @makeout;
     unless ($using_msvc)
     {
-        @makeout = `cd $pgsql && $make install 2>&1`;
+        @makeout = run_log("cd $pgsql && $make install");
     }
     else
     {
         chdir "$pgsql/src/tools/msvc";
-        @makeout = `perl install.pl "$installdir" 2>&1`;
+        @makeout = run_log(qq{perl install.pl "$installdir"});
         chdir $branch_root;
     }
     my $status = $? >>8;
@@ -1123,7 +1124,7 @@ sub make_contrib
     my $make_cmd = $make;
     $make_cmd = "$make -j $make_jobs"
       if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
-    my @makeout = `cd $pgsql/contrib && $make_cmd 2>&1`;
+    my @makeout = run_log("$pgsql/contrib && $make_cmd");
     my $status = $? >>8;
     writelog('make-contrib',\@makeout);
     print "======== make contrib log ===========\n",@makeout if ($verbose > 1);
@@ -1139,7 +1140,7 @@ sub make_testmodules
     my $make_cmd = $make;
     $make_cmd = "$make -j $make_jobs"
       if ($make_jobs > 1);
-    my @makeout = `cd $pgsql/src/test/modules && $make_cmd 2>&1`;
+    my @makeout = run_log("cd $pgsql/src/test/modules && $make_cmd");
     my $status = $? >> 8;
     writelog('make-testmodules',\@makeout);
     print "======== make testmodules log ===========\n",@makeout
@@ -1158,7 +1159,7 @@ sub make_contrib_install
       if $verbose;
 
     # part of install under msvc
-    my @makeout = `cd $pgsql/contrib && $make install 2>&1`;
+    my @makeout = run_log("cd $pgsql/contrib && $make install");
     my $status = $? >>8;
     writelog('install-contrib',\@makeout);
     print "======== make contrib install log ===========\n",@makeout
@@ -1175,7 +1176,7 @@ sub make_testmodules_install
     print time_str(),"running make testmodules install ...\n"
       if $verbose;
 
-    my @makeout = `cd $pgsql/src/test/modules && $make install 2>&1`;
+    my @makeout = run_log("cd $pgsql/src/test/modules && $make install");
     my $status = $? >>8;
     writelog('install-testmodules',\@makeout);
     print "======== make testmodules install log ===========\n",@makeout
@@ -1193,13 +1194,14 @@ sub initdb
     {
         chdir $installdir;
         @initout =
-          `"bin/initdb" -U buildfarm --locale=$locale data-$locale 2>&1`;
+          run_log(qq{"bin/initdb" -U buildfarm --locale=$locale data-$locale});
         chdir $branch_root;
     }
     else
     {
         chdir $installdir;
-        @initout =`bin/initdb -U buildfarm --locale=$locale data-$locale 2>&1`;
+        @initout =
+		  run_log("bin/initdb -U buildfarm --locale=$locale data-$locale");
         chdir $branch_root;
     }
 
@@ -1325,7 +1327,8 @@ sub get_stack_trace
 
     foreach my $core (@cores)
     {
-        my @onetrace = `gdb -x $cmdfile --batch $bindir/postgres $core 2>&1`;
+        my @onetrace =
+		  run_log("gdb -x $cmdfile --batch $bindir/postgres $core");
         push(@trace,
             "\n\n================== stack trace: $core ==================\n",
             @onetrace);
@@ -1345,12 +1348,13 @@ sub make_install_check
     my @checklog;
     unless ($using_msvc)
     {
-        @checklog = `cd $pgsql/src/test/regress && $make installcheck 2>&1`;
+        @checklog =
+		  run_log("cd $pgsql/src/test/regress && $make installcheck");
     }
     else
     {
         chdir "$pgsql/src/tools/msvc";
-        @checklog = `perl vcregress.pl installcheck 2>&1`;
+        @checklog = run_log("perl vcregress.pl installcheck");
         chdir $branch_root;
     }
     my $status = $? >>8;
@@ -1389,12 +1393,12 @@ sub make_contrib_install_check
     unless ($using_msvc)
     {
         @checklog =
-          `cd $pgsql/contrib && $make USE_MODULE_DB=1 installcheck 2>&1`;
+          run_log("cd $pgsql/contrib && $make USE_MODULE_DB=1 installcheck");
     }
     else
     {
         chdir "$pgsql/src/tools/msvc";
-        @checklog = `perl vcregress.pl contribcheck 2>&1`;
+        @checklog = run_log("perl vcregress.pl contribcheck");
         chdir $branch_root;
     }
     my $status = $? >>8;
@@ -1432,13 +1436,14 @@ sub make_testmodules_install_check
     my @checklog;
     unless ($using_msvc)
     {
-        @checklog =
-`cd $pgsql/src/test/modules && $make USE_MODULE_DB=1 installcheck 2>&1`;
+		my $cmd =
+		  "cd $pgsql/src/test/modules && $make USE_MODULE_DB=1 installcheck";
+        @checklog = run_log($cmd);
     }
     else
     {
         chdir "$pgsql/src/tools/msvc";
-        @checklog = `perl vcregress.pl modulescheck 2>&1`;
+        @checklog = run_log("perl vcregress.pl modulescheck");
         chdir $branch_root;
     }
     my $status = $? >>8;
@@ -1475,12 +1480,12 @@ sub make_pl_install_check
     my @checklog;
     unless ($using_msvc)
     {
-        @checklog = `cd $pgsql/src/pl && $make installcheck 2>&1`;
+        @checklog = run_log("cd $pgsql/src/pl && $make installcheck");
     }
     else
     {
         chdir("$pgsql/src/tools/msvc");
-        @checklog = `perl vcregress.pl plcheck 2>&1`;
+        @checklog = run_log("perl vcregress.pl plcheck";
         chdir($branch_root);
     }
     my $status = $? >>8;
@@ -1526,12 +1531,12 @@ sub make_isolation_check
     {
         my $cmd =
           "cd $pgsql/src/test/isolation && $make NO_LOCALE=1 installcheck";
-        @makeout = `$cmd 2>&1`;
+        @makeout = run_log($cmd);
     }
     else
     {
         chdir "$pgsql/src/tools/msvc";
-        @makeout = `perl vcregress.pl isolationcheck 2>&1`;
+        @makeout = run_log("perl vcregress.pl isolationcheck");
         chdir $branch_root;
     }
 
@@ -1587,7 +1592,7 @@ sub run_tap_test
 
     my @makeout;
 
-	@makeout =`cd $dir && $make NO_LOCALE=1 $target 2>&1`;
+	@makeout = run_log("cd $dir && $make NO_LOCALE=1 $target");
 
     my $status = $? >>8;
 
@@ -1652,7 +1657,7 @@ sub make_bin_installcheck
     else
     {
         chdir "$pgsql/src/tools/msvc";
-        @makeout = `perl vcregress.pl bincheck 2>&1`;
+        @makeout = run_log("perl vcregress.pl bincheck");
         chdir $branch_root;
     }
 
@@ -1720,12 +1725,13 @@ sub make_check
     my @makeout;
     unless ($using_msvc)
     {
-        @makeout =`cd $pgsql/src/test/regress && $make NO_LOCALE=1 check 2>&1`;
+        @makeout =
+		  run_log("cd $pgsql/src/test/regress && $make NO_LOCALE=1 check");
     }
     else
     {
         chdir "$pgsql/src/tools/msvc";
-        @makeout = `perl vcregress.pl check 2>&1`;
+        @makeout = run_log("perl vcregress.pl check");
         chdir $branch_root;
     }
 
@@ -1778,12 +1784,12 @@ sub make_ecpg_check
     if ($using_msvc)
     {
         chdir "$pgsql/src/tools/msvc";
-        @makeout = `perl vcregress.pl ecpgcheck 2>&1`;
+        @makeout = run_log("perl vcregress.pl ecpgcheck");
         chdir $branch_root;
     }
     else
     {
-        @makeout = `cd  $ecpg_dir && $make NO_LOCALE=1 check 2>&1`;
+        @makeout = run_log("cd  $ecpg_dir && $make NO_LOCALE=1 check");
     }
     my $status = $? >>8;
 
@@ -1873,8 +1879,9 @@ sub find_typedefs
         next unless -f $bin;
         if (@err == 1) # Linux and sometimes windows
         {
-            @dumpout =
-`$objdump -W $bin 2>/dev/null | egrep -A3 DW_TAG_typedef 2>/dev/null`;
+            my $cmd = "$objdump -W $bin 2>/dev/null | " .
+			  "egrep -A3 DW_TAG_typedef 2>/dev/null";
+			@dumpout = `$cmd`; # no run_log because of redirections
             foreach (@dumpout)
             {
                 @flds = split;
@@ -1889,8 +1896,10 @@ sub find_typedefs
         {
 
             # FreeBSD, similar output to Linux
-            @dumpout =
-`readelf -w $bin 2>/dev/null | egrep -A3 DW_TAG_typedef 2>/dev/null`;
+			my $cmd = "readelf -w $bin 2>/dev/null | " .
+			  "egrep -A3 DW_TAG_typedef 2>/dev/null";
+
+            @dumpout = ` $cmd`; # no run_log due to redirections
             foreach (@dumpout)
             {
                 @flds = split;
@@ -1901,6 +1910,7 @@ sub find_typedefs
         }
         elsif ($using_osx)
         {
+			# no run_log due to redirections.
             @dumpout =
               `dwarfdump $bin 2>/dev/null | egrep -A2 TAG_typedef 2>/dev/null`;
             foreach (@dumpout)
@@ -1914,6 +1924,7 @@ sub find_typedefs
         }
         else
         {
+			# no run_log doe to redirections.
             @dumpout = `$objdump --stabs $bin 2>/dev/null`;
             foreach (@dumpout)
             {
@@ -2031,7 +2042,7 @@ sub configure
 	  ($from_source ? "$from_source/configure" : "../pgsql/configure")
 	  : "./configure";
 
-    my @confout = `cd $pgsql && $envstr $conf_path $confstr 2>&1`;
+    my @confout = run_log("cd $pgsql && $envstr $conf_path $confstr");
 
     my $status = $? >> 8;
 
