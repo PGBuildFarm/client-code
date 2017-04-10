@@ -213,7 +213,8 @@ $ENV{EXTRA_REGRESS_OPTS} = "--port=$buildport";
 
 $tar_log_cmd ||= "tar -z -cf runlogs.tgz *.log";
 
-my $logdirname = "lastrun-logs";
+use vars qw($logdirname);
+$logdirname = "lastrun-logs";
 
 if ($from_source || $from_source_clean)
 {
@@ -282,7 +283,8 @@ if (!$from_source)
     $scm->check_access($using_msvc);
 }
 
-my $st_prefix = "$animal.";
+use vars qw($st_prefix);
+$st_prefix = "$animal.";
 
 # set environment from config
 while (my ($envkey,$envval) = each %{$PGBuild::conf{build_env}})
