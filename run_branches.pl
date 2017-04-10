@@ -54,7 +54,7 @@ $branch = 'global';
 #
 require $buildconf;
 
-PGBuild::Options::fixup_conf(\$PGBuild::conf, \@config_set);
+PGBuild::Options::fixup_conf(\%PGBuild::conf, \@config_set);
 
 unless (
     (
