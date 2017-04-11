@@ -8,10 +8,10 @@ See accompanying License file for license details
 
 
 Most of this code is imported from the older standalone script run_web_txn.pl
-which is now just a shell that calls the function below. It is now only 
+which is now just a shell that calls the function below. It is now only
 needed on older Msys installations (i.e. things running perl < 5.8).
 
-=cut 
+=cut
 
 use strict;
 

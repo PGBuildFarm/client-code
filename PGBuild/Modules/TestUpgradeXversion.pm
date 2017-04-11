@@ -203,8 +203,8 @@ sub installcheck
     }
 
     $sql = q{
-               update pg_proc set probin = 
-                  regexp_replace(probin,$$.*/$$,$$$libdir/$$) 
+               update pg_proc set probin =
+                  regexp_replace(probin,$$.*/$$,$$$libdir/$$)
                where probin not like $$$libdir/%$$ returning proname,probin;
              };
 
@@ -276,8 +276,8 @@ sub installcheck
 
         rmtree "$other_branch/inst/upgrade_test";
         my $testcmd = qq{
-              cp -r "$other_branch/inst/data-C" 
-                    "$other_branch/inst/upgrade_test" 
+              cp -r "$other_branch/inst/data-C"
+                    "$other_branch/inst/upgrade_test"
               > '$upgrade_loc/$oversion-copy.log' 2>&1
         };
         $testcmd =~ s/\n//g;

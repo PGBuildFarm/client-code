@@ -6,7 +6,7 @@ Copyright (c) 2003-2013, Andrew Dunstan
 
 See accompanying License file for license details
 
-=cut 
+=cut
 
 ###################################################
 #

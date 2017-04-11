@@ -7,7 +7,7 @@ Copyright (c) 2003-2010, Andrew Dunstan
 
 See accompanying License file for license details
 
-=cut 
+=cut
 
 # utility routines for the buildfarm
 

@@ -6,7 +6,7 @@ Copyright (c) 2003-2010, Andrew Dunstan
 
 See accompanying License file for license details
 
-=cut 
+=cut
 
 ####################################################
 
@@ -349,7 +349,7 @@ foreach my $module (@{$PGBuild::conf{modules}})
     # fill in the name of the module here, so use double quotes
     # so everything BUT the module name needs to be escaped
     my $str = qq!
-         require PGBuild::Modules::$module; 
+         require PGBuild::Modules::$module;
          PGBuild::Modules::${module}::setup(
               \$buildroot,
               \$branch,
@@ -882,7 +882,7 @@ usage: $0 [options] [branch]
   --config=/path/to/file    = alternative location for config file
   --keepall                 = keep directories if an error occurs
   --verbose[=n]             = verbosity (default 1) 2 or more = huge output.
-  --quiet                   = suppress normal error message 
+  --quiet                   = suppress normal error message
   --test                    = short for --nosend --nostatus --verbose --force
   --skip-steps=list         = skip certain steps
   --only-steps=list         = only do certain steps, not allowed with skip-steps
@@ -1967,8 +1967,43 @@ sub find_typedefs
         }
         else
         {
-            $src =~
-s#/\*[^*]*\*+([^/*][^*]*\*+)*/|("(\\.|[^"\\])*"|'(\\.|[^'\\])*'|.[^/"'\\]*)#defined $2 ? $2 : ""#gse;
+            # use the long form here to keep lines under 80
+            $src =~s{
+           /\*         ##  Start of /* ... */ comment
+           [^*]*\*+    ##  Non-* followed by 1-or-more *'s
+           (
+             [^/*][^*]*\*+
+           )*          ##  0-or-more things which don't start with /
+                       ##    but do end with '*'
+           /           ##  End of /* ... */ comment
+
+         |             ##     OR  various things which aren't comments:
+
+           (
+             "         ##  Start of " ... " string
+             (
+               \\.     ##  Escaped char
+             |         ##    OR
+               [^"\\]  ##  Non "\
+             )*
+             "         ##  End of " ... " string
+
+           |           ##     OR
+
+             '         ##  Start of ' ... ' string
+             (
+               \\.     ##  Escaped char
+             |         ##    OR
+               [^'\\]  ##  Non '\
+             )*
+             '         ##  End of ' ... ' string
+
+           |           ##     OR
+
+             .         ##  Anything other char
+             [^/"'\\]* ##  Chars which doesn't start a comment, string or escape
+           )
+         }{defined $2 ? $2 : ""}gxse;
         }
         foreach my $word (split(/\W+/,$src))
         {
