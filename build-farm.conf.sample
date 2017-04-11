@@ -207,7 +207,7 @@ my $branch;
     # branch-specific settings.
     extra_config =>{
         DEFAULT => [
-            q(log_line_prefix = '%m [%c:%l] '),
+            q(log_line_prefix = '%m [%p:%l] '),
             "log_connections = 'true'",
             "log_disconnections = 'true'",
             "log_statement = 'all'",
