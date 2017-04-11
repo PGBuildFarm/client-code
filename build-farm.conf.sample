@@ -57,9 +57,9 @@ my $branch;
     wait_timeout => undef,
 
     # where and how to build
-	# must be absolute, can be either Unix or Windows style for MSVC
-	# undef means default, buildroot dir in script directory
-    build_root =>   undef , #  or '/path/to/buildroot',
+    # must be absolute, can be either Unix or Windows style for MSVC
+    # undef means default, buildroot dir in script directory
+    build_root =>   undef, #  or '/path/to/buildroot',
     use_vpath => undef, # set true to do vpath builds
 
     # path to directory with auxiliary web script
@@ -246,9 +246,9 @@ if ($branch eq 'global')
     # or 'HEAD_PLUS_LATEST' or 'HEAD_PLUS_LATEST2'
     # or [qw( HEAD RELx_y_STABLE etc )]
 
-	# set this if you are running multiple animals and want them coordinated
+    # set this if you are running multiple animals and want them coordinated
 
-	# $conf{global_lock_dir} = '/path/to/lockdir';
+    # $conf{global_lock_dir} = '/path/to/lockdir';
 
 }
 

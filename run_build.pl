@@ -219,15 +219,15 @@ $logdirname = "lastrun-logs";
 if ($from_source || $from_source_clean)
 {
     $from_source ||= $from_source_clean;
-	$from_source = abs_path($from_source)
-	  unless File::Spec->file_name_is_absolute($from_source);
+    $from_source = abs_path($from_source)
+      unless File::Spec->file_name_is_absolute($from_source);
 
     # we need to know where the lock should go, so unless the path
     # contains HEAD or they have explicitly said the branch let
-	# them know where things are going.
+    # them know where things are going.
     print
-	  "branch not specified, locks, logs, ",
-	  "build artefacts etc will go in HEAD\n"
+      "branch not specified, locks, logs, ",
+      "build artefacts etc will go in HEAD\n"
       unless ($explicit_branch || $from_source =~ m!/HEAD/!);
     $verbose ||= 1;
     $nosend=1;
@@ -328,11 +328,11 @@ $branch_root = getcwd();
 my $pgsql;
 if ($from_source)
 {
-	$pgsql = $use_vpath ?  "$branch_root/pgsql.build" : $from_source
+    $pgsql = $use_vpath ?  "$branch_root/pgsql.build" : $from_source;
 }
 else
 {
-	$pgsql = $scm->get_build_path($use_vpath);
+    $pgsql = $scm->get_build_path($use_vpath);
 }
 
 # make sure we are using GNU make (except for MSVC)
@@ -386,7 +386,7 @@ elsif ( !flock($lockfile,LOCK_EX|LOCK_NB) )
 }
 
 rmtree("inst");
-rmtree("$pgsql") unless ($from_source && ! $use_vpath);
+rmtree("$pgsql") unless ($from_source && !$use_vpath);
 
 # we are OK to run if we get here
 $have_lock = 1;
@@ -498,7 +498,7 @@ END
 
     if ($have_lock)
     {
-        if ($use_vpath && ! $from_source)
+        if ($use_vpath && !$from_source)
         {
             # vpath builds leave some stuff lying around in the
             # source dir, unfortunately. This should clean it up.
@@ -1204,7 +1204,7 @@ sub initdb
     {
         chdir $installdir;
         @initout =
-		  run_log("bin/initdb -U buildfarm --locale=$locale data-$locale");
+          run_log("bin/initdb -U buildfarm --locale=$locale data-$locale");
         chdir $branch_root;
     }
 
@@ -1330,8 +1330,7 @@ sub get_stack_trace
 
     foreach my $core (@cores)
     {
-        my @onetrace =
-		  run_log("gdb -x $cmdfile --batch $bindir/postgres $core");
+        my @onetrace =run_log("gdb -x $cmdfile --batch $bindir/postgres $core");
         push(@trace,
             "\n\n================== stack trace: $core ==================\n",
             @onetrace);
@@ -1351,8 +1350,7 @@ sub make_install_check
     my @checklog;
     unless ($using_msvc)
     {
-        @checklog =
-		  run_log("cd $pgsql/src/test/regress && $make installcheck");
+        @checklog =run_log("cd $pgsql/src/test/regress && $make installcheck");
     }
     else
     {
@@ -1439,8 +1437,8 @@ sub make_testmodules_install_check
     my @checklog;
     unless ($using_msvc)
     {
-		my $cmd =
-		  "cd $pgsql/src/test/modules && $make USE_MODULE_DB=1 installcheck";
+        my $cmd =
+          "cd $pgsql/src/test/modules && $make USE_MODULE_DB=1 installcheck";
         @checklog = run_log($cmd);
     }
     else
@@ -1577,13 +1575,13 @@ sub make_isolation_check
 
 sub run_tap_test
 {
-	my $dir = shift;
-	my $testname = shift;
-	my $is_install_check = shift;
+    my $dir = shift;
+    my $testname = shift;
+    my $is_install_check = shift;
 
-	my $target = $is_install_check ? "installcheck" : "check";
+    my $target = $is_install_check ? "installcheck" : "check";
 
-	die "no msvc support yet in run_tap_test" if $using_msvc;
+    die "no msvc support yet in run_tap_test" if $using_msvc;
 
     # fix path temporarily on msys
     my $save_path = $ENV{PATH};
@@ -1595,7 +1593,7 @@ sub run_tap_test
 
     my @makeout;
 
-	@makeout = run_log("cd $dir && $make NO_LOCALE=1 $target");
+    @makeout = run_log("cd $dir && $make NO_LOCALE=1 $target");
 
     my $status = $? >>8;
 
@@ -1621,7 +1619,8 @@ sub run_tap_test
     $ENV{PATH} = $save_path;
 
     my $captarget = $is_install_check ? "InstallCheck" : "Check";
-    my $captest = $testname; $captest =~ s/(.)/\U$1/;
+    my $captest = $testname;
+    $captest =~ s/(.)/\U$1/;
 
     send_result("$captest$captarget",$status,\@makeout) if $status;
     $steps_completed .= " $captest$captarget";
@@ -1650,12 +1649,12 @@ sub make_bin_installcheck
 
     unless ($using_msvc)
     {
-		foreach my $bin (glob("$pgsql/src/bin/*"))
-		{
-			next unless -d "$bin/t";
-			run_tap_test($bin, basename($bin), 'true');
-		}
-		return;
+        foreach my $bin (glob("$pgsql/src/bin/*"))
+        {
+            next unless -d "$bin/t";
+            run_tap_test($bin, basename($bin), 'true');
+        }
+        return;
     }
     else
     {
@@ -1699,7 +1698,7 @@ sub run_misc_tests
     if ($using_msvc)
     {
         return unless $config_opts->{tap_tests};
-		return; # not yet supported on MSVC
+        return; # not yet supported on MSVC
     }
     else
     {
@@ -1712,11 +1711,12 @@ sub run_misc_tests
 
     unless ($using_msvc)
     {
-		foreach my $test (qw(recovery subscription authentication))
-		{
-			next unless -d "$pgsql/src/test/$test/t";
-			run_tap_test("$pgsql/src/test/$test", $test , undef); # use check, not installcheck for these
-		}
+        foreach my $test (qw(recovery subscription authentication))
+        {
+            next unless -d "$pgsql/src/test/$test/t";
+            run_tap_test("$pgsql/src/test/$test", $test, undef)
+              ; # use check, not installcheck for these
+        }
     }
 }
 
@@ -1729,7 +1729,7 @@ sub make_check
     unless ($using_msvc)
     {
         @makeout =
-		  run_log("cd $pgsql/src/test/regress && $make NO_LOCALE=1 check");
+          run_log("cd $pgsql/src/test/regress && $make NO_LOCALE=1 check");
     }
     else
     {
@@ -1882,9 +1882,9 @@ sub find_typedefs
         next unless -f $bin;
         if (@err == 1) # Linux and sometimes windows
         {
-            my $cmd = "$objdump -W $bin 2>/dev/null | " .
-			  "egrep -A3 DW_TAG_typedef 2>/dev/null";
-			@dumpout = `$cmd`; # no run_log because of redirections
+            my $cmd = "$objdump -W $bin 2>/dev/null | "
+              ."egrep -A3 DW_TAG_typedef 2>/dev/null";
+            @dumpout = `$cmd`; # no run_log because of redirections
             foreach (@dumpout)
             {
                 @flds = split;
@@ -1899,8 +1899,8 @@ sub find_typedefs
         {
 
             # FreeBSD, similar output to Linux
-			my $cmd = "readelf -w $bin 2>/dev/null | " .
-			  "egrep -A3 DW_TAG_typedef 2>/dev/null";
+            my $cmd = "readelf -w $bin 2>/dev/null | "
+              ."egrep -A3 DW_TAG_typedef 2>/dev/null";
 
             @dumpout = ` $cmd`; # no run_log due to redirections
             foreach (@dumpout)
@@ -1913,7 +1913,7 @@ sub find_typedefs
         }
         elsif ($using_osx)
         {
-			# no run_log due to redirections.
+            # no run_log due to redirections.
             @dumpout =
               `dwarfdump $bin 2>/dev/null | egrep -A2 TAG_typedef 2>/dev/null`;
             foreach (@dumpout)
@@ -1927,7 +1927,7 @@ sub find_typedefs
         }
         else
         {
-			# no run_log doe to redirections.
+            # no run_log doe to redirections.
             @dumpout = `$objdump --stabs $bin 2>/dev/null`;
             foreach (@dumpout)
             {
@@ -2041,9 +2041,10 @@ sub configure
         $envstr .= "$key='$val' ";
     }
 
-    my $conf_path = $use_vpath ?
-	  ($from_source ? "$from_source/configure" : "../pgsql/configure")
-	  : "./configure";
+    my $conf_path =
+      $use_vpath
+      ?($from_source ? "$from_source/configure" : "../pgsql/configure")
+      : "./configure";
 
     my @confout = run_log("cd $pgsql && $envstr $conf_path $confstr");
 
@@ -2255,10 +2256,10 @@ sub get_config_summary
     my $config = "";
     unless ($using_msvc)
     {
-		# if configure bugs out there might not be a log file at all
-		# in that case just return the rest of the summary.
+        # if configure bugs out there might not be a log file at all
+        # in that case just return the rest of the summary.
 
-		last unless -e "$pgsql/config.log";
+        last unless -e "$pgsql/config.log";
 
         open($handle,"$pgsql/config.log") || return undef;
         my $start = undef;

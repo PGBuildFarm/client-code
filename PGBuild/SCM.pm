@@ -666,7 +666,7 @@ sub checkout
 
                 # make sure we don't name the new branch HEAD
                 my @colog =
-				  run_log("git checkout -b bf_HEAD --track origin/master");
+                  run_log("git checkout -b bf_HEAD --track origin/master");
                 push(@gitlog,@colog);
                 chdir $savedir;
             }
@@ -699,7 +699,7 @@ sub checkout
         else
         {
             @colog =
-			  run_log("git checkout -f -b bf_$branch --track origin/$branch");
+              run_log("git checkout -f -b bf_$branch --track origin/$branch");
         }
 
         # Make sure the branch we just checked out is up to date.
@@ -836,7 +836,7 @@ sub find_changed
     my $changed_files = shift;
     my $changed_since_success = shift;
 
-	# too trivial to use run_log
+    # too trivial to use run_log
     my $cmd = qq{git --git-dir=$target/.git log -n 1 "--pretty=format:%ct"};
     $$current_snap = `$cmd` +0;
 

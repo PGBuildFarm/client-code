@@ -73,7 +73,7 @@ sub build
 
     my $make = $self->{bfconf}->{make};
     my @log = run_log("$make -f /usr/share/selinux/devel/Makefile");
-      ; #  && sudo semodule -u sepgsql-regtest.pp 2>&1`;
+    ; #  && sudo semodule -u sepgsql-regtest.pp 2>&1`;
     my $status = $? >>8;
 
     chdir $dir;
@@ -135,8 +135,7 @@ sub locale_end
       if	$verbose;
 
     # set up a different data directory for selinux
-    my @log =
-	  run_log("cd inst && bin/initdb -U buildfarm --no-locale sepgsql");
+    my @log =run_log("cd inst && bin/initdb -U buildfarm --no-locale sepgsql");
 
     my $status = $? >>8;
 
@@ -160,7 +159,8 @@ sub locale_end
     {
         last if $status;
         my $cmd = "inst/bin/postgres --single -F -c exit_on_error=true $db";
-		# no run_log due to redirections
+
+        # no run_log due to redirections
         my @nlog = `$cmd < $sepgsql 2>&1 1>/dev/null`;
         push(@log,
             "====== installing sepgsql in single user mode in $db =========\n",
