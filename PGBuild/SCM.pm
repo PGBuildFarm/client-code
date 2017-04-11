@@ -1,10 +1,5 @@
 use strict;
 
-use File::Find;
-use File::Basename;
-
-use PGBuild::Utils;
-
 =comment
 
 Copyright (c) 2003-2010, Andrew Dunstan
@@ -87,6 +82,9 @@ sub copy_source
 ##################################
 
 package PGBuild::SCM::CVS;
+
+use File::Find;
+use File::Basename;
 
 sub new
 {
@@ -446,6 +444,11 @@ use Cwd qw(getcwd abs_path);
 use File::Copy;
 use File::Path;
 use Fcntl qw(:flock);
+
+use File::Find;
+use File::Basename;
+
+use PGBuild::Utils;
 
 sub new
 {
