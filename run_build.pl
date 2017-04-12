@@ -1964,7 +1964,7 @@ sub make_bin_installcheck
         close($handle);
     }
 
-    writelog('bin-check',\@makeout);
+    writelog('bin-install-check',\@makeout);
     print "======== make bin-install-check log ===========\n",@makeout
       if ($verbose > 1);
 
