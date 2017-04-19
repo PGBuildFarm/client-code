@@ -13,8 +13,11 @@ use vars qw($VERSION); $VERSION = 'REL_4.18';
 use strict;
 use warnings;
 use Fcntl qw(:flock :seek);
-use PGBuild::Options;
 use File::Basename;
+
+BEGIN { use lib dirname(__FILE__); }
+
+use PGBuild::Options;
 
 # older msys is ging to use a different perl to run LWP, so we can't absolutely
 # require this module there
