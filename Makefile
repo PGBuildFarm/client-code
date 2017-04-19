@@ -10,7 +10,7 @@ ALLPERLFILES = $(shell find . \( -name '*.pl' -o -name '*.pm' \) -print | sed 's
 PERLFILES = run_build.pl run_web_txn.pl run_branches.pl \
 	update_personality.pl setnotes.pl \
 	build-farm.conf.sample  \
-	PGBuild/SCM.pm PGBuild/Options.pm PGBuild/WebTxn.pm PGBuild/utils.pm \
+	PGBuild/SCM.pm PGBuild/Options.pm PGBuild/WebTxn.pm PGBuild/Utils.pm \
 	PGBuild/Modules/Skeleton.pm \
 	PGBuild/Modules/TestUpgrade.pm \
 	PGBuild/Modules/FileTextArrayFDW.pm \
