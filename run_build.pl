@@ -713,7 +713,7 @@ make_check();
 
 # Set a TZ for each of the remaining tests to make initdb run a bit
 # faster, if it's not already set.
-$ENV{TZ} ||= `date +%Z 2>$devnull` || 'UTC';
+$ENV{TZ} ||= ($using_msvc ? '' : `date +%Z 2>$devnull`) || 'UTC';
 
 # contrib is built under the standard build step for msvc
 make_contrib() unless ($using_msvc);
