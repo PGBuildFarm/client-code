@@ -1602,7 +1602,7 @@ sub run_tap_test
 
     my @makeout;
 
-	my $pflags = "PROVE_FLAGS=--timer";
+    my $pflags = "PROVE_FLAGS=--timer";
 
     @makeout = run_log("cd $dir && $make NO_LOCALE=1 $pflags $target");
 
