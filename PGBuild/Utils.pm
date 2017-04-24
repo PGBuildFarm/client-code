@@ -33,7 +33,14 @@ sub run_log
     my $file=
       "$main::branch_root/$main::st_prefix$main::logdirname/lastcomand.log";
     unlink $file;
-    system("$command > $file 2>&1");
+	if ($ENV{BF_LOG_TIME} && -x "/usr/bin/ts")
+	{
+		system("{ $command;} 2>&1 | /usr/bin/ts > $file");
+	}
+	else
+	{
+		system("{ $command;} > $file 2>&1");
+	}
     my @loglines;
     if (-e $file)
     {
