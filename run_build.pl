@@ -695,6 +695,11 @@ set_last('run.snap',$current_snap) unless $nostatus;
 
 my $started_times = 0;
 
+# counter for temp installs. if it gets high enough
+# (currently 3) we can set NO_TEMP_INSTALL.
+use vars qw($temp_installs);
+$temp_installs = 0;
+
 # each of these routines will call send_result, which calls exit,
 # on any error, so each step depends on success in the previous
 # steps.
@@ -1171,12 +1176,16 @@ sub make_contrib_install
       if $verbose;
 
     # part of install under msvc
-    my @makeout = run_log("cd $pgsql/contrib && $make install");
+	my $tmp_inst = abs_path($pgsql) . "/tmp_install";
+	my $cmd =
+	  "cd $pgsql/contrib && $make install && $make DESTDIR=$tmp_inst install";
+	my @makeout = run_log($cmd);
     my $status = $? >>8;
     writelog('install-contrib',\@makeout);
     print "======== make contrib install log ===========\n",@makeout
       if ($verbose > 1);
     send_result('ContribInstall',$status,\@makeout) if $status;
+	$temp_installs++;
     $steps_completed .= " ContribInstall";
 }
 
@@ -1188,12 +1197,16 @@ sub make_testmodules_install
     print time_str(),"running make testmodules install ...\n"
       if $verbose;
 
-    my @makeout = run_log("cd $pgsql/src/test/modules && $make install");
+	my $tmp_inst = abs_path($pgsql) . "/tmp_install";
+	my $cmd = "cd $pgsql/src/test/modules  && " .
+	  "$make install && $make DESTDIR=$tmp_inst install";
+	my @makeout = run_log($cmd);
     my $status = $? >>8;
     writelog('install-testmodules',\@makeout);
     print "======== make testmodules install log ===========\n",@makeout
       if ($verbose > 1);
     send_result('TestModulesInstall',$status,\@makeout) if $status;
+	$temp_installs++;
     $steps_completed .= " TestModulesInstall";
 }
 
@@ -1594,7 +1607,7 @@ sub run_tap_test
 
     # fix path temporarily on msys
     my $save_path = $ENV{PATH};
-    if ($^O eq 'msys')
+    if ($Config{osname} eq 'msys')
     {
         my $perlpathdir = dirname($Config{perlpath});
         $ENV{PATH} = "$perlpathdir:$ENV{PATH}";
@@ -1603,8 +1616,10 @@ sub run_tap_test
     my @makeout;
 
     my $pflags = "PROVE_FLAGS=--timer";
+	my $instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
 
-    @makeout = run_log("cd $dir && $make NO_LOCALE=1 $pflags $target");
+    @makeout =
+	  run_log("cd $dir && $make NO_LOCALE=1 $pflags $instflags $target");
 
     my $status = $? >>8;
 
@@ -1663,7 +1678,7 @@ sub make_bin_installcheck
         foreach my $bin (glob("$pgsql/src/bin/*"))
         {
             next unless -d "$bin/t";
-            run_tap_test($bin, basename($bin), 'true');
+            run_tap_test($bin, basename($bin), undef);
         }
         return;
     }
@@ -1787,6 +1802,7 @@ sub make_check
       if ($verbose > 1);
 
     send_result('Check',$status,\@makeout) if $status;
+	$temp_installs++;
     $steps_completed .= " Check";
 }
 
@@ -1803,7 +1819,9 @@ sub make_ecpg_check
     }
     else
     {
-        @makeout = run_log("cd  $ecpg_dir && $make NO_LOCALE=1 check");
+		my $instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
+		@makeout =
+		  run_log("cd  $ecpg_dir && $make NO_LOCALE=1 $instflags check");
     }
     my $status = $? >>8;
 

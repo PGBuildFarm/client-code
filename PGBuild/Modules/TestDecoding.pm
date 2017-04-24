@@ -61,7 +61,11 @@ sub check
     }
     else
     {
-        my $cmd = "cd $self->{pgsql}/contrib/test_decoding && $make check";
+		my $instflags = $main::temp_installs >= 3
+		  ? "NO_TEMP_INSTALL=$main::temp_installs"
+		  : "";
+		my $cmd =
+		  "cd $self->{pgsql}/contrib/test_decoding && $make $instflags check";
         @checklog = run_log($cmd);
     }
 
