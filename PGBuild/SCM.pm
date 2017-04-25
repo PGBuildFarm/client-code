@@ -806,7 +806,8 @@ sub rm_worktree
 sub parse_log
 {
     my $cmd = shift;
-    my @lines = run_log($cmd);
+	# don't use run_log here in case it has dates
+    my @lines = `$cmd`;
     chomp(@lines);
     my $commit;
     my $list = {};
