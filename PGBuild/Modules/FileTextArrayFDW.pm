@@ -2,6 +2,17 @@
 # Package Namespace is hardcoded. Modules must live in
 # PGBuild::Modules
 
+=comment
+
+Copyright (c) 2003-2017, Andrew Dunstan
+
+See accompanying License file for license details
+
+=cut
+
+# utility routines for the buildfarm
+
+
 package PGBuild::Modules::FileTextArrayFDW;
 
 use PGBuild::Options;

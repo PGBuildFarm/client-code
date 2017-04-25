@@ -1,6 +1,17 @@
 
 package PGBuild::Modules::TestDecoding;
 
+
+=comment
+
+Copyright (c) 2003-2017, Andrew Dunstan
+
+See accompanying License file for license details
+
+=cut
+
+# utility routines for the buildfarm
+
 use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils;

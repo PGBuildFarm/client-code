@@ -3,7 +3,7 @@ package PGBuild::Options;
 
 =comment
 
-Copyright (c) 2003-2010, Andrew Dunstan
+Copyright (c) 2003-2017, Andrew Dunstan
 
 See accompanying License file for license details
 

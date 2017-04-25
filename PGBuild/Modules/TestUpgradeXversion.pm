@@ -2,6 +2,17 @@
 # Package Namespace is hardcoded. Modules must live in
 # PGBuild::Modules
 
+=comment
+
+Copyright (c) 2003-2017, Andrew Dunstan
+
+See accompanying License file for license details
+
+=cut
+
+# utility routines for the buildfarm
+
+
 # NB: use of this module involves substantial persistent use of disk space.
 # Don't even think about it unless you have a couple og GB extra (at least)
 # you can devote to this module's storage.
