@@ -2,7 +2,7 @@
 
 
 find . -name '*.p[lm]' -print | while read f ; do
-	grep -q Copyright \$f || sed -i '3r copyright.template' \$f
+	grep -q Copyright $f || sed -i '3r copyright.template' $f
 done
 
 DT=`date +%Y`
