@@ -42,6 +42,10 @@ release:
 	@echo REL = $(CREL)
 	tar -z --xform="s,^,build-farm-$(REL)/,S" $(RELEASE_FILES) -cf releases/build-farm-$(CREL).tgz
 
+copyright:
+	./make_copyright.sh
+
+
 tidy:
 	perltidy -b -bl -nsfs -naws -l=80 -ole=unix $(ALLPERLFILES) 
 
