@@ -94,7 +94,11 @@ sub check
     else
     {
         my $cmd;
-		my $instflags = $main::temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
+		my $instflags;
+	  {
+		  no warnings qw(once);
+		  $instflags = $main::temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
+	  }
         if ($self->{pgbranch} eq 'HEAD' || $self->{pgbranch} ge 'REL9_5')
         {
             $cmd =

@@ -45,6 +45,8 @@ release:
 copyright:
 	./make_copyright.sh
 
+syncheck:
+	for f in $(ALLPERLFILES) ; do perl -cw $${f}; done;
 
 tidy:
 	perltidy -b -bl -nsfs -naws -l=80 -ole=unix $(ALLPERLFILES) 

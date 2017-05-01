@@ -32,6 +32,8 @@ use vars qw($VERSION); $VERSION = 'REL_4.19';
 
 sub run_log
 {
+	no warnings qw(once);
+
     my $command = shift;
 	my $filedir = "$main::branch_root/$main::st_prefix$main::logdirname";
 	mkpath($filedir);
