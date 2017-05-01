@@ -14,6 +14,7 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
+use Config;
 use File::Path;
 
 use Exporter   ();
@@ -36,7 +37,13 @@ sub run_log
 	mkpath($filedir);
 	my $file= "$filedir/lastcomand.log";
     unlink $file;
-	if ($ENV{BF_LOG_TIME} && -x "/usr/bin/ts")
+
+	if ($Config{osname} eq 'MSWin32')
+	{
+		# can't use more robust Unix shell syntax with DOS shell
+		system("$command >$file 2>&1");
+	}
+	elsif ($ENV{BF_LOG_TIME} && -x "/usr/bin/ts")
 	{
 		system("{ $command;} 2>&1 | /usr/bin/ts > $file");
 	}
