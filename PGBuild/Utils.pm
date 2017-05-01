@@ -14,6 +14,8 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
+use File::Path;
+
 use Exporter   ();
 our (@ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 
@@ -30,8 +32,9 @@ use vars qw($VERSION); $VERSION = 'REL_4.19';
 sub run_log
 {
     my $command = shift;
-    my $file=
-      "$main::branch_root/$main::st_prefix$main::logdirname/lastcomand.log";
+	my $filedir = "$main::branch_root/$main::st_prefix$main::logdirname";
+	mkpath($filedir);
+	my $file= "$filedir/lastcomand.log";
     unlink $file;
 	if ($ENV{BF_LOG_TIME} && -x "/usr/bin/ts")
 	{
