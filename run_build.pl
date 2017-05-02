@@ -1608,7 +1608,7 @@ sub run_tap_test
 
 	if ($using_msvc)
 	{
-		my $test = substr($dir,0,length("$pgsql/"));
+		my $test = substr($dir,length("$pgsql/"));
         chdir "$pgsql/src/tools/msvc";
         @makeout = run_log("perl vcregress.pl taptest $test");
         chdir $branch_root;
