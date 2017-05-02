@@ -1702,14 +1702,11 @@ sub run_misc_tests
 
     my @makeout;
 
-    unless ($using_msvc)
-    {
-        foreach my $test (qw(recovery subscription authentication))
-        {
-            next unless -d "$pgsql/src/test/$test/t";
-            run_tap_test("$pgsql/src/test/$test", $test, undef)
-        }
-    }
+	foreach my $test (qw(recovery subscription authentication))
+	{
+		next unless -d "$pgsql/src/test/$test/t";
+		run_tap_test("$pgsql/src/test/$test", $test, undef)
+	}
 }
 
 sub make_check
