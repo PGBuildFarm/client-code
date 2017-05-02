@@ -1596,8 +1596,6 @@ sub run_tap_test
 
     my $target = $is_install_check ? "installcheck" : "check";
 
-    die "no msvc support yet in run_tap_test" if $using_msvc;
-
     # fix path temporarily on msys
     my $save_path = $ENV{PATH};
     if ($Config{osname} eq 'msys')
@@ -1608,11 +1606,21 @@ sub run_tap_test
 
     my @makeout;
 
-    my $pflags = "PROVE_FLAGS=--timer";
-	my $instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
+	if ($using_msvc)
+	{
+		my $test = substr($dir,0,length("$pgsql/"));
+        chdir "$pgsql/src/tools/msvc";
+        @makeout = run_log("perl vcregress.pl taptest $test");
+        chdir $branch_root;
+	}
+	else
+	{
+		my $pflags = "PROVE_FLAGS=--timer";
+		my $instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
 
-    @makeout =
-	  run_log("cd $dir && $make NO_LOCALE=1 $pflags $instflags $target");
+		@makeout =
+		  run_log("cd $dir && $make NO_LOCALE=1 $pflags $instflags $target");
+	}
 
     my $status = $? >>8;
 
@@ -1666,44 +1674,11 @@ sub make_bin_installcheck
 
     my @makeout;
 
-    unless ($using_msvc)
-    {
-        foreach my $bin (glob("$pgsql/src/bin/*"))
-        {
-            next unless -d "$bin/t";
-            run_tap_test($bin, basename($bin), undef);
-        }
-        return;
-    }
-    else
-    {
-        chdir "$pgsql/src/tools/msvc";
-        @makeout = run_log("perl vcregress.pl bincheck");
-        chdir $branch_root;
-    }
-
-    my $status = $? >>8;
-
-    my @logs = glob("$pgsql/src/bin/*/tmp_check/log/*");
-
-    foreach my $logfile (@logs)
-    {
-        push(@makeout,"\n\n================== $logfile ===================\n");
-        my $handle;
-        open($handle,$logfile);
-        while(<$handle>)
-        {
-            push(@makeout,$_);
-        }
-        close($handle);
-    }
-
-    writelog('bin-check',\@makeout);
-    print "======== make bin-install-check log ===========\n",@makeout
-      if ($verbose > 1);
-
-    send_result('BinInstallCheck',$status,\@makeout) if $status;
-    $steps_completed .= " BinInstallCheck";
+	foreach my $bin (glob("$pgsql/src/bin/*"))
+	{
+		next unless -d "$bin/t";
+		run_tap_test($bin, basename($bin), undef);
+	}
 }
 
 sub run_misc_tests
@@ -1717,7 +1692,6 @@ sub run_misc_tests
     if ($using_msvc)
     {
         return unless $config_opts->{tap_tests};
-        return; # not yet supported on MSVC
     }
     else
     {
@@ -1734,7 +1708,6 @@ sub run_misc_tests
         {
             next unless -d "$pgsql/src/test/$test/t";
             run_tap_test("$pgsql/src/test/$test", $test, undef)
-              ; # use check, not installcheck for these
         }
     }
 }
@@ -1796,6 +1769,11 @@ sub make_check
 
     send_result('Check',$status,\@makeout) if $status;
 	$temp_installs++;
+	if ($using_msvc)
+	{
+		# MSVC installs everything, so we now have a complete temp install
+		$ENV{NO_TEMP_INSTALL} = "yes";
+	}
     $steps_completed .= " Check";
 }
 
