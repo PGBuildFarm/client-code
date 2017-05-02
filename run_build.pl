@@ -2286,13 +2286,12 @@ sub get_config_summary
 {
     my $handle;
     my $config = "";
-    unless ($using_msvc)
+
+	# if configure bugs out there might not be a log file at all
+	# in that case just return the rest of the summary.
+
+    unless ($using_msvc || ! -e "$pgsql/config.log" )
     {
-        # if configure bugs out there might not be a log file at all
-        # in that case just return the rest of the summary.
-
-        last unless -e "$pgsql/config.log";
-
         open($handle,"$pgsql/config.log") || return undef;
         my $start = undef;
         while (<$handle>)
