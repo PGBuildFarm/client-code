@@ -56,7 +56,8 @@ sub run_log
     my @loglines;
     if (-e $file)
     {
-        open(my $handle,$file);
+		# shouldn't fail, but I've seen it, so die if it does
+        open(my $handle,$file) || die "opening $file for $command: $!";
         @loglines = <$handle>;
         close $handle;
 
