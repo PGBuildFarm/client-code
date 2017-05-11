@@ -192,7 +192,6 @@ if (ref($force_every) eq 'HASH')
 }
 
 my $config_opts = $PGBuild::conf{config_opts};
-my $scm = new PGBuild::SCM \%PGBuild::conf;
 
 use vars qw($buildport);
 
@@ -280,11 +279,6 @@ die "cannot run as root/Administrator" unless ($using_msvc or $> > 0);
 
 my $devnull = $using_msvc ? "nul" : "/dev/null";
 
-if (!$from_source)
-{
-    $scm->check_access($using_msvc);
-}
-
 use vars qw($st_prefix);
 $st_prefix = "$animal.";
 
@@ -313,6 +307,12 @@ mkpath $buildroot unless -d $buildroot;
 die "$buildroot does not exist or is not a directory" unless -d $buildroot;
 
 chdir $buildroot || die "chdir to $buildroot: $!";
+
+my $scm = new PGBuild::SCM \%PGBuild::conf;
+if (!$from_source)
+{
+    $scm->check_access($using_msvc);
+}
 
 mkdir $branch unless -d $branch;
 

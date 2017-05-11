@@ -510,7 +510,6 @@ sub get_build_path
 
 sub check_access
 {
-
     # no login required?
     return;
 }
