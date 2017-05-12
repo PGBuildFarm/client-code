@@ -1705,8 +1705,6 @@ sub run_misc_tests
 	foreach my $test (qw(recovery subscription authentication))
 	{
 		next unless -d "$pgsql/src/test/$test/t";
-		# recovery tests failing on bowerbird, so skip on MSVC for now
-		next if $test eq 'recovery' && $using_msvc;
 		run_tap_test("$pgsql/src/test/$test", $test, undef)
 	}
 }
