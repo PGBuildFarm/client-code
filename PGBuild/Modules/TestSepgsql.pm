@@ -213,6 +213,14 @@ sub locale_end
         close($handle);
     }
 
+	if ( -e "$pgsql/contrib/sepgsql/regression.diffs" )
+	{
+		open(my $dhandle,"$pgsql/contrib/sepgsql.regression.diffs");
+		push(@log,"================== regression.diffs ===============\n");
+        push(@log,$_) while (<$dhandle>);
+        close($dhandle);
+	}
+
     my @stoplog = run_log("cd inst && bin/pg_ctl -D sepgsql stop");
     push(@log,"============ sepgsql stop log\n",@stoplog);
     $status ||= $? >>8;
