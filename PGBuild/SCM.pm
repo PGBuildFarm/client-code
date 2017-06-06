@@ -639,7 +639,7 @@ sub checkout
             my $last_gc = main::find_last("$target.gc");
             if (time - $last_gc > $self->{gchours} * 3600)
             {
-                my @gclog = run_log("git --git-dir=$target gc");
+                my @gclog = run_log("git --git-dir=$target/.git gc");
                 push(@gitlog,@gclog);
                 main::set_last("$target.gc");
             }
