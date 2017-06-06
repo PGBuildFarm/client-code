@@ -35,6 +35,7 @@ my $branch;
     scm => 'git', # or 'cvs'
     git_keep_mirror => 1,  # manage a git mirror in the build root
     git_ignore_mirror_failure => 1, # ignore failures in fetching to mirror
+    git_gc_hours => 7 * 24, # garbage collect once a week, 0/undef to disable
 
     # use symlinked git repo from non-HEAD branches,
     # like git-new-workdir does

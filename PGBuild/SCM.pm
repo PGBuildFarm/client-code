@@ -470,6 +470,11 @@ sub new
     $self->{ignore_mirror_failure} = $conf->{git_ignore_mirror_failure};
     $self->{use_workdirs} = $conf->{git_use_workdirs};
     $self->{build_root} = $conf->{build_root};
+    $self->{gchours} = 7 * 24; # default 1 week.
+    if (exists($conf->{gchours}))
+    {
+        $self->{gchours} = $conf->{git_gc_hours};
+    }
     $self->{target} = $target;
     return bless $self, $class;
 }
@@ -627,6 +632,18 @@ sub checkout
         my @pulllog = run_log("git pull");
         push(@gitlog,@colog,@pulllog);
         chdir '..';
+
+		# run gc from the parent so we find and set the status file correctly
+        if ( !-l "$target/.git/config" && $self->{gchours})
+        {
+            my $last_gc = main::find_last("$target.gc");
+            if (time - $last_gc > $self->{gchours} * 3600)
+            {
+                my @gclog = run_log("git --git-dir=$target gc");
+                push(@gitlog,@gclog);
+                main::set_last("$target.gc");
+            }
+        }
     }
     elsif ($branch ne 'HEAD'
         && $self->{use_workdirs}
@@ -805,7 +822,8 @@ sub rm_worktree
 sub parse_log
 {
     my $cmd = shift;
-	# don't use run_log here in case it has dates
+
+    # don't use run_log here in case it has dates
     my @lines = `$cmd`;
     chomp(@lines);
     my $commit;
