@@ -567,12 +567,21 @@ sub checkout
     if ($self->{mirror})
     {
 
-        my $mirror = $target eq 'pgsql' ? 'pgmirror.git' : "$target-mirror.git";
-
         if (-d $self->{mirror})
         {
             @gitlog = run_log(qq{git --git-dir="$self->{mirror}" fetch});
             $status = $self->{ignore_mirror_failure} ? 0 : $? >> 8;
+
+            my $last_gc = main::find_last("$target.mirror.gc") || 0;
+            if (  !$status
+                && $branch eq 'HEAD'
+                &&time - $last_gc > $self->{gchours} * 3600)
+            {
+                my @gclog = run_log(qq{git --git-dir="$self->{mirror}" gc});
+                push(@gitlog,"----- mirror garbage collection -----\n",@gclog);
+                main::set_last("$target.mirror.gc");
+                $status = $? >> 8;
+            }
         }
         else
         {
@@ -633,14 +642,14 @@ sub checkout
         push(@gitlog,@colog,@pulllog);
         chdir '..';
 
-		# run gc from the parent so we find and set the status file correctly
+        # run gc from the parent so we find and set the status file correctly
         if ( !-l "$target/.git/config" && $self->{gchours})
         {
-            my $last_gc = main::find_last("$target.gc");
+            my $last_gc = main::find_last("$target.gc") || 0;
             if (time - $last_gc > $self->{gchours} * 3600)
             {
                 my @gclog = run_log("git --git-dir=$target/.git gc");
-                push(@gitlog,@gclog);
+                push(@gitlog,"----- garbage collection -----\n",@gclog);
                 main::set_last("$target.gc");
             }
         }
