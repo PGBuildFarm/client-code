@@ -575,7 +575,7 @@ sub checkout
             my $last_gc = main::find_last("$target.mirror.gc") || 0;
             if (  !$status
                 && $branch eq 'HEAD'
-                &&time - $last_gc > $self->{gchours} * 3600)
+                && time - $last_gc > $self->{gchours} * 3600)
             {
                 my @gclog = run_log(qq{git --git-dir="$self->{mirror}" gc});
                 push(@gitlog,"----- mirror garbage collection -----\n",@gclog);
