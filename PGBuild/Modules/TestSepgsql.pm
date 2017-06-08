@@ -205,6 +205,15 @@ sub locale_end
     my @testlog = run_log("cd $pgsql/contrib/sepgsql && ./test_sepgsql");
     push(@log,"============= sepgsql tests ============\n",@testlog);
     $status = $? >>8;
+
+	if ( -e "$pgsql/contrib/sepgsql/regression.diffs" )
+	{
+		open(my $dhandle,"$pgsql/contrib/sepgsql/regression.diffs");
+		push(@log,"================== regression.diffs ===============\n");
+        push(@log,$_) while (<$dhandle>);
+        close($dhandle);
+	}
+
     if ($status)
     {
         push(@log,"============== postgresql.log =================\n");
@@ -212,14 +221,6 @@ sub locale_end
         push(@log,$_) while (<$handle>);
         close($handle);
     }
-
-	if ( -e "$pgsql/contrib/sepgsql/regression.diffs" )
-	{
-		open(my $dhandle,"$pgsql/contrib/sepgsql.regression.diffs");
-		push(@log,"================== regression.diffs ===============\n");
-        push(@log,$_) while (<$dhandle>);
-        close($dhandle);
-	}
 
     my @stoplog = run_log("cd inst && bin/pg_ctl -D sepgsql stop");
     push(@log,"============ sepgsql stop log\n",@stoplog);
