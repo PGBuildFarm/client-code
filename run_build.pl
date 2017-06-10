@@ -1606,16 +1606,17 @@ sub run_tap_test
 
     my @makeout;
 
+	my $pflags = "PROVE_FLAGS=--timer";
+
 	if ($using_msvc)
 	{
 		my $test = substr($dir,length("$pgsql/"));
         chdir "$pgsql/src/tools/msvc";
-        @makeout = run_log("perl vcregress.pl taptest $test");
+        @makeout = run_log("perl vcregress.pl taptest $pflags $test");
         chdir $branch_root;
 	}
 	else
 	{
-		my $pflags = "PROVE_FLAGS=--timer";
 		my $instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
 
 		@makeout =
