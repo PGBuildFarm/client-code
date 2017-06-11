@@ -10,8 +10,6 @@ See accompanying License file for license details
 
 =cut
 
-# utility routines for the buildfarm
-
 
 # NB: use of this module involves substantial persistent use of disk space.
 # Don't even think about it unless you have a couple og GB extra (at least)

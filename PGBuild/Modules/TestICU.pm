@@ -10,8 +10,6 @@ See accompanying License file for license details
 
 =cut
 
-# utility routines for the buildfarm
-
 
 package PGBuild::Modules::TestICU;
 

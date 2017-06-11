@@ -10,8 +10,6 @@ See accompanying License file for license details
 
 =cut
 
-# utility routines for the buildfarm
-
 use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils;
