@@ -342,6 +342,12 @@ if ($branch eq 'HEAD')
 {
 
     #	push(@{$conf{config_opts}},"--enable-depend");
+
+	#   Note that config_opts is a hashref for MSVC, rather than
+	#   an arrayref like elsewhere. That means the right way to set
+	#   semething there is like this:
+	#
+	#   $conf{config_opts}->{openssl} = 'c:\path\to\openssl\installation';
 }
 elsif ($branch =~ /^REL7_/)
 {
