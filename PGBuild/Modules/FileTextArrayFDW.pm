@@ -182,10 +182,11 @@ sub installcheck
 {
     my $self = shift;
     my $locale = shift;
+	my $make = $self->{bfconf}->{make};
 
     print main::time_str(), "install-checking $MODULE\n" if	$verbose;
 
-    my $cmd = "PATH=../inst:$ENV{PATH} make USE_PGXS=1 installcheck";
+    my $cmd = "$make USE_PGXS=1 USE_MODULE_DB=1 installcheck";
 
     my @log = run_log("cd $self->{where} && $cmd");
 
