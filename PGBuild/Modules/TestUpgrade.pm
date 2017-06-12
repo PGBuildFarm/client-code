@@ -10,7 +10,6 @@ See accompanying License file for license details
 
 =cut
 
-
 package PGBuild::Modules::TestUpgrade;
 
 use PGBuild::Options;
@@ -92,20 +91,20 @@ sub check
     else
     {
         my $cmd;
-		my $instflags;
-	  {
-		  no warnings qw(once);
-		  $instflags = $main::temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
-	  }
+        my $instflags;
+        {
+            no warnings qw(once);
+            $instflags = $main::temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
+        }
         if ($self->{pgbranch} eq 'HEAD' || $self->{pgbranch} ge 'REL9_5')
         {
             $cmd =
-			  "cd $self->{pgsql}/src/bin/pg_upgrade && $make $instflags check";
+              "cd $self->{pgsql}/src/bin/pg_upgrade && $make $instflags check";
         }
         else
         {
             $cmd =
-			  "cd $self->{pgsql}/contrib/pg_upgrade && $make $instflags check";
+              "cd $self->{pgsql}/contrib/pg_upgrade && $make $instflags check";
         }
         @checklog = run_log($cmd);
     }

@@ -32,31 +32,31 @@ use vars qw($VERSION); $VERSION = 'REL_4.19';
 
 sub run_log
 {
-	no warnings qw(once);
+    no warnings qw(once);
 
     my $command = shift;
-	my $filedir = "$main::branch_root/$main::st_prefix$main::logdirname";
-	mkpath($filedir);
-	my $file= "$filedir/lastcomand.log";
+    my $filedir = "$main::branch_root/$main::st_prefix$main::logdirname";
+    mkpath($filedir);
+    my $file= "$filedir/lastcomand.log";
     unlink $file;
 
-	if ($Config{osname} eq 'MSWin32')
-	{
-		# can't use more robust Unix shell syntax with DOS shell
-		system("$command >$file 2>&1");
-	}
-	elsif ($ENV{BF_LOG_TIME} && -x "/usr/bin/ts")
-	{
-		system("{ $command;} 2>&1 | /usr/bin/ts > $file");
-	}
-	else
-	{
-		system("{ $command;} > $file 2>&1");
-	}
+    if ($Config{osname} eq 'MSWin32')
+    {
+        # can't use more robust Unix shell syntax with DOS shell
+        system("$command >$file 2>&1");
+    }
+    elsif ($ENV{BF_LOG_TIME} && -x "/usr/bin/ts")
+    {
+        system("{ $command;} 2>&1 | /usr/bin/ts > $file");
+    }
+    else
+    {
+        system("{ $command;} > $file 2>&1");
+    }
     my @loglines;
     if (-e $file)
     {
-		# shouldn't fail, but I've seen it, so die if it does
+        # shouldn't fail, but I've seen it, so die if it does
         open(my $handle,$file) || die "opening $file for $command: $!";
         @loglines = <$handle>;
         close $handle;

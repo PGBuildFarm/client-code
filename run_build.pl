@@ -1169,16 +1169,16 @@ sub make_contrib_install
       if $verbose;
 
     # part of install under msvc
-	my $tmp_inst = abs_path($pgsql) . "/tmp_install";
-	my $cmd =
-	  "cd $pgsql/contrib && $make install && $make DESTDIR=$tmp_inst install";
-	my @makeout = run_log($cmd);
+    my $tmp_inst = abs_path($pgsql) . "/tmp_install";
+    my $cmd =
+      "cd $pgsql/contrib && $make install && $make DESTDIR=$tmp_inst install";
+    my @makeout = run_log($cmd);
     my $status = $? >>8;
     writelog('install-contrib',\@makeout);
     print "======== make contrib install log ===========\n",@makeout
       if ($verbose > 1);
     send_result('ContribInstall',$status,\@makeout) if $status;
-	$temp_installs++;
+    $temp_installs++;
     $steps_completed .= " ContribInstall";
 }
 
@@ -1190,16 +1190,16 @@ sub make_testmodules_install
     print time_str(),"running make testmodules install ...\n"
       if $verbose;
 
-	my $tmp_inst = abs_path($pgsql) . "/tmp_install";
-	my $cmd = "cd $pgsql/src/test/modules  && " .
-	  "$make install && $make DESTDIR=$tmp_inst install";
-	my @makeout = run_log($cmd);
+    my $tmp_inst = abs_path($pgsql) . "/tmp_install";
+    my $cmd = "cd $pgsql/src/test/modules  && "
+      ."$make install && $make DESTDIR=$tmp_inst install";
+    my @makeout = run_log($cmd);
     my $status = $? >>8;
     writelog('install-testmodules',\@makeout);
     print "======== make testmodules install log ===========\n",@makeout
       if ($verbose > 1);
     send_result('TestModulesInstall',$status,\@makeout) if $status;
-	$temp_installs++;
+    $temp_installs++;
     $steps_completed .= " TestModulesInstall";
 }
 
@@ -1606,22 +1606,22 @@ sub run_tap_test
 
     my @makeout;
 
-	my $pflags = "PROVE_FLAGS=--timer";
+    my $pflags = "PROVE_FLAGS=--timer";
 
-	if ($using_msvc)
-	{
-		my $test = substr($dir,length("$pgsql/"));
+    if ($using_msvc)
+    {
+        my $test = substr($dir,length("$pgsql/"));
         chdir "$pgsql/src/tools/msvc";
         @makeout = run_log("perl vcregress.pl taptest $pflags $test");
         chdir $branch_root;
-	}
-	else
-	{
-		my $instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
+    }
+    else
+    {
+        my $instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
 
-		@makeout =
-		  run_log("cd $dir && $make NO_LOCALE=1 $pflags $instflags $target");
-	}
+        @makeout =
+          run_log("cd $dir && $make NO_LOCALE=1 $pflags $instflags $target");
+    }
 
     my $status = $? >>8;
 
@@ -1675,11 +1675,11 @@ sub make_bin_installcheck
 
     my @makeout;
 
-	foreach my $bin (glob("$pgsql/src/bin/*"))
-	{
-		next unless -d "$bin/t";
-		run_tap_test($bin, basename($bin), undef);
-	}
+    foreach my $bin (glob("$pgsql/src/bin/*"))
+    {
+        next unless -d "$bin/t";
+        run_tap_test($bin, basename($bin), undef);
+    }
 }
 
 sub run_misc_tests
@@ -1703,11 +1703,13 @@ sub run_misc_tests
 
     my @makeout;
 
-	foreach my $test (qw(recovery subscription authentication))
-	{
-		next unless -d "$pgsql/src/test/$test/t";
-		run_tap_test("$pgsql/src/test/$test", $test, undef)
-	}
+    foreach my $test (qw(recovery subscription authentication))
+    {
+        next unless -d "$pgsql/src/test/$test/t";
+        run_tap_test(
+            "$pgsql/src/test/$test", $test, undef
+          );
+    }
 }
 
 sub make_check
@@ -1766,12 +1768,12 @@ sub make_check
       if ($verbose > 1);
 
     send_result('Check',$status,\@makeout) if $status;
-	$temp_installs++;
-	if ($using_msvc)
-	{
-		# MSVC installs everything, so we now have a complete temp install
-		$ENV{NO_TEMP_INSTALL} = "yes";
-	}
+    $temp_installs++;
+    if ($using_msvc)
+    {
+        # MSVC installs everything, so we now have a complete temp install
+        $ENV{NO_TEMP_INSTALL} = "yes";
+    }
     $steps_completed .= " Check";
 }
 
@@ -1788,9 +1790,9 @@ sub make_ecpg_check
     }
     else
     {
-		my $instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
-		@makeout =
-		  run_log("cd  $ecpg_dir && $make NO_LOCALE=1 $instflags check");
+        my $instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
+        @makeout =
+          run_log("cd  $ecpg_dir && $make NO_LOCALE=1 $instflags check");
     }
     my $status = $? >>8;
 
@@ -2288,10 +2290,10 @@ sub get_config_summary
     my $handle;
     my $config = "";
 
-	# if configure bugs out there might not be a log file at all
-	# in that case just return the rest of the summary.
+    # if configure bugs out there might not be a log file at all
+    # in that case just return the rest of the summary.
 
-    unless ($using_msvc || ! -e "$pgsql/config.log" )
+    unless ($using_msvc || !-e "$pgsql/config.log" )
     {
         open($handle,"$pgsql/config.log") || return undef;
         my $start = undef;

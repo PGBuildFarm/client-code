@@ -10,7 +10,6 @@ See accompanying License file for license details
 
 =cut
 
-
 package PGBuild::Modules::FileTextArrayFDW;
 
 use PGBuild::Options;
@@ -182,7 +181,7 @@ sub installcheck
 {
     my $self = shift;
     my $locale = shift;
-	my $make = $self->{bfconf}->{make};
+    my $make = $self->{bfconf}->{make};
 
     print main::time_str(), "install-checking $MODULE\n" if	$verbose;
 

@@ -10,7 +10,6 @@ See accompanying License file for license details
 
 =cut
 
-
 package PGBuild::Modules::TestICU;
 
 use PGBuild::Options;

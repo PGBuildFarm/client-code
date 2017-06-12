@@ -1,7 +1,6 @@
 
 package PGBuild::Modules::TestDecoding;
 
-
 =comment
 
 Copyright (c) 2003-2017, Andrew Dunstan
@@ -70,11 +69,12 @@ sub check
     }
     else
     {
-		my $instflags = $main::temp_installs >= 3
-		  ? "NO_TEMP_INSTALL=$main::temp_installs"
-		  : "";
-		my $cmd =
-		  "cd $self->{pgsql}/contrib/test_decoding && $make $instflags check";
+        my $instflags =
+          $main::temp_installs >= 3
+          ? "NO_TEMP_INSTALL=$main::temp_installs"
+          : "";
+        my $cmd =
+          "cd $self->{pgsql}/contrib/test_decoding && $make $instflags check";
         @checklog = run_log($cmd);
     }
 

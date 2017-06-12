@@ -10,7 +10,6 @@ See accompanying License file for license details
 
 =cut
 
-
 package PGBuild::Modules::TestSepgsql;
 
 use PGBuild::Options;
@@ -204,13 +203,13 @@ sub locale_end
     push(@log,"============= sepgsql tests ============\n",@testlog);
     $status = $? >>8;
 
-	if ( -e "$pgsql/contrib/sepgsql/regression.diffs" )
-	{
-		open(my $dhandle,"$pgsql/contrib/sepgsql/regression.diffs");
-		push(@log,"================== regression.diffs ===============\n");
+    if ( -e "$pgsql/contrib/sepgsql/regression.diffs" )
+    {
+        open(my $dhandle,"$pgsql/contrib/sepgsql/regression.diffs");
+        push(@log,"================== regression.diffs ===============\n");
         push(@log,$_) while (<$dhandle>);
         close($dhandle);
-	}
+    }
 
     if ($status)
     {
