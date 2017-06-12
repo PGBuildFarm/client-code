@@ -10,9 +10,8 @@ See accompanying License file for license details
 
 =cut
 
-
 # NB: use of this module involves substantial persistent use of disk space.
-# Don't even think about it unless you have a couple og GB extra (at least)
+# Don't even think about it unless you have a several GB of extra space
 # you can devote to this module's storage.
 
 # For now, only tests C locale upgrades.
@@ -21,6 +20,7 @@ package PGBuild::Modules::TestUpgradeXversion;
 
 use PGBuild::Options;
 use PGBuild::SCM;
+use PGBuild::Utils;
 
 use Data::Dumper;
 use File::Copy;
@@ -33,16 +33,9 @@ use vars qw($VERSION); $VERSION = 'REL_4.19';
 
 my $hooks = {
 
-    #    'checkout' => \&checkout,
-    #    'setup-target' => \&setup_target,
     'need-run' => \&need_run,
-
-    #    'configure' => \&configure,
-    #    'build' => \&build,
     'locale-end' => \&installcheck,
 
-    #    'check' => \&check,
-    #    'cleanup' => \&cleanup,
 };
 
 sub setup
@@ -55,6 +48,7 @@ sub setup
     my $pgsql = shift; # postgres build dir
 
     return if $from_source;
+    return if $conf->{using_msvc}; # disable on MSVC for now
 
     my $upgrade_install_root =
       $conf->{upgrade_install_root} || "$buildroot/upgrade";
@@ -139,31 +133,18 @@ sub setinstenv
 
 }
 
-sub installcheck
+sub save_for_testing
 {
-
-    # this is called after base installcheck has run, which in turn
-    # is after both base install and base contrib install have run,
-    # so we have everything we should need.
-
     my $self = shift;
-    my $locale = shift;
-    return unless $locale eq 'C';
-
-    return unless main::step_wanted('pg_upgrade-xversion-check');
-
-    # localize any environment changes so they don't leak to calling code.
-
-    my $save_env = eval Dumper(\%ENV);
-
-    local %ENV = %ENV;
+    my $save_env = shift;
+    my $this_branch = shift;
+    my $upgrade_install_root = shift;
 
     print main::time_str(), "saving files for cross-version upgrade check\n"
       if	$verbose;
 
-    my $upgrade_install_root = $self->{upgrade_install_root};
-    my $install_loc = "$self->{buildroot}/$self->{pgbranch}/inst";
-    my $upgrade_loc = "$upgrade_install_root/$self->{pgbranch}";
+    my $install_loc = "$self->{buildroot}/$this_branch/inst";
+    my $upgrade_loc = "$upgrade_install_root/$this_branch";
     my $installdir = "$upgrade_loc/inst";
 
     mkdir  $upgrade_install_root unless -d  $upgrade_install_root;
@@ -172,8 +153,18 @@ sub installcheck
 
     mkdir  $upgrade_loc;
 
-    system(
-        qq{cp -r "$install_loc" "$installdir" >"$upgrade_loc/save.log" 2>&1});
+    my $cp;
+    if ($self->{bfconf}->{using_msvc})
+    {
+        $cp = "xcopy /I /Q /E";
+    }
+    else
+    {
+        $cp = "cp -r";
+    }
+    system(qq{$cp "$install_loc" "$installdir" >"$upgrade_loc/save.log" 2>&1});
+
+    return undef if $?;
 
     # at some stage we stopped installing regress.so
     copy "$install_loc/../pgsql.build/src/test/regress/regress.so",
@@ -188,8 +179,10 @@ sub installcheck
 
     # start the server
 
-    system("$installdir/bin/pg_ctl -D $installdir/data-C -o '-F' "
-          ."-l '$upgrade_loc/db.log' -w start >'$upgrade_loc/ctl.log' 2>&1");
+    system(qq{$installdir/bin/pg_ctl -D $installdir/data-C -o -F }
+          .qq{-l "$upgrade_loc/db.log" -w start >"$upgrade_loc/ctl.log" 2>&1});
+
+    return undef if $?;
 
     # fix the regression database so its functions point to $libdir rather than
     # the source directory, which won't persist past this build.
@@ -219,53 +212,265 @@ sub installcheck
 
     $sql =~ s/\n//g;
 
-    my $opsql = "drop operator if exists public.=> (bigint, NONE)";
-    system("$installdir/bin/psql -A -X -t -c '$opsql' regression "
-          .">> '$upgrade_loc/fix.log' 2>&1");
-    if ($self->{pgbranch} eq 'REL9_1_STABLE')
-    {
-        $opsql = "alter extension hstore drop operator => (text, text)";
-        system("$installdir/bin/psql -A -X -t -c '$opsql' "
-              ."contrib_regression_hstore >> '$upgrade_loc/fix.log' 2>&1");
-        $opsql = 'drop  operator if exists "public".=> (text, text)';
-        system("$installdir/bin/psql -A -X -t -c '$opsql' "
-              ."contrib_regression_hstore >> '$upgrade_loc/fix.log' 2>&1");
-    }
     system("$installdir/bin/psql -A -X -t -c '$sql' regression "
           .">> '$upgrade_loc/fix.log' 2>&1");
+
+    return undef if $?;
+
     system("$installdir/bin/psql -A -X -t -c '$sql' contrib_regression "
           .">> '$upgrade_loc/fix.log' 2>&1");
-    if ($self->{pgbranch} ge 'REL9_5' || $self->{pgbranch} eq 'HEAD')
+
+    return undef if $?;
+
+    if ($this_branch ge 'REL9_5' || $self->{pgbranch} eq 'HEAD')
     {
         system(
             "$installdir/bin/psql -A -X -t -c '$sql' contrib_regression_dblink "
               .">> '$upgrade_loc/fix.log' 2>&1");
+        return undef if $?;
+    }
+
+    my $opsql;
+    if ($this_branch ne 'HEAD' && $this_branch le 'REL9_4_STABLE')
+    {
+        $opsql = 'drop operator if exists public.=> (bigint, NONE)';
+
+        # syntax is illegal in 9.5 and later, and it shouldn't
+        # be possible for it to exist there anyway.
+        # quoting the operator can also fail,  so it's left unquoted.
+        system("$installdir/bin/psql -A -X -t -c '$opsql' regression "
+              .">> '$upgrade_loc/fix.log' 2>&1");
+        return undef if $?;
     }
 
     # disable modules known to cause pg_upgrade to fail
 
-    foreach my $bad_module (
-        "test_ddl_parse",
-
-        #							"hstore_plpython2","ltree_plpython2",
-        #							"hstore_plpython3","ltree_plpython3"
-      )
+    foreach my $bad_module ("test_ddl_parse")
     {
-        system( "$installdir/bin/psql -A "
+        system( "$installdir/bin/psql -X -e "
               . "-c 'drop database if exists contrib_regression_$bad_module' postgres"
               . ">> '$upgrade_loc/fix.log' 2>&1");
+        return undef if $?;
     }
 
     system("pg_ctl -D $installdir/data-C -w stop "
           .">> '$upgrade_loc/ctl.log' 2>&1");
+    return undef if $?;
+
+    return 1;
+
+}
+
+sub test_upgrade
+{
+    my $self = shift;
+    my $save_env = shift;
+    my $this_branch = shift;
+    my $upgrade_install_root = shift;
+    my $dport = shift;
+    my $install_loc = shift;
+    my $other_branch = shift;
+
+    my $upgrade_loc = "$upgrade_install_root/$this_branch";
+    my $installdir = "$upgrade_loc/inst";
+    my $oversion = basename $other_branch;
+
+    print main::time_str(),
+      "checking upgrade from $oversion to $this_branch ...\n"
+      if	$verbose;
+
+    rmtree "$other_branch/inst/upgrade_test";
+    my $testcmd = qq{
+		  cp -r "$other_branch/inst/data-C"
+				"$other_branch/inst/upgrade_test"
+		  > '$upgrade_loc/$oversion-copy.log' 2>&1
+	};
+    $testcmd =~ s/\n//g;
+    system $testcmd;
+
+    return undef if $?;
+
+    setinstenv($self, "$other_branch/inst", $save_env);
+
+    my $sconfig = `$other_branch/inst/bin/pg_config --configure`;
+    my $sport = $sconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
+
+    system("$other_branch/inst/bin/pg_ctl -D "
+          ."$other_branch/inst/upgrade_test -o '-F' -l "
+          ."$other_branch/inst/dump-$this_branch.log -w start "
+          .">> '$upgrade_loc/$oversion-ctl.log' 2>&1");
+
+    return undef if $?;
+
+    if ($this_branch gt 'REL9_6_STABLE' || $this_branch eq 'HEAD')
+    {
+        system("$other_branch/inst/bin/psql -X -e "
+              ." -c 'drop database if exists contrib_regression_tsearch2' "
+              ."postgres "
+              .">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+        return undef if $?;
+
+        system("$other_branch/inst/bin/psql -X -e "
+              ." -c 'drop function if exists oldstyle_length(integer, text)' "
+              ."regression "
+              .">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+        return undef if $?;
+    }
+
+    # use the NEW pg_dumpall so we're comparing apples with apples.
+    setinstenv($self, "$installdir", $save_env);
+    system("$installdir/bin/pg_dumpall -p $sport -f "
+          ."$upgrade_loc/origin-$oversion.sql "
+          .">'$upgrade_loc/$oversion-dump1.log' 2>&1");
+    return undef if $?;
+    setinstenv($self, "$other_branch/inst", $save_env);
+
+    system("$other_branch/inst/bin/pg_ctl -D "
+          ."$other_branch/inst/upgrade_test -w stop "
+          .">> '$upgrade_loc/$oversion-ctl.log' 2>&1");
+    return undef if $?;
+    setinstenv($self,$installdir, $save_env);
+
+    system("initdb -U buildfarm --locale=C "
+          ."$installdir/$oversion-upgrade "
+          ."> '$upgrade_loc/$oversion-initdb.log' 2>&1");
+    return undef if $?;
+    if ($oversion ge 'REL9_5_STABLE' || $oversion eq 'HEAD')
+    {
+        my $handle;
+        open($handle,">>$installdir/$oversion-upgrade/postgresql.conf");
+        print $handle "shared_preload_libraries = 'dummy_seclabel'\n";
+        close $handle;
+    }
+
+    system("cd $installdir && pg_upgrade "
+          ."--old-port=$sport "
+          ."--new-port=$dport "
+          ."--old-datadir=$other_branch/inst/upgrade_test "
+          ."--new-datadir=$installdir/$oversion-upgrade "
+          ."--old-bindir=$other_branch/inst/bin "
+          ."--new-bindir=$installdir/bin "
+          .">> '$upgrade_loc/$oversion-upgrade.log' 2>&1");
+    return undef if $?;
+
+    system("pg_ctl -D $installdir/$oversion-upgrade -l "
+          ."$installdir/upgrade_log -w start "
+          .">> '$upgrade_loc/$oversion-ctl.log' 2>&1");
+    return undef if $?;
+
+    if (-e "$installdir/analyze_new_cluster.sh")
+    {
+        system("cd $installdir && sh ./analyze_new_cluster.sh "
+              ."> '$upgrade_loc/$oversion-analyse.log' 2>&1 ");
+        return undef if $?;
+    }
+
+    if (-e "$installdir/reindex_hash.sh")
+    {
+        system( qq{psql -X -e -f "$installdir/reindex_hash.sql" postgres >}
+              . "> '$upgrade_loc/$oversion-reindex_hash.log' 2>&1 ");
+        return undef if $?;
+    }
+
+    system("pg_dumpall -f "
+          ."$upgrade_loc/converted-$oversion-to-$this_branch.sql");
+    return undef if $?;
+
+    system("pg_ctl -D $installdir/$oversion-upgrade -w stop "
+          .">> '$upgrade_loc/$oversion-ctl.log'");
+    return undef if $?;
+
+    if (-e "$installdir/delete_old_cluster.sh")
+    {
+        system("cd $installdir && sh ./delete_old_cluster.sh");
+        return undef if $?;
+    }
+
+    foreach my $dumplog (glob("$installdir/pg_upgrade*"))
+    {
+        my $bl = basename $dumplog;
+        rename $dumplog,"$installdir/$oversion-$bl";
+    }
+
+    system("diff -I '^-- ' -u $upgrade_loc/origin-$oversion.sql "
+          ."$upgrade_loc/converted-$oversion-to-$this_branch.sql "
+          ."> $upgrade_loc/dumpdiff-$oversion 2>&1");
+
+    # diff exits with status 1 if files differ
+    return undef if $? >> 8 > 1;
+
+    my $difflines = `wc -l < $upgrade_loc/dumpdiff-$oversion`;
+    chomp($difflines);
+
+    # If the versions match we expect 0 diffs;
+    # if not we heuristically allow up to 2000 lines
+    # of diff
+
+    if (  ($oversion ne $this_branch && $difflines < 2000)
+        ||($oversion eq $this_branch) && $difflines == 0)
+    {
+        return 1;
+    }
+    else
+    {
+        return undef;
+    }
+
+}
+
+sub installcheck
+{
+
+    # this is called after base installcheck has run, which in turn
+    # is after both base install and base contrib install have run,
+    # so we have everything we should need.
+
+    my $self = shift;
+    my $locale = shift;
+    return unless $locale eq 'C';
+
+    return unless main::step_wanted('pg_upgrade-xversion-check');
+
+    # localize any environment changes so they don't leak to calling code.
+
+    my $save_env = eval Dumper(\%ENV);
+
+    local %ENV = %ENV;
+
+    my $this_branch = $self->{pgbranch};
+
+    my $upgrade_install_root = $self->{upgrade_install_root};
+    my $install_loc = "$self->{buildroot}/$this_branch/inst";
+    my $upgrade_loc = "$upgrade_install_root/$this_branch";
+    my $installdir = "$upgrade_loc/inst";
+
+    my $status =
+      save_for_testing($self, $save_env, $this_branch,$upgrade_install_root)
+      ? 0
+      : 1;
+
+    my @saveout;
+
+    foreach my $log (qw( fix save db ctl ))
+    {
+        next unless -e "$upgrade_loc/$log.log";
+        open(my $lh,"$upgrade_loc/$log.log");
+        my@lines=<$lh>;
+        close($lh);
+        push(@saveout,"===================== $log.log ==============\n",@lines);
+    }
+
+    main::writelog('xversion-upgrade-save',\@saveout);
+    print "======== xversion upgrade save log ===========\n",@saveout
+      if ($verbose > 1);
+    main::send_result('XversionUpgradeSave',$status,\@saveout) if $status;
+    $main::steps_completed .= " XVersionUpgradeSave";
 
     # ok, we now have the persistent copy of all branches we can use
     # to test upgrading from
 
     my $dconfig = `$installdir/bin/pg_config --configure`;
     my $dport = $dconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
-
-    # %ENV = %$save_env;
 
     foreach my $other_branch (
         sort {$a =~ "HEAD" ? 999 : $b =~ "HEAD" ? -999 : $a cmp $b  }
@@ -276,184 +481,36 @@ sub installcheck
         next unless -d $other_branch;
 
         next
-          unless (($self->{pgbranch} eq 'HEAD')
-            || ($oversion ne 'HEAD' && $oversion le $self->{pgbranch}));
+          unless (($this_branch eq 'HEAD')
+            || ($oversion ne 'HEAD' && $oversion le $this_branch));
 
-        print main::time_str(),
-          "checking upgrade from $oversion to $self->{pgbranch} ...\n"
-          if	$verbose;
-
-        rmtree "$other_branch/inst/upgrade_test";
-        my $testcmd = qq{
-              cp -r "$other_branch/inst/data-C"
-                    "$other_branch/inst/upgrade_test"
-              > '$upgrade_loc/$oversion-copy.log' 2>&1
-        };
-        $testcmd =~ s/\n//g;
-        system $testcmd;
-
-        setinstenv($self, "$other_branch/inst", $save_env);
-
-        my $sconfig = `$other_branch/inst/bin/pg_config --configure`;
-        my $sport = $sconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
-
-        system("$other_branch/inst/bin/pg_ctl -D "
-              ."$other_branch/inst/upgrade_test -o '-F' -l "
-              ."$other_branch/inst/dump-$self->{pgbranch}.log -w start "
-              .">> '$upgrade_loc/ctl.log' 2>&1");
-
-        # use the NEW pg_dumpall so we're comparing apples with apples.
-        setinstenv($self, "$installdir", $save_env);
-        system("$installdir/bin/pg_dumpall -p $sport -f "
-              ."$upgrade_loc/origin-$oversion.sql "
-              .">'$upgrade_loc/$oversion-dump1.log' 2>&1");
-        setinstenv($self, "$other_branch/inst", $save_env);
-
-        system("$other_branch/inst/bin/pg_ctl -D "
-              ."$other_branch/inst/upgrade_test -w stop "
-              .">> '$upgrade_loc/ctl.log' 2>&1");
-
-        # %ENV = %$save_env;
-
-        setinstenv($self,$installdir, $save_env);
-
-        system("initdb -U buildfarm --locale=C "
-              ."$installdir/$oversion-upgrade "
-              ."> '$upgrade_loc/initdb.log' 2>&1");
-
-        if ($oversion ge 'REL9_5_STABLE' || $oversion eq 'HEAD')
-        {
-            my $handle;
-            open($handle,">>$installdir/$oversion-upgrade/postgresql.conf");
-            print $handle "shared_preload_libraries = 'dummy_seclabel'\n";
-            close $handle;
-        }
-
-        system("cd $installdir && pg_upgrade "
-              ."--old-port=$sport "
-              ."--new-port=$dport "
-              ."--old-datadir=$other_branch/inst/upgrade_test "
-              ."--new-datadir=$installdir/$oversion-upgrade "
-              ."--old-bindir=$other_branch/inst/bin "
-              ."--new-bindir=$installdir/bin "
-              .">> '$upgrade_loc/upgrade.log' 2>&1");
-
-        system("pg_ctl -D $installdir/$oversion-upgrade -l "
-              ."$installdir/upgrade_log -w start "
-              .">> '$upgrade_loc/ctl.log' 2>&1");
-
-        system("cd $installdir && sh ./analyze_new_cluster.sh "
-              ."> '$upgrade_loc/$oversion-analyse.log' 2>&1 ")
-          if -e "$installdir/analyze_new_cluster.sh";
-
-        system("pg_dumpall -f "
-              ."$upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql");
-
-        system("pg_ctl -D $installdir/$oversion-upgrade -w stop "
-              .">> '$upgrade_loc/ctl.log'");
-
-        system("cd $installdir && sh ./delete_old_cluster.sh")
-          if -e "$installdir/delete_old_cluster.sh";
-
-        foreach my $dumplog (glob("$installdir/pg_upgrade*"))
-        {
-            my $bl = basename $dumplog;
-            rename $dumplog,"$installdir/$oversion-$bl";
-        }
-
-=comment
-
-       [andrew@emma upgrade]$ find . -name dumpdiff* -print | xargs wc -l
-   11 ./HEAD/inst/dumpdiff-REL9_2_STABLE
-   11 ./HEAD/inst/dumpdiff-REL9_1_STABLE
-  125 ./HEAD/inst/dumpdiff-REL9_0_STABLE
-    0 ./REL9_2_STABLE/inst/dumpdiff-REL9_1_STABLE
-  116 ./REL9_2_STABLE/inst/dumpdiff-REL9_0_STABLE
-  116 ./REL9_1_STABLE/inst/dumpdiff-REL9_0_STABLE
-                REL9_4_STABLE => 303,
-
-=cut
-
-        #target    source
-        my $expected_difflines = {
-            HEAD => {
-                REL9_1_STABLE => 1175,
-                REL9_2_STABLE => 1346,
-                REL9_3_STABLE => 610,
-                REL9_4_STABLE => 644,
-                REL9_5_STABLE => 780,
-                REL9_6_STABLE => 0,
-            },
-            REL9_6_STABLE => {
-                REL9_1_STABLE => 1175,
-                REL9_2_STABLE => 1346,
-                REL9_3_STABLE => 610,
-                REL9_4_STABLE => 644,
-                REL9_5_STABLE => 780,
-            },
-            REL9_5_STABLE => {
-                REL9_1_STABLE => 672,
-                REL9_2_STABLE => 770,
-                REL9_3_STABLE => 51,
-                REL9_4_STABLE => 51,
-            },
-            REL9_4_STABLE => {
-                REL9_1_STABLE => 643,
-                REL9_2_STABLE => 741,
-                REL9_3_STABLE => 0,
-            },
-            REL9_3_STABLE => {
-                REL9_1_STABLE => 643,
-                REL9_2_STABLE => 741,
-            },
-            REL9_2_STABLE => {
-                REL9_1_STABLE => 0,
-            },
-        };
-
-        system("diff -I '^-- ' -u $upgrade_loc/origin-$oversion.sql "
-              ."$upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql "
-              ."> $upgrade_loc/dumpdiff-$oversion 2>&1");
-        my $difflines = `wc -l < $upgrade_loc/dumpdiff-$oversion`;
-        chomp($difflines);
-
-=junk
-		
-        my $expected = $expected_difflines->{$self->{pgbranch}}->{$oversion} || 0;
-
-
-        if ($difflines == $expected)
-        {
-            print "***SUCCESS!\n";
-        }
-        else
-        {
-            print
-              "dumps $upgrade_loc/origin-$oversion.sql ",
-              "$upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql ",
-              "- expected $expected got $difflines of diff\n";
-        }
-
-=cut
-
-        # the above is all really a crock. If the versions match we should
-        # expect 0 diffs if not we heuristically allow up to 2000 lines
-        # of diff
-
-        if (  ($oversion ne $self->{pgbranch} && $difflines < 2000)
-            ||($oversion eq $self->{pgbranch}) && $difflines == 0)
-        {
-            print "***SUCCESS!\n";
-        }
-        else
-        {
-            print "FAILURE: $upgrade_loc/origin-$oversion.sql to ",
-              "$upgrade_loc/converted-$oversion-to-$self->{pgbranch}.sql ",
-              " contains too may lines of diff: $difflines\n";
-        }
+        $status =
+          test_upgrade($self, $save_env, $this_branch, $upgrade_install_root,
+            $dport, $install_loc, $other_branch) ? 0 : 1;
 
         rmtree("$installdir/$oversion-upgrade");
 
+        my @testout;
+
+        foreach my $log (glob("$upgrade_loc/*$oversion*"))
+        {
+            next unless -e "$log";
+            my $bn = basename $log;
+            next if $bn =~ /^(origin|converted)/;
+            open(my $lh,"$log");
+            my@lines=<$lh>;
+            close($lh);
+            push(@testout,"===================== $bn ==============\n",@lines);
+        }
+
+        main::writelog("xversion-upgrade-$oversion-$this_branch",\@testout);
+        print "====== xversion upgrade $oversion to $this_branch =======\n",
+          @testout
+          if ($verbose > 1);
+        main::send_result("XversionUpgrade-$oversion-$this_branch",
+            $status,\@testout)
+          if $status;
+        $main::steps_completed .= " XVersionUpgrade-$oversion-$this_branch";
     }
 }
 
