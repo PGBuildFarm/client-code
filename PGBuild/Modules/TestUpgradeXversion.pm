@@ -457,7 +457,8 @@ sub installcheck
         open(my $lh,"$upgrade_loc/$log.log");
         my@lines=<$lh>;
         close($lh);
-        push(@saveout,"===================== $log.log ==============\n",@lines);
+        push(@saveout,"===================== $log.log ==============\n",@lines)
+		  if @lines;
     }
 
     main::writelog('xversion-upgrade-save',\@saveout);
@@ -500,7 +501,8 @@ sub installcheck
             open(my $lh,"$log");
             my@lines=<$lh>;
             close($lh);
-            push(@testout,"===================== $bn ==============\n",@lines);
+            push(@testout,"===================== $bn ==============\n",@lines)
+				if (@lines || $bn =~/dumpdiff/);
         }
 
         main::writelog("xversion-upgrade-$oversion-$this_branch",\@testout);
