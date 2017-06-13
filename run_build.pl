@@ -2364,7 +2364,7 @@ sub get_script_config_dump
         %PGBuild::conf,  # shallow copy
         script_version => $VERSION,
         invocation_args => \@invocation_args,
-        steps_completed => $steps_completed,
+        steps_completed => [ split(/\s+/,$steps_completed) ],
         orig_env => $orig_env,
         bf_perl_version => "$Config{version}",
     };
