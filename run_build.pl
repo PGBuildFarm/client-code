@@ -1648,7 +1648,6 @@ sub run_tap_test
 
     my $captarget = $is_install_check ? "InstallCheck" : "Check";
     my $captest = $testname;
-    $captest =~ s/(.)/\U$1/;
 
     send_result("$captest$captarget",$status,\@makeout) if $status;
     $steps_completed .= " $captest$captarget";
