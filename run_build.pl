@@ -49,7 +49,7 @@ use Data::Dumper;
 use Cwd qw(abs_path getcwd);
 use File::Find ();
 
-BEGIN { use lib dirname(__FILE__); }
+BEGIN { use lib File::Spec->rel2abs(dirname(__FILE__)); }
 
 # save a copy of the original enviroment for reporting
 # save it early to reduce the risk of prior mangling

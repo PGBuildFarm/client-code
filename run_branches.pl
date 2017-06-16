@@ -13,9 +13,10 @@ use vars qw($VERSION); $VERSION = 'REL_5';
 use strict;
 use warnings;
 use Fcntl qw(:flock :seek);
+use File::Spec;
 use File::Basename;
 
-BEGIN { use lib dirname(__FILE__); }
+BEGIN { use lib File::Spec->rel2abs(dirname(__FILE__)); }
 
 use PGBuild::Options;
 
