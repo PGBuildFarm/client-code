@@ -22,7 +22,7 @@ See accompanying License file for license details
 
  DOCUMENTATION:
 
-  See http://wiki.postgresql.org/wiki/PostgreSQL_Buildfarm_Howto
+  See https://wiki.postgresql.org/wiki/PostgreSQL_Buildfarm_Howto
 
  REPOSITORY:
 

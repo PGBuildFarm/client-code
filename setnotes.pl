@@ -77,7 +77,8 @@ my $ua = new LWP::UserAgent;
 $ua->agent("Postgres Build Farm Reporter");
 if (my $proxy = $ENV{BF_PROXY})
 {
-    $ua->proxy('http',$proxy);
+	my $targetURI = URI->new($target);
+	$ua->proxy($targetURI->scheme,$proxy);
 }
 
 my $request=HTTP::Request->new(POST => "$target/$sig");

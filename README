@@ -1,6 +1,6 @@
 This is the code to run a client member of the PostgreSQL Build Farm.
 
-See http://wiki.postgresql.org/wiki/PostgreSQL_Buildfarm_Howto for 
+See https://wiki.postgresql.org/wiki/PostgreSQL_Buildfarm_Howto for
 detail on how to run it.
 
 See License file for License and Copyright details.
