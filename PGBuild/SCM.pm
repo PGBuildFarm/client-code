@@ -471,7 +471,7 @@ sub new
     $self->{use_workdirs} = $conf->{git_use_workdirs};
     $self->{build_root} = $conf->{build_root};
     $self->{gchours} = 7 * 24; # default 1 week.
-    if (exists($conf->{gchours}))
+    if (exists($conf->{git_gc_hours}))
     {
         $self->{gchours} = $conf->{git_gc_hours};
     }
@@ -575,6 +575,7 @@ sub checkout
             my $last_gc = main::find_last("$target.mirror.gc") || 0;
             if (  !$status
                 && $branch eq 'HEAD'
+                && $self->{gchours}
                 && time - $last_gc > $self->{gchours} * 3600)
             {
                 my @gclog = run_log(qq{git --git-dir="$self->{mirror}" gc});
