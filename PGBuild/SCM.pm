@@ -55,7 +55,7 @@ sub copy_source
     }
     else
     {
-        system("cp -r $target $build_path 2>&1");
+        system("cp -R -p $target $build_path 2>&1");
     }
     my $status = $? >> 8;
     die "copying directories: $status" if $status;
