@@ -150,12 +150,12 @@ $PGBuild::conf{build_root} ||= abs_path(dirname(__FILE__)) . "/buildroot";
 
 # get the config data into some local variables
 my (
-    $buildroot,$target,$animal,
-    $aux_path,$trigger_exclude,$trigger_include,
-    $secret,$keep_errs,$force_every,
-    $make, $optional_steps,$use_vpath,
+    $buildroot, $target, $animal,
+    $aux_path, $trigger_exclude, $trigger_include,
+    $secret, $keep_errs, $force_every,
+    $make, $optional_steps, $use_vpath,
     $tar_log_cmd, $using_msvc, $extra_config,
-    $make_jobs,$core_file_glob, $ccache_failure_remove,
+    $make_jobs, $core_file_glob, $ccache_failure_remove,
     $wait_timeout
   )
   =@PGBuild::conf{
