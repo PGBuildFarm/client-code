@@ -1705,9 +1705,7 @@ sub run_misc_tests
     foreach my $test (qw(recovery subscription authentication))
     {
         next unless -d "$pgsql/src/test/$test/t";
-        run_tap_test(
-            "$pgsql/src/test/$test", $test, undef
-          );
+        run_tap_test("$pgsql/src/test/$test", $test, undef);
     }
 }
 
