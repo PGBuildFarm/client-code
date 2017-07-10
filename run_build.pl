@@ -156,14 +156,17 @@ my (
     $make, $optional_steps, $use_vpath,
     $tar_log_cmd, $using_msvc, $extra_config,
     $make_jobs, $core_file_glob, $ccache_failure_remove,
-    $wait_timeout
+    $wait_timeout, $use_accache
   )
   =@PGBuild::conf{
     qw(build_root target animal aux_path trigger_exclude
       trigger_include secret keep_error_builds force_every make optional_steps
       use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob
-      ccache_failure_remove wait_timeout)
+      ccache_failure_remove wait_timeout use_accache)
   };
+
+# default use_accache to on
+$use_accache = 1 unless exists $PGBuild::conf{use_accache};
 
 #default is no parallel build
 $make_jobs ||= 1;
@@ -2064,6 +2067,36 @@ sub configure
 
     my $confstr =
       join(" ",@quoted_opts,"--prefix=$installdir","--with-pgport=$buildport");
+
+    if ($use_accache)
+    {
+        # set up cache directory for autoconf cache
+        my $accachedir = "$buildroot/accache-$animal";
+        mkpath $accachedir;
+        $accachedir = abs_path($accachedir);
+
+        # remove old cache file if configure script is newer
+        # in the case of from_source, or has been changed for this run
+        # or the run is forced, in the usual build from git case
+        my $accachefile = "$accachedir/config-$branch.cache";
+        my $obsolete;
+        if ($from_source)
+        {
+            my $conffile = "$from_source/configure";
+            $obsolete =
+                 -e $accachefile
+              && -e $conffile
+              &&(stat $conffile)[9] > (stat $accachefile)[9];
+        }
+        else
+        {
+            $obsolete = grep { /^configure / } @changed_files;
+            $obsolete ||= $last_status = 0;
+        }
+        unlink $accachefile if $obsolete;
+
+        $confstr .= " --cache-file='$accachefile'";
+    }
 
     my $env = $PGBuild::conf{config_env};
 

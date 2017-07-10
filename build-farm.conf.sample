@@ -141,6 +141,10 @@ my $branch;
 
     use_default_ccache_dir => 1,
 
+    # set this to allow caching of the configure script's results
+
+    use_accache => 1,
+
     # env settings to apply within build/report process
     # these settings will be seen by all the processes, including the
     # configure process.
