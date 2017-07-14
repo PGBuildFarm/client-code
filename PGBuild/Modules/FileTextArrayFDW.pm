@@ -181,6 +181,9 @@ sub installcheck
 {
     my $self = shift;
     my $locale = shift;
+
+	return unless $locale eq 'C';
+	
     my $make = $self->{bfconf}->{make};
 
     print main::time_str(), "install-checking $MODULE\n" if	$verbose;
