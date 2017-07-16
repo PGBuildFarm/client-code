@@ -38,21 +38,34 @@ sub run_log
     my $filedir = "$main::branch_root/$main::st_prefix$main::logdirname";
     mkpath($filedir);
     my $file= "$filedir/lastcomand.log";
+    my $stfile = "$filedir/laststatus";
     unlink $file;
+    unlink $stfile;
 
     if ($Config{osname} eq 'MSWin32')
     {
         # can't use more robust Unix shell syntax with DOS shell
         system("$command >$file 2>&1");
     }
-    elsif ($ENV{BF_LOG_TIME} && -x "/usr/bin/ts")
-    {
-        system("{ $command;} 2>&1 | /usr/bin/ts > $file");
-    }
     else
     {
-        system("{ $command;} > $file 2>&1");
+        my $ucmd = "{ $command; echo \$? > $stfile; }";
+        my $getstat = "read st < $stfile; exit \$st";
+
+        if ($ENV{BF_LOG_TIME} && -x "/usr/bin/ts")
+        {
+            # this somewhat convoluted syntax ensures $? will be the exit
+            # status of the command
+            system("$ucmd 2>&1 | /usr/bin/ts > $file; $getstat");
+        }
+        else
+        {
+            # not actually necessary in this case but done this way
+            # for uniformity
+            system("$ucmd > $file 2>&1; $getstat");
+        }
     }
+    unlink $stfile;
     my @loglines;
     if (-e $file)
     {
