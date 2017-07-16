@@ -148,6 +148,12 @@ sub locale_end
     my $status = $? >>8;
 
     open(my $handle,">>inst/sepgsql/postgresql.conf");
+    my $param =
+      $branch eq 'REL9_2_STABLE'
+      ? "unix_socket_directory"
+      :"unix_socket_directories";
+    print $handle "$param = '$main::tmpdir'\n";
+    print $handle "listen_addresses = ''\n";
     print $handle "shared_preload_libraries = 'sepgsql'\n";
     close $handle;
 
@@ -162,6 +168,7 @@ sub locale_end
     local %ENV = %ENV;
     $ENV{PGDATA} = cwd() . "/inst/sepgsql";
     $ENV{PATH} = cwd() . "/inst/bin:$ENV{PATH}";
+    $ENV{PGHOST} = $main::tmpdir;
 
     foreach my $db (qw(template0 template1 postgres))
     {

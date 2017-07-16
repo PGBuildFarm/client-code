@@ -311,6 +311,17 @@ die "$buildroot does not exist or is not a directory" unless -d $buildroot;
 
 chdir $buildroot || die "chdir to $buildroot: $!";
 
+# set up a temporary directory for extra configs, sockets etc
+use vars qw($tmpdir);
+my $oldmask = umask;
+umask 0077;
+$tmpdir = File::Temp::tempdir(
+    "buildfarm-XXXXXX",
+    DIR => File::Spec->tmpdir,
+    CLEANUP => 1
+);
+umask $oldmask;
+
 my $scm = new PGBuild::SCM \%PGBuild::conf;
 if (!$from_source)
 {
@@ -439,9 +450,6 @@ END
 
     kill('TERM', $waiter_pid) if $waiter_pid;
 
-    # clean up temp file
-    unlink $ENV{TEMP_CONFIG} if $extraconf;
-
     # if we have the lock we must already be in the build root, so
     # removing things there should be safe.
     # there should only be anything to cleanup if we didn't have
@@ -539,13 +547,8 @@ if ($extra_config &&  $extra_config->{DEFAULT})
 
 if ($extra_config && $extra_config->{$branch})
 {
-    my $tmpname;
-    ($extraconf,$tmpname) =File::Temp::tempfile(
-        'buildfarm-XXXXXX',
-        DIR => File::Spec->tmpdir(),
-        UNLINK => 1
-    );
-    die 'no $tmpname!' unless $tmpname;
+    my $tmpname = "$tmpdir/bfextra.conf";
+    open($extraconf, ">$tmpname") || die 'opening $tmpname';
     $ENV{TEMP_CONFIG} = $tmpname;
     foreach my $line (@{$extra_config->{$branch}})
     {
@@ -567,8 +570,6 @@ my @filtered_files;
 my $savescmlog = "";
 
 $ENV{PGUSER} = 'buildfarm';
-
-check_port_is_ok($buildport, 'Pre');
 
 if ($from_source_clean)
 {
@@ -754,6 +755,12 @@ foreach my $locale (@locales)
 
     initdb($locale);
 
+    my %saveenv = %ENV;
+    if (!$using_msvc && $Config{osname} !~ /msys|MSWin/)
+    {
+        $ENV{PGHOST} = $tmpdir;
+    }
+
     print time_str(),"starting db ($locale)...\n" if $verbose;
 
     start_db($locale);
@@ -837,6 +844,8 @@ foreach my $locale (@locales)
 
     stop_db($locale);
 
+    %ENV = %saveenv;
+
     process_module_hooks('locale-end',$locale);
 
     rmtree("$installdir/data-$locale")
@@ -857,8 +866,6 @@ if (check_optional_step('find_typedefs') || $find_typedefs)
 
     find_typedefs();
 }
-
-check_port_is_ok($buildport,'Post');
 
 # if we get here everything went fine ...
 
@@ -1211,33 +1218,66 @@ sub initdb
     my $locale = shift;
     $started_times = 0;
     my @initout;
-    if ($using_msvc)
-    {
-        chdir $installdir;
-        @initout =
-          run_log(qq{"bin/initdb" -U buildfarm --locale=$locale data-$locale});
-        chdir $branch_root;
-    }
-    else
-    {
-        chdir $installdir;
-        @initout =
-          run_log("bin/initdb -U buildfarm --locale=$locale data-$locale");
-        chdir $branch_root;
-    }
+
+    my $abspgsql = File::Spec->rel2abs($pgsql);
+
+    chdir $installdir;
+
+    @initout =
+      run_log(qq{"bin/initdb" -U buildfarm --locale=$locale data-$locale});
 
     my $status = $? >>8;
 
-    if ($extraconf && !$status)
+    if (!$status)
     {
         my $handle;
         open($handle,">>$installdir/data-$locale/postgresql.conf");
+
+        if (!$using_msvc && $Config{osname} !~ /msys|MSWin/)
+        {
+            my $param =
+              $branch eq 'REL9_2_STABLE'
+              ? "unix_socket_directory"
+              :"unix_socket_directories";
+            print $handle "$param = '$tmpdir'\n";
+            print $handle "listen_addresses = ''\n";
+        }
+        else
+        {
+            print $handle "listen_addresses = 'localhost'\n";
+        }
+
         foreach my $line (@{$extra_config->{$branch}})
         {
             print $handle "$line\n";
         }
         close($handle);
+
+        if ($using_msvc || $Config{osname} =~ /msys|MSWin/)
+        {
+            my $pg_regress;
+
+            if ($using_msvc)
+            {
+                $pg_regress = "$abspgsql/Release/pg_regress/pg_regress";
+                unless (-e "$pg_regress.exe")
+                {
+                    $pg_regress =~ s/Release/Debug/;
+                }
+            }
+            else
+            {
+                $pg_regress = "$abspgsql/src/test/regress/pg_regress";
+            }
+            my $setauth = "--create-role buildfarm --config-auth";
+            my @lines = run_log("$pg_regress $setauth data-$locale");
+            $status = $? >> 8;
+            push(@initout, "======== set config-auth ======\n", @lines);
+        }
+
     }
+
+    chdir $branch_root;
 
     writelog("initdb-$locale",\@initout);
     print "======== initdb log ($locale) ===========\n",@initout
@@ -2170,9 +2210,6 @@ sub set_last
 sub send_result
 {
 
-    # clean up temp file
-    $extraconf = undef;
-
     my $stage = shift;
 
     my $ts = $now || time;
@@ -2357,36 +2394,6 @@ sub get_config_summary
     }
     $config .= get_script_config_dump();
     return $config;
-}
-
-sub check_port_is_ok
-{
-    my $port = shift;
-    my $report = shift; # Pre or Post
-    my $stage = "${report}-run-port-check";
-    my @log;
-    my $found = undef;
-
-    if ($Config{osname} !~ /msys|MSWin/)
-    {
-
-        # look for a unix socket except on Windows -
-        # cygwin does have them, though
-        # could connect, but just finding the socket file should do,
-        # since its existence will cause us grief.
-        $found = -S "/tmp/.s.PGSQL.$port";
-    }
-    if ($found)
-    {
-        eval{unlink glob "/tmp/.s.PGSQL.$port /tmp/.s.PGSQL.$port.*"
-              || die $!;};
-
-        if ($@)
-        {
-            push(@log,"unable to clear listening port $port\n$@");
-            send_result($stage,99,\@log);
-        }
-    }
 }
 
 sub get_script_config_dump

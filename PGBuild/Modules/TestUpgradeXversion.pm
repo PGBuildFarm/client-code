@@ -290,6 +290,14 @@ sub test_upgrade
 
     return undef if $?;
 
+    open(my $opgconf, ">>$other_branch/inst/upgrade_test/postgresql.conf");
+    my $param =
+      $oversion eq 'REL9_2_STABLE'
+      ? "unix_socket_directory"
+      :"unix_socket_directories";
+    print $opgconf "$param = '$main::tmpdir'\n";
+    close($opgconf);
+
     setinstenv($self, "$other_branch/inst", $save_env);
 
     my $sconfig = `$other_branch/inst/bin/pg_config --configure`;
@@ -335,6 +343,15 @@ sub test_upgrade
           ."$installdir/$oversion-upgrade "
           ."> '$upgrade_loc/$oversion-initdb.log' 2>&1");
     return undef if $?;
+
+    open(my $pgconf, ">>$installdir/$oversion-upgrade/postgresql.conf");
+    my $param =
+      $this_branch eq 'REL9_2_STABLE'
+      ? "unix_socket_directory"
+      :"unix_socket_directories";
+    print $pgconf "$param = '$main::tmpdir'\n";
+    close($pgconf);
+
     if ($oversion ge 'REL9_5_STABLE' || $oversion eq 'HEAD')
     {
         my $handle;
@@ -433,9 +450,11 @@ sub installcheck
 
     # localize any environment changes so they don't leak to calling code.
 
-    my $save_env = eval Dumper(\%ENV);
-
     local %ENV = %ENV;
+
+    $ENV{PGHOST} = $main::tmpdir;
+
+    my $save_env = eval Dumper(\%ENV);
 
     my $this_branch = $self->{pgbranch};
 
@@ -458,7 +477,7 @@ sub installcheck
         my@lines=<$lh>;
         close($lh);
         push(@saveout,"===================== $log.log ==============\n",@lines)
-		  if @lines;
+          if @lines;
     }
 
     main::writelog('xversion-upgrade-save',\@saveout);
@@ -502,7 +521,7 @@ sub installcheck
             my@lines=<$lh>;
             close($lh);
             push(@testout,"===================== $bn ==============\n",@lines)
-				if (@lines || $bn =~/dumpdiff/);
+              if (@lines || $bn =~/dumpdiff/);
         }
 
         main::writelog("xversion-upgrade-$oversion-$this_branch",\@testout);
