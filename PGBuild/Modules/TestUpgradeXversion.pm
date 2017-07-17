@@ -290,6 +290,10 @@ sub test_upgrade
 
     return undef if $?;
 
+	# The old version will have the unix sockets point to tmpdir from the
+	# run in which it was set up, which will be gone by now, so we repoint
+	# it to the current run's tmpdir.
+	# listen_addresses will be set correctly and requires no adjustment.
     open(my $opgconf, ">>$other_branch/inst/upgrade_test/postgresql.conf");
     my $param =
       $oversion eq 'REL9_2_STABLE'
