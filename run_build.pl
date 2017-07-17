@@ -1643,7 +1643,7 @@ sub run_tap_test
 
     my $target = $is_install_check ? "installcheck" : "check";
 
-	return unless step_wanted('$testname-$target');
+	return unless step_wanted("$testname-$target");
 
     # fix path temporarily on msys
     my $save_path = $ENV{PATH};
