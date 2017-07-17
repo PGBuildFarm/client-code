@@ -760,6 +760,10 @@ foreach my $locale (@locales)
     {
         $ENV{PGHOST} = $tmpdir;
     }
+	else
+	{
+		$ENV{PGHOST} = 'localhost';
+	}
 
     print time_str(),"starting db ($locale)...\n" if $verbose;
 
