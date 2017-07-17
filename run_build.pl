@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+!/usr/bin/perl
 
 =comment
 
@@ -1638,6 +1638,8 @@ sub run_tap_test
     my $is_install_check = shift;
 
     my $target = $is_install_check ? "installcheck" : "check";
+
+	return unless step_wanted('$testname-$target');
 
     # fix path temporarily on msys
     my $save_path = $ENV{PATH};
