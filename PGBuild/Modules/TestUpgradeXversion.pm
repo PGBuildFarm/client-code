@@ -349,6 +349,7 @@ sub test_upgrade
       $this_branch eq 'REL9_2_STABLE'
       ? "unix_socket_directory"
       :"unix_socket_directories";
+	print $pgconf "listen_addresses = ''\n";
     print $pgconf "$param = '$main::tmpdir'\n";
     close($pgconf);
 
