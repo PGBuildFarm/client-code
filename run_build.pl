@@ -314,13 +314,13 @@ chdir $buildroot || die "chdir to $buildroot: $!";
 # set up a temporary directory for extra configs, sockets etc
 use vars qw($tmpdir);
 my $oldmask = umask;
-umask 0077;
+umask 0077 unless $using_msvc;
 $tmpdir = File::Temp::tempdir(
     "buildfarm-XXXXXX",
     DIR => File::Spec->tmpdir,
     CLEANUP => 1
 );
-umask $oldmask;
+umask $oldmask unless $using_msvc;
 
 my $scm = new PGBuild::SCM \%PGBuild::conf;
 if (!$from_source)
