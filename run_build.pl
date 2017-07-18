@@ -1274,7 +1274,7 @@ sub initdb
                 $pg_regress = "$abspgsql/src/test/regress/pg_regress";
             }
 			my $roles = $branch ne 'HEAD' && $branch lt 'REL9_5' ?
-			  "buildfarm,db_link_regression" : "buildfarm";
+			  "buildfarm,dblink_regression_test" : "buildfarm";
             my $setauth = "--create-role $roles --config-auth";
             my @lines = run_log("$pg_regress $setauth data-$locale");
             $status = $? >> 8;
