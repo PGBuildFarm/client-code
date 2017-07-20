@@ -75,6 +75,9 @@ sub fetch_options
     GetOptions(%standard_options, @_)
       || die "bad command line";
 
+	# override GetOptions default for :i
+	$verbose = 1 if (defined($verbose) && $verbose==0);
+	$verbose ||= 0; # stop complaints about undefined var in numeric comparison
 }
 
 sub standard_option_list

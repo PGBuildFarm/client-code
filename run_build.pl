@@ -108,9 +108,6 @@ die "only one of --from-source and --from-source-clean allowed"
 die "only one of --skip-steps and --only-steps allowed"
   if ($skip_steps && $only_steps);
 
-$verbose=1 if (defined($verbose) && $verbose==0);
-$verbose ||= 0; # stop complaints about undefined var in numeric comparison
-
 if ($testmode)
 {
     $verbose=1 unless $verbose;
