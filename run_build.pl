@@ -492,8 +492,10 @@ END
         }
         else
         {
+			my $err;
             rmtree("inst") unless $keepall;
-            rmtree("$pgsql") unless ($from_source || $keepall);
+            rmtree("$pgsql", +{ error => \$err} )
+			  unless ($from_source || $keepall);
         }
 
         # only keep the cache in cases of success, if config flag is set
