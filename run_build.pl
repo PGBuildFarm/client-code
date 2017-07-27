@@ -742,7 +742,7 @@ process_module_hooks("check");
 
 process_module_hooks('install');
 
-make_bin_installcheck();
+run_bin_tests();
 
 run_misc_tests();
 
@@ -1703,9 +1703,9 @@ sub run_tap_test
     $steps_completed .= " $captest$captarget";
 }
 
-sub make_bin_installcheck
+sub run_bin_tests
 {
-    return unless step_wanted('bin-installcheck');
+    return unless step_wanted('bin-check');
 
     # tests only came in with 9.4
     return unless ($branch eq 'HEAD' or $branch ge 'REL9_4');
@@ -1720,9 +1720,7 @@ sub make_bin_installcheck
         return unless grep {$_ eq '--enable-tap-tests' } @$config_opts;
     }
 
-    print time_str(),"running make bin installcheck ...\n" if $verbose;
-
-    my @makeout;
+    print time_str(),"running bin checks ...\n" if $verbose;
 
     foreach my $bin (glob("$pgsql/src/bin/*"))
     {
@@ -1749,8 +1747,6 @@ sub run_misc_tests
     }
 
     print time_str(),"running make misc checks ...\n" if $verbose;
-
-    my @makeout;
 
     foreach my $test (qw(recovery subscription authentication))
     {
