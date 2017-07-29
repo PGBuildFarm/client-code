@@ -2395,17 +2395,6 @@ sub get_config_summary
         $config .=
           "\n========================================================\n";
     }
-
-	if (($using_msvc && defined($config_opts->{perl})) 
-		||
-		(!$using_msvc && (grep {/--with-perl/} @$config_opts)))
-	{
-		my $perlconf = `perl -V 2>/dev/null`;
-		$config .= "============== perl config ==============\n" .
-		  $perlconf .
-		  "===============================================\n";
-	}
-
     $config .= get_script_config_dump();
     return $config;
 }
