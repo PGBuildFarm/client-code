@@ -1657,6 +1657,12 @@ sub run_tap_test
     my @makeout;
 
     my $pflags = "PROVE_FLAGS=--timer";
+	if (exists $ENV{PROVE_FLAGS})
+	{
+		$pflags = $ENV{PROVE_FLAGS} ?
+		  "PROVE_FLAGS=$ENV{PROVE_FLAGS}" :
+		  "";
+	}
 
     if ($using_msvc)
     {
