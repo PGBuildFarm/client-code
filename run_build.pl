@@ -1648,7 +1648,7 @@ sub run_tap_test
 
     # fix path temporarily on msys
     my $save_path = $ENV{PATH};
-    if ($Config{osname} eq 'msys')
+    if ($Config{osname} eq 'msys' && $branch ne 'HEAD' && $branch lt 'REL_10')
     {
         my $perlpathdir = dirname($Config{perlpath});
         $ENV{PATH} = "$perlpathdir:$ENV{PATH}";
