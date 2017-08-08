@@ -180,6 +180,12 @@ my $branch;
 
         # comment out if not using ccache
         CC => 'ccache gcc',
+
+        # In the rare event that you need to tell configure where the prove
+        # program lives instead of letting it work it out you do it here.
+        # Msys is one such case.
+        # PROVE => '/bin/prove',
+
     },
 
     # don't use --prefix or --with-pgport here
