@@ -139,6 +139,8 @@ print_help() if ($help);
 # process config file
 #
 require $buildconf;
+# get this here before we change directories
+my $buildconf_mod = (stat $buildconf)[9];
 
 PGBuild::Options::fixup_conf(\%PGBuild::conf, \@config_set);
 
@@ -2128,22 +2130,34 @@ sub configure
         # in the case of from_source, or has been changed for this run
         # or the run is forced, in the usual build from git case
         my $accachefile = "$accachedir/config-$branch.cache";
-        my $obsolete;
-        if ($from_source)
-        {
-            my $conffile = "$from_source/configure";
-            $obsolete =
-                 -e $accachefile
-              && -e $conffile
-              &&(stat $conffile)[9] > (stat $accachefile)[9];
-        }
-        else
-        {
-            $obsolete = grep { /^configure / } @changed_files;
-            $obsolete ||= $last_status = 0;
-        }
-        unlink $accachefile if $obsolete;
+		if (-e $accachefile)
+		{
+			my $obsolete;
+			my $cache_mod = (stat $accachefile)[9];
+			if ($from_source)
+			{
+				my $conffile = "$from_source/configure";
+				$obsolete = -e $conffile && (stat $conffile)[9] > $cache_mod;
+			}
+			else
+			{
+				$obsolete = grep { /^configure / } @changed_files;
+				$obsolete ||= $last_status = 0;
+			}
+			# also remove if the buildfarm config file is newer, or the options
+			# have been changed via --config_set.
+			#
+			# we currently don't allow overriding the config file
+			# environment settings via --config-set, but if we did
+			# we'd have to account for that here too.
+			#
+			# if the user alters the environment that's set externally
+			# for the buildfarm we can't really do anything about that.
+			$obsolete ||= grep {/config_opts/} @config_set;
+			$obsolete ||= $buildconf_mod > $cache_mod;
 
+			unlink $accachefile if $obsolete;
+		}
         $confstr .= " --cache-file='$accachefile'";
     }
 
