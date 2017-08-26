@@ -457,7 +457,7 @@ sub new
     my $target = shift;
     my $self = {};
     $self->{gitrepo} =$conf->{scmrepo}
-      || "git://git.postgresql.org/git/postgresql.git";
+      || "https://git.postgresql.org/git/postgresql.git";
     $self->{reference} = $conf->{git_reference}
       if defined($conf->{git_reference});
 
