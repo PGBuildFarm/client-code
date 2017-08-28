@@ -51,6 +51,14 @@ use File::Find ();
 
 BEGIN { use lib File::Spec->rel2abs(dirname(__FILE__)); }
 
+# use High Resolution stat times if the module is available
+# this helps make sure we sort logfiles correctly
+BEGIN
+{
+	eval { require Time::HiRes; };
+	Time::HiRes->import('stat') unless $@;
+}
+
 # save a copy of the original enviroment for reporting
 # save it early to reduce the risk of prior mangling
 use vars qw($orig_env);
