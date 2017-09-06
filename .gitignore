@@ -1,3 +1,4 @@
 /build-farm-*.tgz
 /releases
 /build-farm.conf
+/sandbox
