@@ -87,10 +87,9 @@ use PGBuild::Options;
 use PGBuild::WebTxn;
 use PGBuild::Utils qw(:DEFAULT $st_prefix $logdirname $branch_root
 					  $steps_completed %skip_steps %only_steps $tmpdir
-					  $temp_installs $devnull);
+					  $temp_installs $devnull $send_result_routine);
 
-# set up reference to send_result sub so it can be called from modules
-$send_result = \&send_result;
+$send_result_routine = \&send_res;
 
 my $orig_dir = getcwd();
 push @INC, $orig_dir;
@@ -2122,7 +2121,10 @@ sub configure
     $steps_completed .= " Configure";
 }
 
-sub send_result
+# a reference to this subroutine is stored in the Utils module and it is called
+# everywhere as send_result(...)
+
+sub send_res
 {
 
     my $stage = shift;

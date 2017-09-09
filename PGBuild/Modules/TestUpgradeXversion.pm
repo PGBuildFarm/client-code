@@ -488,7 +488,7 @@ sub installcheck
     writelog('xversion-upgrade-save',\@saveout);
     print "======== xversion upgrade save log ===========\n",@saveout
       if ($verbose > 1);
-    &$send_result('XversionUpgradeSave',$status,\@saveout) if $status;
+    send_result('XversionUpgradeSave',$status,\@saveout) if $status;
     $steps_completed .= " XVersionUpgradeSave";
 
     # ok, we now have the persistent copy of all branches we can use
@@ -533,7 +533,7 @@ sub installcheck
         print "====== xversion upgrade $oversion to $this_branch =======\n",
           @testout
           if ($verbose > 1);
-        &$send_result("XversionUpgrade-$oversion-$this_branch",
+        send_result("XversionUpgrade-$oversion-$this_branch",
             $status,\@testout)
           if $status;
         $steps_completed .= " XVersionUpgrade-$oversion-$this_branch";

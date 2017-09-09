@@ -116,7 +116,7 @@ sub installcheck
     writelog("install-check-ICU-$locale",\@checklog);
     print "======== make installcheck -ICU-$locale log ========\n",@checklog
       if ($verbose > 1);
-    &$send_result("InstallCheck-ICU-$locale",$status,\@checklog)
+    send_result("InstallCheck-ICU-$locale",$status,\@checklog)
       if $status;
     {
         no warnings 'once';

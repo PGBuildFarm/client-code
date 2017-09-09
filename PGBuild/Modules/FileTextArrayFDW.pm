@@ -149,7 +149,7 @@ sub build
     my $status = $? >>8;
     writelog("$MODULE-build",\@makeout);
     print "======== make log ===========\n",@makeout if ($verbose > 1);
-    &$send_result("$MODULE-build",$status,\@makeout) if $status;
+    send_result("$MODULE-build",$status,\@makeout) if $status;
 
 }
 
@@ -166,7 +166,7 @@ sub install
     my $status = $? >>8;
     writelog("$MODULE-install",\@log);
     print "======== install log ===========\n",@log if ($verbose > 1);
-    &$send_result("$MODULE-install",$status,\@log) if $status;
+    send_result("$MODULE-install",$status,\@log) if $status;
 
 }
 
@@ -212,7 +212,7 @@ sub installcheck
     writelog("$MODULE-installcheck-$locale",\@log);
     print "======== installcheck ($locale) log ===========\n",@log
       if ($verbose > 1);
-    &$send_result("$MODULE-installcheck-$locale",$status,\@log) if $status;
+    send_result("$MODULE-installcheck-$locale",$status,\@log) if $status;
 
 }
 

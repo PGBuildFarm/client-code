@@ -130,7 +130,7 @@ sub installcheck
     writelog("install-check-collate-$locale",\@checklog);
     print "======== make installcheck collate-$locale log ========\n",@checklog
       if ($verbose > 1);
-    &$send_result("InstallCheck-collate-$locale",$status,\@checklog)
+    send_result("InstallCheck-collate-$locale",$status,\@checklog)
       if $status;
     {
         no warnings 'once';

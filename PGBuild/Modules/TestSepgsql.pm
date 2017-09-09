@@ -89,7 +89,7 @@ sub build
     writelog("sepgsql-policy-build",\@log);
     print "======== build sepgsql policy log ========\n",@log
       if ($verbose > 1);
-    &$send_result("sepgsql-policy-build",$status,\@log)
+    send_result("sepgsql-policy-build",$status,\@log)
       if $status;
     {
         no warnings 'once';
@@ -123,7 +123,7 @@ sub install
     writelog("sepgsql-policy-install",\@log);
     print "======== install sepgsql policy log ========\n",@log
       if ($verbose > 1);
-    &$send_result("sepgsql-policy-install",$status,\@log)
+    send_result("sepgsql-policy-install",$status,\@log)
       if $status;
     {
         no warnings 'once';
@@ -188,7 +188,7 @@ sub locale_end
         writelog("sepgsql-test",\@log);
         print "======== test sepgsql setup ========\n",@log
           if ($verbose > 1);
-        &$send_result("test-sepgsql",$status,\@log);
+        send_result("test-sepgsql",$status,\@log);
     }
 
     my @startlog =
@@ -201,7 +201,7 @@ sub locale_end
         writelog("sepgsql-test",\@log);
         print "======== test sepgsql ========\n",@log
           if ($verbose > 1);
-        &$send_result("test-sepgsql",$status,\@log);
+        send_result("test-sepgsql",$status,\@log);
     }
 
     system("sudo setsebool sepgsql_regression_test_mode on");
@@ -235,7 +235,7 @@ sub locale_end
     {
         print "======== test sepgsql ========\n",@log
           if ($verbose > 1);
-        &$send_result("test-sepgsql",$status,\@log);
+        send_result("test-sepgsql",$status,\@log);
     }
 
     {

@@ -271,17 +271,17 @@ sub checkout
         $unknown_files = grep { /^\?/ } @statout;
     }
 
-    &$send_result("$target-CVS",$status,\@cvslog)	if ($status);
-    &$send_result("$target-CVS-Merge",$merge_conflicts,\@cvslog)
+    send_result("$target-CVS",$status,\@cvslog)	if ($status);
+    send_result("$target-CVS-Merge",$merge_conflicts,\@cvslog)
       if ($merge_conflicts);
     unless ($nosend && $nostatus)
     {
-        &$send_result("$target-CVS-Dirty",$mod_files,\@cvslog)
+        send_result("$target-CVS-Dirty",$mod_files,\@cvslog)
           if ($mod_files);
-        &$send_result("$target-CVS-Extraneous-Files",
+        send_result("$target-CVS-Extraneous-Files",
             $unknown_files,\@cvslog)
           if ($unknown_files);
-        &$send_result("$target-CVS-Extraneous-Ignore",
+        send_result("$target-CVS-Extraneous-Ignore",
             scalar(@bad_ignore),\@bad_ignore)
           if (@bad_ignore);
     }
@@ -403,7 +403,7 @@ sub get_versions
         my $status = $? >>8;
         print "======== $target-cvs status log ===========\n",@cvs_status
           if ($verbose > 1);
-        &$send_result("$target-CVS-status",$status,\@cvs_status)
+        send_result("$target-CVS-status",$status,\@cvs_status)
           if ($status);
     }
     my @fchunks = split(/File:/,join("",@cvs_status));
@@ -605,7 +605,7 @@ sub checkout
         {
             unshift(@gitlog,"Git mirror failure:\n");
             print @gitlog if ($verbose);
-            &$send_result('Git-mirror',$status,\@gitlog);
+            send_result('Git-mirror',$status,\@gitlog);
         }
     }
 
@@ -635,7 +635,7 @@ sub checkout
                 print "Missing checked out branch bf_$branch:\n",@branches
                   if ($verbose);
                 unshift @branches,"Missing checked out branch bf_$branch:\n";
-                &$send_result("$target-Git",$status,\@branches);
+                send_result("$target-Git",$status,\@branches);
             }
         }
 
@@ -789,11 +789,11 @@ sub checkout
     $self->{headref} = (split(/\s+/, $headref))[0];
     chdir "..";
 
-    &$send_result("$target-Git",$status,\@gitlog)	if ($status);
+    send_result("$target-Git",$status,\@gitlog)	if ($status);
     unless ($nosend && $nostatus)
     {
         push(@gitlog,"===========",@gitstat);
-        &$send_result("$target-Git-Dirty",99,\@gitlog)
+        send_result("$target-Git-Dirty",99,\@gitlog)
           if (@gitstat);
     }
 

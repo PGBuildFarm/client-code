@@ -23,22 +23,27 @@ our (@ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 use vars qw($VERSION); $VERSION = 'REL_5';
 
 @ISA         = qw(Exporter);
-# we export $send_result even though it's a scalar because it's
-# actually a subref that gets set by the main program.
 @EXPORT      = qw(run_log time_str process_module_hooks register_module_hooks
 				  get_stack_trace cleanlogs writelog 
-				  set_last find_last step_wanted $send_result
+				  set_last find_last step_wanted send_result
 				);
 %EXPORT_TAGS = qw();
 @EXPORT_OK   = qw($st_prefix $logdirname $branch_root $steps_completed
 				  %skip_steps %only_steps $tmpdir $temp_installs $devnull
+				  $send_result_routine
 				);
 
 my %module_hooks;
 use vars qw($core_file_glob $st_prefix $logdirname $branch_root 
 			$steps_completed %skip_steps %only_steps $tmpdir $temp_installs
-			$send_result $devnull
-);
+			$send_result_routine $devnull
+		  );
+
+# wrap the main program's send_res routine (formerly send_result)
+sub send_result
+{
+	&$send_result_routine(@_);
+}
 
 # something like IPC::RUN but without requiring it, as some installations
 # lack it.

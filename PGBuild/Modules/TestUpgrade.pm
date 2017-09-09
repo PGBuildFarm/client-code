@@ -133,7 +133,7 @@ sub check
     writelog("check-pg_upgrade",\@checklog);
     print "======== pg_upgrade check log ===========\n",@checklog
       if ($verbose > 1);
-    &$send_result("pg_upgradeCheck",$status,\@checklog) if $status;
+    send_result("pg_upgradeCheck",$status,\@checklog) if $status;
     {
         no warnings 'once';
         $steps_completed .= " pg_upgradeCheck";
