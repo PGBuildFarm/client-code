@@ -14,7 +14,7 @@ package PGBuild::Modules::TestSepgsql;
 
 use PGBuild::Options;
 use PGBuild::SCM;
-use PGBuild::Utils;
+use PGBuild::Utils qw(:DEFAULT $steps_completed $tmpdir);
 
 use File::Find;
 
@@ -57,7 +57,7 @@ sub setup
     bless($self, $class);
 
     # for each instance you create, do:
-    main::register_module_hooks($self,$hooks);
+    register_module_hooks($self,$hooks);
 
 }
 
@@ -70,7 +70,7 @@ sub build
     my $self = shift;
     my $pgsql = $self->{pgsql};
 
-    print main::time_str(), "building sepgsql policy module\n" if     $verbose;
+    print time_str(), "building sepgsql policy module\n" if     $verbose;
 
     # the main build will set up sepgsql, what we need to do here is build
     # the policy module
@@ -86,14 +86,14 @@ sub build
 
     chdir $dir;
 
-    main::writelog("sepgsql-policy-build",\@log);
+    writelog("sepgsql-policy-build",\@log);
     print "======== build sepgsql policy log ========\n",@log
       if ($verbose > 1);
-    main::send_result("sepgsql-policy-build",$status,\@log)
+    &$send_result("sepgsql-policy-build",$status,\@log)
       if $status;
     {
         no warnings 'once';
-        $main::steps_completed .= " sepgsql-policy-build";
+        $steps_completed .= " sepgsql-policy-build";
     }
 }
 
@@ -102,7 +102,7 @@ sub install
     my $self = shift;
     my $pgsql = $self->{pgsql};
 
-    print main::time_str(), "installing sepgsql policy module\n"
+    print time_str(), "installing sepgsql policy module\n"
       if     $verbose;
 
     # the main build will set up sepgsql, what we need to do here is install
@@ -120,14 +120,14 @@ sub install
 
     chdir $dir;
 
-    main::writelog("sepgsql-policy-install",\@log);
+    writelog("sepgsql-policy-install",\@log);
     print "======== install sepgsql policy log ========\n",@log
       if ($verbose > 1);
-    main::send_result("sepgsql-policy-install",$status,\@log)
+    &$send_result("sepgsql-policy-install",$status,\@log)
       if $status;
     {
         no warnings 'once';
-        $main::steps_completed .= " sepgsql-policy-install";
+        $steps_completed .= " sepgsql-policy-install";
     }
 }
 
@@ -139,7 +139,7 @@ sub locale_end
 
     return unless $locale eq 'C';
 
-    print main::time_str(), "testing sepgsql\n"
+    print time_str(), "testing sepgsql\n"
       if	$verbose;
 
     # set up a different data directory for selinux
@@ -152,7 +152,7 @@ sub locale_end
       $branch eq 'REL9_2_STABLE'
       ? "unix_socket_directory"
       :"unix_socket_directories";
-    print $handle "$param = '$main::tmpdir'\n";
+    print $handle "$param = '$tmpdir'\n";
     print $handle "listen_addresses = ''\n";
     print $handle "shared_preload_libraries = 'sepgsql'\n";
     close $handle;
@@ -168,7 +168,7 @@ sub locale_end
     local %ENV = %ENV;
     $ENV{PGDATA} = cwd() . "/inst/sepgsql";
     $ENV{PATH} = cwd() . "/inst/bin:$ENV{PATH}";
-    $ENV{PGHOST} = $main::tmpdir;
+    $ENV{PGHOST} = $tmpdir;
 
     foreach my $db (qw(template0 template1 postgres))
     {
@@ -185,10 +185,10 @@ sub locale_end
 
     if ($status)
     {
-        main::writelog("sepgsql-test",\@log);
+        writelog("sepgsql-test",\@log);
         print "======== test sepgsql setup ========\n",@log
           if ($verbose > 1);
-        main::send_result("test-sepgsql",$status,\@log);
+        &$send_result("test-sepgsql",$status,\@log);
     }
 
     my @startlog =
@@ -198,10 +198,10 @@ sub locale_end
 
     if ($status)
     {
-        main::writelog("sepgsql-test",\@log);
+        writelog("sepgsql-test",\@log);
         print "======== test sepgsql ========\n",@log
           if ($verbose > 1);
-        main::send_result("test-sepgsql",$status,\@log);
+        &$send_result("test-sepgsql",$status,\@log);
     }
 
     system("sudo setsebool sepgsql_regression_test_mode on");
@@ -229,18 +229,18 @@ sub locale_end
     my @stoplog = run_log("cd inst && bin/pg_ctl -D sepgsql stop");
     push(@log,"============ sepgsql stop log\n",@stoplog);
     $status ||= $? >>8;
-    main::writelog("sepgsql-test",\@log);
+    writelog("sepgsql-test",\@log);
 
     if ($status)
     {
         print "======== test sepgsql ========\n",@log
           if ($verbose > 1);
-        main::send_result("test-sepgsql",$status,\@log);
+        &$send_result("test-sepgsql",$status,\@log);
     }
 
     {
         no warnings 'once';
-        $main::steps_completed .= " sepgsql-test";
+        $steps_completed .= " sepgsql-test";
     }
 }
 
@@ -250,7 +250,7 @@ sub cleanup
 
     return unless $self->{module_installed};
 
-    print main::time_str(), "cleaning up ",__PACKAGE__,"\n" if	$verbose > 1;
+    print time_str(), "cleaning up ",__PACKAGE__,"\n" if	$verbose > 1;
 
     system("sudo semodule -r sepgsql-regtest");
 }

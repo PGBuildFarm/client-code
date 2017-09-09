@@ -11,7 +11,7 @@ See accompanying License file for license details
 
 use PGBuild::Options;
 use PGBuild::SCM;
-use PGBuild::Utils;
+use PGBuild::Utils qw(:DEFAULT $steps_completed $temp_installs);
 
 use File::Basename;
 
@@ -44,7 +44,7 @@ sub setup
     };
     bless($self, $class);
 
-    main::register_module_hooks($self,$hooks);
+    register_module_hooks($self,$hooks);
 
 }
 
@@ -52,9 +52,9 @@ sub check
 {
     my $self = shift;
 
-    return unless main::step_wanted('test-decoding-check');
+    return unless step_wanted('test-decoding-check');
 
-    print main::time_str(), "checking test-decoding\n" if	$verbose;
+    print time_str(), "checking test-decoding\n" if	$verbose;
 
     my $make = $self->{bfconf}->{make};
 
@@ -70,8 +70,8 @@ sub check
     else
     {
         my $instflags =
-          $main::temp_installs >= 3
-          ? "NO_TEMP_INSTALL=$main::temp_installs"
+          $temp_installs >= 3
+          ? "NO_TEMP_INSTALL=$temp_installs"
           : "";
         my $cmd =
           "cd $self->{pgsql}/contrib/test_decoding && $make $instflags check";
@@ -100,13 +100,13 @@ sub check
 
     my $status = $? >>8;
 
-    main::writelog("test-decoding-check",\@checklog);
+    writelog("test-decoding-check",\@checklog);
     print "======== test-decoding check log ===========\n",@checklog
       if ($verbose > 1);
-    main::send_result("test-decoding-check",$status,\@checklog) if $status;
+    &$send_result("test-decoding-check",$status,\@checklog) if $status;
     {
         no warnings 'once';
-        $main::steps_completed .= " test-decoding-check";
+        $steps_completed .= " test-decoding-check";
     }
 
 }

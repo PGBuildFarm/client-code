@@ -85,9 +85,13 @@ BEGIN
 use PGBuild::SCM;
 use PGBuild::Options;
 use PGBuild::WebTxn;
-use PGBuild::Utils;
+use PGBuild::Utils qw(:DEFAULT $st_prefix $logdirname $branch_root
+					  $steps_completed %skip_steps %only_steps $tmpdir
+					  $temp_installs $devnull);
 
-my %module_hooks;
+# set up reference to send_result sub so it can be called from modules
+$send_result = \&send_result;
+
 my $orig_dir = getcwd();
 push @INC, $orig_dir;
 
@@ -125,7 +129,6 @@ if ($testmode)
 
 }
 
-use vars qw(%skip_steps %only_steps);
 $skip_steps ||= "";
 if ($skip_steps =~ /\S/)
 {
@@ -180,6 +183,7 @@ $make_jobs ||= 1;
 
 # default core file pattern is Linux, which used to be hardcoded
 $core_file_glob ||= 'core*';
+$PGBuild::Utils::core_file_glob = $core_file_glob;
 
 # legacy name
 if (defined($PGBuild::conf{trigger_filter}))
@@ -224,7 +228,6 @@ $ENV{EXTRA_REGRESS_OPTS} = "--port=$buildport";
 
 $tar_log_cmd ||= "tar -z -cf runlogs.tgz *.log";
 
-use vars qw($logdirname);
 $logdirname = "lastrun-logs";
 
 if ($from_source || $from_source_clean)
@@ -287,9 +290,8 @@ if ($^V lt v5.8.0)
 
 die "cannot run as root/Administrator" unless ($using_msvc or $> > 0);
 
-my $devnull = $using_msvc ? "nul" : "/dev/null";
+$devnull = $using_msvc ? "nul" : "/dev/null";
 
-use vars qw($st_prefix);
 $st_prefix = "$animal.";
 
 # set environment from config
@@ -319,7 +321,6 @@ die "$buildroot does not exist or is not a directory" unless -d $buildroot;
 chdir $buildroot || die "chdir to $buildroot: $!";
 
 # set up a temporary directory for extra configs, sockets etc
-use vars qw($tmpdir);
 my $oldmask = umask;
 umask 0077 unless $using_msvc;
 $tmpdir = File::Temp::tempdir(
@@ -345,7 +346,6 @@ foreach my $oldfile (glob("last*"))
     move $oldfile, "$st_prefix$oldfile";
 }
 
-use vars qw($branch_root);
 $branch_root = getcwd();
 
 my $pgsql;
@@ -566,7 +566,6 @@ if ($extra_config && $extra_config->{$branch})
     autoflush $extraconf 1;
 }
 
-use vars qw($steps_completed);
 $steps_completed = "";
 
 my @changed_files;
@@ -710,7 +709,6 @@ my $started_times = 0;
 
 # counter for temp installs. if it gets high enough
 # (currently 3) we can set NO_TEMP_INSTALL.
-use vars qw($temp_installs);
 $temp_installs = 0;
 
 # each of these routines will call send_result, which calls exit,
@@ -923,43 +921,6 @@ Default branch is HEAD. Usually only the --config option should be necessary.
     exit(0);
 }
 
-sub time_str
-{
-    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-    return sprintf("[%.2d:%.2d:%.2d] ",$hour, $min, $sec);
-}
-
-sub step_wanted
-{
-    my $step = shift;
-    return $only_steps{$step} if (keys %only_steps);
-    return !$skip_steps{$step} if (keys %skip_steps);
-    return 1; # default is everything is wanted
-}
-
-sub register_module_hooks
-{
-    my $who = shift;
-    my $what = shift;
-    while (my ($hook,$func) = each %$what)
-    {
-        $module_hooks{$hook} ||= [];
-        push(@{$module_hooks{$hook}},[$func,$who]);
-    }
-}
-
-sub process_module_hooks
-{
-    my $hook = shift;
-
-    # pass remaining args (if any) to module func
-    foreach my $module (@{$module_hooks{$hook}})
-    {
-        my ($func,$module_instance) = @$module;
-        &$func($module_instance, @_);
-    }
-}
-
 sub check_optional_step
 {
     my $step = shift;
@@ -1008,25 +969,6 @@ sub interrupt_exit
     my $signame = shift;
     print "Exiting on signal $signame\n";
     exit(1);
-}
-
-sub cleanlogs
-{
-    my $lrname = $st_prefix . $logdirname;
-    rmtree("$lrname");
-    mkdir "$lrname" || die "can't make $lrname dir: $!";
-}
-
-sub writelog
-{
-    my $stage = shift;
-    my $fname = "$stage.log";
-    my $loglines = shift;
-    my $handle;
-    my $lrname = $st_prefix . $logdirname;
-    open($handle,">$lrname/$fname") || die $!;
-    print $handle @$loglines;
-    close($handle);
 }
 
 sub check_make
@@ -1377,41 +1319,6 @@ sub stop_db
       if ($verbose > 1);
     send_result("StopDb-$locale:$started_times",$status,\@ctlout) if $status;
     $dbstarted=undef;
-}
-
-sub get_stack_trace
-{
-    my $bindir = shift;
-    my $pgdata = shift;
-
-    # no core = no result
-    my @cores = glob("$pgdata/$core_file_glob");
-    return () unless @cores;
-
-    # no gdb = no result
-    system "gdb --version > $devnull 2>&1";
-    my $status = $? >>8;
-    return () if $status;
-
-    my $cmdfile = "./gdbcmd";
-    my $handle;
-    open($handle, ">$cmdfile");
-    print $handle "bt\n";
-    close($handle);
-
-    my @trace;
-
-    foreach my $core (@cores)
-    {
-        my @onetrace =run_log("gdb -x $cmdfile --batch $bindir/postgres $core");
-        push(@trace,
-            "\n\n================== stack trace: $core ==================\n",
-            @onetrace);
-    }
-
-    unlink $cmdfile;
-
-    return @trace;
 }
 
 sub make_install_check
@@ -2213,29 +2120,6 @@ sub configure
     }
 
     $steps_completed .= " Configure";
-}
-
-sub find_last
-{
-    my $which = shift;
-    my $stname = $st_prefix . "last.$which";
-    my $handle;
-    open($handle,$stname) or return undef;
-    my $time = <$handle>;
-    close($handle);
-    chomp $time;
-    return $time + 0;
-}
-
-sub set_last
-{
-    my $which = shift;
-    my $stname = $st_prefix . "last.$which";
-    my $st_now = shift || time;
-    my $handle;
-    open($handle,">$stname") or die "opening $stname: $!";
-    print $handle "$st_now\n";
-    close($handle);
 }
 
 sub send_result

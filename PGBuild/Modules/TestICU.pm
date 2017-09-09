@@ -14,7 +14,7 @@ package PGBuild::Modules::TestICU;
 
 use PGBuild::Options;
 use PGBuild::SCM;
-use PGBuild::Utils;
+use PGBuild::Utils qw(:DEFAULT $steps_completed);
 
 use Fcntl qw(:seek);
 
@@ -45,7 +45,7 @@ sub setup
     bless($self, $class);
 
     # for each instance you create, do:
-    main::register_module_hooks($self,$hooks);
+    register_module_hooks($self,$hooks);
 
 }
 
@@ -64,9 +64,9 @@ sub installcheck
 
     return unless $locale =~ /utf8$/i;
 
-    return unless main::step_wanted("installcheck-icu");
+    return unless step_wanted("installcheck-icu");
 
-    print main::time_str(), "installchecking ICU-$locale\n"
+    print time_str(), "installchecking ICU-$locale\n"
       if	$verbose;
 
     (my $buildport = $ENV{EXTRA_REGRESS_OPTS}) =~ s/--port=//;
@@ -110,17 +110,17 @@ sub installcheck
     if ($status)
     {
         my @trace =
-          main::get_stack_trace("$installdir/bin","$installdir/data-$locale");
+          get_stack_trace("$installdir/bin","$installdir/data-$locale");
         push(@checklog,@trace);
     }
-    main::writelog("install-check-ICU-$locale",\@checklog);
+    writelog("install-check-ICU-$locale",\@checklog);
     print "======== make installcheck -ICU-$locale log ========\n",@checklog
       if ($verbose > 1);
-    main::send_result("InstallCheck-ICU-$locale",$status,\@checklog)
+    &$send_result("InstallCheck-ICU-$locale",$status,\@checklog)
       if $status;
     {
         no warnings 'once';
-        $main::steps_completed .= " InstallCheck-ICU-$locale";
+        $steps_completed .= " InstallCheck-ICU-$locale";
     }
 
 }

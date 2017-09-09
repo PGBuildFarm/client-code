@@ -14,7 +14,7 @@ package PGBuild::Modules::TestUpgrade;
 
 use PGBuild::Options;
 use PGBuild::SCM;
-use PGBuild::Utils;
+use PGBuild::Utils qw(:DEFAULT $steps_completed $temp_installs);
 
 use File::Basename;
 
@@ -60,7 +60,7 @@ sub setup
     bless($self, $class);
 
     # for each instance you create, do:
-    main::register_module_hooks($self,$hooks);
+    register_module_hooks($self,$hooks);
 
 }
 
@@ -68,9 +68,9 @@ sub check
 {
     my $self = shift;
 
-    return unless main::step_wanted('pg_upgrade-check');
+    return unless step_wanted('pg_upgrade-check');
 
-    print main::time_str(), "checking pg_upgrade\n" if	$verbose;
+    print time_str(), "checking pg_upgrade\n" if	$verbose;
 
     my $make = $self->{bfconf}->{make};
 
@@ -94,7 +94,7 @@ sub check
         my $instflags;
         {
             no warnings qw(once);
-            $instflags = $main::temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
+            $instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
         }
         if ($self->{pgbranch} eq 'HEAD' || $self->{pgbranch} ge 'REL9_5')
         {
@@ -130,13 +130,13 @@ sub check
 
     my $status = $? >>8;
 
-    main::writelog("check-pg_upgrade",\@checklog);
+    writelog("check-pg_upgrade",\@checklog);
     print "======== pg_upgrade check log ===========\n",@checklog
       if ($verbose > 1);
-    main::send_result("pg_upgradeCheck",$status,\@checklog) if $status;
+    &$send_result("pg_upgradeCheck",$status,\@checklog) if $status;
     {
         no warnings 'once';
-        $main::steps_completed .= " pg_upgradeCheck";
+        $steps_completed .= " pg_upgradeCheck";
     }
 
 }

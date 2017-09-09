@@ -20,7 +20,7 @@ package PGBuild::Modules::TestUpgradeXversion;
 
 use PGBuild::Options;
 use PGBuild::SCM;
-use PGBuild::Utils;
+use PGBuild::Utils qw(:DEFAULT $tmpdir $steps_completed);
 
 use Data::Dumper;
 use File::Copy;
@@ -62,7 +62,7 @@ sub setup
     };
     bless($self, $class);
 
-    main::register_module_hooks($self,$hooks);
+    register_module_hooks($self,$hooks);
 
 }
 
@@ -140,7 +140,7 @@ sub save_for_testing
     my $this_branch = shift;
     my $upgrade_install_root = shift;
 
-    print main::time_str(), "saving files for cross-version upgrade check\n"
+    print time_str(), "saving files for cross-version upgrade check\n"
       if	$verbose;
 
     my $install_loc = "$self->{buildroot}/$this_branch/inst";
@@ -275,7 +275,7 @@ sub test_upgrade
     my $installdir = "$upgrade_loc/inst";
     my $oversion = basename $other_branch;
 
-    print main::time_str(),
+    print time_str(),
       "checking upgrade from $oversion to $this_branch ...\n"
       if	$verbose;
 
@@ -299,7 +299,7 @@ sub test_upgrade
       $oversion eq 'REL9_2_STABLE'
       ? "unix_socket_directory"
       :"unix_socket_directories";
-    print $opgconf "$param = '$main::tmpdir'\n";
+    print $opgconf "$param = '$tmpdir'\n";
     close($opgconf);
 
     setinstenv($self, "$other_branch/inst", $save_env);
@@ -354,7 +354,7 @@ sub test_upgrade
       ? "unix_socket_directory"
       :"unix_socket_directories";
 	print $pgconf "listen_addresses = ''\n";
-    print $pgconf "$param = '$main::tmpdir'\n";
+    print $pgconf "$param = '$tmpdir'\n";
     close($pgconf);
 
     if ($oversion ge 'REL9_5_STABLE' || $oversion eq 'HEAD')
@@ -451,13 +451,13 @@ sub installcheck
     my $locale = shift;
     return unless $locale eq 'C';
 
-    return unless main::step_wanted('pg_upgrade-xversion-check');
+    return unless step_wanted('pg_upgrade-xversion-check');
 
     # localize any environment changes so they don't leak to calling code.
 
     local %ENV = %ENV;
 
-    $ENV{PGHOST} = $main::tmpdir;
+    $ENV{PGHOST} = $tmpdir;
 
     my $save_env = eval Dumper(\%ENV);
 
@@ -485,11 +485,11 @@ sub installcheck
           if @lines;
     }
 
-    main::writelog('xversion-upgrade-save',\@saveout);
+    writelog('xversion-upgrade-save',\@saveout);
     print "======== xversion upgrade save log ===========\n",@saveout
       if ($verbose > 1);
-    main::send_result('XversionUpgradeSave',$status,\@saveout) if $status;
-    $main::steps_completed .= " XVersionUpgradeSave";
+    &$send_result('XversionUpgradeSave',$status,\@saveout) if $status;
+    $steps_completed .= " XVersionUpgradeSave";
 
     # ok, we now have the persistent copy of all branches we can use
     # to test upgrading from
@@ -529,14 +529,14 @@ sub installcheck
               if (@lines || $bn =~/dumpdiff/);
         }
 
-        main::writelog("xversion-upgrade-$oversion-$this_branch",\@testout);
+        writelog("xversion-upgrade-$oversion-$this_branch",\@testout);
         print "====== xversion upgrade $oversion to $this_branch =======\n",
           @testout
           if ($verbose > 1);
-        main::send_result("XversionUpgrade-$oversion-$this_branch",
+        &$send_result("XversionUpgrade-$oversion-$this_branch",
             $status,\@testout)
           if $status;
-        $main::steps_completed .= " XVersionUpgrade-$oversion-$this_branch";
+        $steps_completed .= " XVersionUpgrade-$oversion-$this_branch";
     }
 }
 

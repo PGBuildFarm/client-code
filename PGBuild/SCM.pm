@@ -85,6 +85,8 @@ package PGBuild::SCM::CVS;
 
 use File::Find;
 use File::Basename;
+use PGBuild::Options;
+use PGBuild::Utils;
 
 sub new
 {
@@ -242,7 +244,7 @@ sub checkout
     }
     my $status = $? >>8;
     print "======== cvs $cvsmethod log ===========\n",@cvslog
-      if ($main::verbose > 1);
+      if ($verbose > 1);
 
     # can't call writelog here because we call cleanlogs after the
     # scm stage, since we only clear out the logs if we find we need to
@@ -262,24 +264,24 @@ sub checkout
 
     if (   $cvsmethod ne 'export'
         && $unknown_files
-        &&!($main::nosend && $main::nostatus ) )
+        &&!($nosend && $nostatus ) )
     {
         sleep 20;
         my @statout = `cd $target && cvs -d $cvsserver status 2>&1`;
         $unknown_files = grep { /^\?/ } @statout;
     }
 
-    main::send_result("$target-CVS",$status,\@cvslog)	if ($status);
-    main::send_result("$target-CVS-Merge",$merge_conflicts,\@cvslog)
+    &$send_result("$target-CVS",$status,\@cvslog)	if ($status);
+    &$send_result("$target-CVS-Merge",$merge_conflicts,\@cvslog)
       if ($merge_conflicts);
-    unless ($main::nosend && $main::nostatus)
+    unless ($nosend && $nostatus)
     {
-        main::send_result("$target-CVS-Dirty",$mod_files,\@cvslog)
+        &$send_result("$target-CVS-Dirty",$mod_files,\@cvslog)
           if ($mod_files);
-        main::send_result("$target-CVS-Extraneous-Files",
+        &$send_result("$target-CVS-Extraneous-Files",
             $unknown_files,\@cvslog)
           if ($unknown_files);
-        main::send_result("$target-CVS-Extraneous-Ignore",
+        &$send_result("$target-CVS-Extraneous-Ignore",
             scalar(@bad_ignore),\@bad_ignore)
           if (@bad_ignore);
     }
@@ -400,8 +402,8 @@ sub get_versions
         push(@cvs_status,@res);
         my $status = $? >>8;
         print "======== $target-cvs status log ===========\n",@cvs_status
-          if ($main::verbose > 1);
-        main::send_result("$target-CVS-status",$status,\@cvs_status)
+          if ($verbose > 1);
+        &$send_result("$target-CVS-status",$status,\@cvs_status)
           if ($status);
     }
     my @fchunks = split(/File:/,join("",@cvs_status));
@@ -449,6 +451,7 @@ use File::Find;
 use File::Basename;
 
 use PGBuild::Utils;
+use PGBuild::Options;
 
 sub new
 {
@@ -522,7 +525,7 @@ sub check_access
 sub log_id
 {
     my $self = shift;
-    main::writelog('githead',[$self->{headref}])
+    writelog('githead',[$self->{headref}])
       if $self->{headref};
 }
 
@@ -572,7 +575,7 @@ sub checkout
             @gitlog = run_log(qq{git --git-dir="$self->{mirror}" fetch});
             $status = $self->{ignore_mirror_failure} ? 0 : $? >> 8;
 
-            my $last_gc = main::find_last("$target.mirror.gc") || 0;
+            my $last_gc = find_last("$target.mirror.gc") || 0;
             if (  !$status
                 && $branch eq 'HEAD'
                 && $self->{gchours}
@@ -580,7 +583,7 @@ sub checkout
             {
                 my @gclog = run_log(qq{git --git-dir="$self->{mirror}" gc});
                 push(@gitlog,"----- mirror garbage collection -----\n",@gclog);
-                main::set_last("$target.mirror.gc");
+                set_last("$target.mirror.gc");
                 $status = $? >> 8;
             }
         }
@@ -601,8 +604,8 @@ sub checkout
         if ($status)
         {
             unshift(@gitlog,"Git mirror failure:\n");
-            print @gitlog if ($main::verbose);
-            main::send_result('Git-mirror',$status,\@gitlog);
+            print @gitlog if ($verbose);
+            &$send_result('Git-mirror',$status,\@gitlog);
         }
     }
 
@@ -630,9 +633,9 @@ sub checkout
 
                 chdir '..';
                 print "Missing checked out branch bf_$branch:\n",@branches
-                  if ($main::verbose);
+                  if ($verbose);
                 unshift @branches,"Missing checked out branch bf_$branch:\n";
-                main::send_result("$target-Git",$status,\@branches);
+                &$send_result("$target-Git",$status,\@branches);
             }
         }
 
@@ -646,12 +649,12 @@ sub checkout
         # run gc from the parent so we find and set the status file correctly
         if ( !-l "$target/.git/config" && $self->{gchours})
         {
-            my $last_gc = main::find_last("$target.gc") || 0;
+            my $last_gc = find_last("$target.gc") || 0;
             if (time - $last_gc > $self->{gchours} * 3600)
             {
                 my @gclog = run_log("git --git-dir=$target/.git gc");
                 push(@gitlog,"----- garbage collection -----\n",@gclog);
-                main::set_last("$target.gc");
+                set_last("$target.gc");
             }
         }
     }
@@ -766,7 +769,7 @@ sub checkout
     }
     $status = $? >>8;
     print "================== git log =====================\n",@gitlog
-      if ($main::verbose > 1);
+      if ($verbose > 1);
 
     close($lockfile) if $lockfile;
 
@@ -786,11 +789,11 @@ sub checkout
     $self->{headref} = (split(/\s+/, $headref))[0];
     chdir "..";
 
-    main::send_result("$target-Git",$status,\@gitlog)	if ($status);
-    unless ($main::nosend && $main::nostatus)
+    &$send_result("$target-Git",$status,\@gitlog)	if ($status);
+    unless ($nosend && $nostatus)
     {
         push(@gitlog,"===========",@gitstat);
-        main::send_result("$target-Git-Dirty",99,\@gitlog)
+        &$send_result("$target-Git-Dirty",99,\@gitlog)
           if (@gitstat);
     }
 

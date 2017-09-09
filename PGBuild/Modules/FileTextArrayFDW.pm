@@ -49,7 +49,7 @@ sub setup
 
     return unless $branch ge 'REL9_1_STABLE' || $branch eq 'HEAD';
 
-    return unless main::step_wanted("$MODULE-build");
+    return unless step_wanted("$MODULE-build");
 
     # could even set up several of these (e.g. for different branches)
     my $self  = {
@@ -74,7 +74,7 @@ sub setup
     $self->{where} = $where;
 
     # for each instance you create, do:
-    main::register_module_hooks($self,$hooks);
+    register_module_hooks($self,$hooks);
 
 }
 
@@ -83,7 +83,7 @@ sub checkout
     my $self = shift;
     my $savescmlog = shift; # array ref to the log lines
 
-    print main::time_str(), "checking out $MODULE\n" if	$verbose;
+    print time_str(), "checking out $MODULE\n" if	$verbose;
 
     my $scmlog = $self->{scm}->checkout($self->{pgbranch});
 
@@ -97,7 +97,7 @@ sub setup_target
 
     # copy the code or setup a vpath dir if supported as appropriate
 
-    print main::time_str(), "copying source to  ...$self->{where}\n"
+    print time_str(), "copying source to  ...$self->{where}\n"
       if $verbose;
 
     $self->{scm}->copy_source(undef);
@@ -109,12 +109,12 @@ sub need_run
     my $self = shift;
     my $run_needed = shift; # ref to flag
 
-    print main::time_str(), "checking if run needed by $MODULE\n"
+    print time_str(), "checking if run needed by $MODULE\n"
       if	$verbose;
 
-    my $last_status = main::find_last('status') || 0;
-    my $last_run_snap = main::find_last('run.snap');
-    my $last_success_snap = main::find_last('success.snap');
+    my $last_status = find_last('status') || 0;
+    my $last_run_snap = find_last('run.snap');
+    my $last_success_snap = find_last('success.snap');
     my @changed_files;
     my @changed_since_success;
 
@@ -132,7 +132,7 @@ sub configure
 {
     my $self = shift;
 
-    print main::time_str(), "configuring $MODULE\n" if	$verbose;
+    print time_str(), "configuring $MODULE\n" if	$verbose;
 
 }
 
@@ -140,16 +140,16 @@ sub build
 {
     my $self = shift;
 
-    print main::time_str(), "building $MODULE\n" if	$verbose;
+    print time_str(), "building $MODULE\n" if	$verbose;
 
     my $cmd = "PATH=../inst:$ENV{PATH} make USE_PGXS=1";
 
     my @makeout = run_log("cd $self->{where} && $cmd");
 
     my $status = $? >>8;
-    main::writelog("$MODULE-build",\@makeout);
+    writelog("$MODULE-build",\@makeout);
     print "======== make log ===========\n",@makeout if ($verbose > 1);
-    main::send_result("$MODULE-build",$status,\@makeout) if $status;
+    &$send_result("$MODULE-build",$status,\@makeout) if $status;
 
 }
 
@@ -157,16 +157,16 @@ sub install
 {
     my $self = shift;
 
-    print main::time_str(), "installing $MODULE\n" if	$verbose;
+    print time_str(), "installing $MODULE\n" if	$verbose;
 
     my $cmd = "PATH=../inst:$ENV{PATH} make USE_PGXS=1 install";
 
     my @log = run_log("cd $self->{where} && $cmd");
 
     my $status = $? >>8;
-    main::writelog("$MODULE-install",\@log);
+    writelog("$MODULE-install",\@log);
     print "======== install log ===========\n",@log if ($verbose > 1);
-    main::send_result("$MODULE-install",$status,\@log) if $status;
+    &$send_result("$MODULE-install",$status,\@log) if $status;
 
 }
 
@@ -174,7 +174,7 @@ sub check
 {
     my $self = shift;
 
-    print main::time_str(), "checking ",__PACKAGE__,"\n" if	$verbose;
+    print time_str(), "checking ",__PACKAGE__,"\n" if	$verbose;
 }
 
 sub installcheck
@@ -186,7 +186,7 @@ sub installcheck
 	
     my $make = $self->{bfconf}->{make};
 
-    print main::time_str(), "install-checking $MODULE\n" if	$verbose;
+    print time_str(), "install-checking $MODULE\n" if	$verbose;
 
     my $cmd = "$make USE_PGXS=1 USE_MODULE_DB=1 installcheck";
 
@@ -209,10 +209,10 @@ sub installcheck
         close($handle);
     }
 
-    main::writelog("$MODULE-installcheck-$locale",\@log);
+    writelog("$MODULE-installcheck-$locale",\@log);
     print "======== installcheck ($locale) log ===========\n",@log
       if ($verbose > 1);
-    main::send_result("$MODULE-installcheck-$locale",$status,\@log) if $status;
+    &$send_result("$MODULE-installcheck-$locale",$status,\@log) if $status;
 
 }
 
@@ -220,7 +220,7 @@ sub cleanup
 {
     my $self = shift;
 
-    print main::time_str(), "cleaning up $MODULE\n" if	$verbose > 1;
+    print time_str(), "cleaning up $MODULE\n" if	$verbose > 1;
 
     system("rm -rf $self->{where}");
 }
