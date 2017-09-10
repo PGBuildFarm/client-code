@@ -27,7 +27,7 @@ my $hooks = {
     'checkout' => \&checkout,
     'setup-target' => \&setup_target,
 
-    'need-run' => \&need_run,
+    # 'need-run' => \&need_run,
 
     # 'configure' => \&configure,
     'build' => \&build,
@@ -101,30 +101,6 @@ sub setup_target
       if $verbose;
 
     $self->{scm}->copy_source(undef);
-
-}
-
-sub need_run
-{
-    my $self = shift;
-    my $run_needed = shift; # ref to flag
-
-    print time_str(), "checking if run needed by $MODULE\n"
-      if	$verbose;
-
-    my $last_status = find_last('status') || 0;
-    my $last_run_snap = find_last('run.snap');
-    my $last_success_snap = find_last('success.snap');
-    my @changed_files;
-    my @changed_since_success;
-
-    # updated by find_changed to last mtime of any file in the repo
-    my $current_snap=0;
-
-    $self->{scm}->find_changed(\$current_snap,$last_run_snap,
-        $last_success_snap, \@changed_files,\@changed_since_success);
-
-    $$run_needed = 1 if @changed_files;
 
 }
 
