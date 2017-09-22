@@ -1030,7 +1030,7 @@ sub get_pg_version {
 	my $ver;
 	open ($fh,"<",$filename) || die $!;
 	while (<$fh>) {
-		if (/AC_INIT\(\[\S+\],\s*\[([\d\.]+)(?:rc|devel|beta\d+)?\],/) {
+		if (/AC_INIT\(\[\S+\],\s*\[([\d\.]+)(?:rc\d+|devel|beta\d+)?\],/) {
 			$ver= $1;
 			last; 
 		}	
