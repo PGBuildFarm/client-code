@@ -282,7 +282,7 @@ if ($ccachedir)
     $ccachedir = abs_path($ccachedir);
 }
 
-if ($^V lt v5.8.0)
+if ($^V lt v5.8.0 || ($Config{osname} eq 'msys' && $target =~ /^https/))
 {
     die "no aux_path in config file" unless $aux_path;
 }
@@ -2228,8 +2228,9 @@ sub send_res
 
     # this should now only apply to older Msys installs. All others should
     # be running with perl >= 5.8 since that's required to build postgres
-    # anyway
-    if (!$^V or $^V lt v5.8.0)
+    # anyway. However, the Msys DTK perl doesn't handle https.
+    if (!$^V or $^V lt v5.8.0 ||
+		($Config{osname} eq 'msys' && $target =~ /^https/))
     {
 
         unless (-x "$aux_path/run_web_txn.pl")
