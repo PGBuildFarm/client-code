@@ -55,8 +55,7 @@ BEGIN { use lib File::Spec->rel2abs(dirname(__FILE__)); }
 # this helps make sure we sort logfiles correctly
 BEGIN
 {
-	eval { require Time::HiRes; };
-	Time::HiRes->import('stat') unless $@;
+	eval { require Time::HiRes; Time::HiRes->import('stat'); };
 }
 
 # save a copy of the original enviroment for reporting
