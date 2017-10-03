@@ -26,26 +26,26 @@ use vars qw($VERSION); $VERSION = 'REL_5';
 
 @ISA         = qw(Exporter);
 @EXPORT      = qw(run_log time_str process_module_hooks register_module_hooks
-				  get_stack_trace cleanlogs writelog 
-				  set_last find_last step_wanted send_result
-				  file_lines file_contents
-				);
+  get_stack_trace cleanlogs writelog
+  set_last find_last step_wanted send_result
+  file_lines file_contents
+);
 %EXPORT_TAGS = qw();
 @EXPORT_OK   = qw($st_prefix $logdirname $branch_root $steps_completed
-				  %skip_steps %only_steps $tmpdir $temp_installs $devnull
-				  $send_result_routine
-				);
+  %skip_steps %only_steps $tmpdir $temp_installs $devnull
+  $send_result_routine
+);
 
 my %module_hooks;
-use vars qw($core_file_glob $st_prefix $logdirname $branch_root 
-			$steps_completed %skip_steps %only_steps $tmpdir $temp_installs
-			$send_result_routine $devnull
-		  );
+use vars qw($core_file_glob $st_prefix $logdirname $branch_root
+  $steps_completed %skip_steps %only_steps $tmpdir $temp_installs
+  $send_result_routine $devnull
+);
 
 # wrap the main program's send_res routine (formerly send_result)
 sub send_result
 {
-	&$send_result_routine(@_);
+    &$send_result_routine(@_);
 }
 
 # something like IPC::RUN but without requiring it, as some installations
@@ -133,7 +133,6 @@ sub process_module_hooks
     }
 }
 
-
 sub get_stack_trace
 {
     my $bindir = shift;
@@ -192,29 +191,29 @@ sub writelog
 
 sub file_lines
 {
-	my $filename = shift;
-	my $filepos = shift;
-	my $handle;
-	open($handle, $filename) || croak "opening $filename: $!";
-	seek($handle, $filepos, SEEK_SET) if $filepos;
-	my @lines = <$handle>;
-	close $handle;
-	return @lines;
+    my $filename = shift;
+    my $filepos = shift;
+    my $handle;
+    open($handle, $filename) || croak "opening $filename: $!";
+    seek($handle, $filepos, SEEK_SET) if $filepos;
+    my @lines = <$handle>;
+    close $handle;
+    return @lines;
 }
 
 # get a file as a single string
 
 sub file_contents
 {
-	my $filename = shift;
-	my $filepos = shift;
-	my $handle;
-	open($handle, $filename) || croak "opening $filename: $!";
-	seek($handle, $filepos, SEEK_SET) if $filepos;
-	local $/ = undef;
-	my $contents = <$handle>;
-	close $handle;
-	return $contents;
+    my $filename = shift;
+    my $filepos = shift;
+    my $handle;
+    open($handle, $filename) || croak "opening $filename: $!";
+    seek($handle, $filepos, SEEK_SET) if $filepos;
+    local $/ = undef;
+    my $contents = <$handle>;
+    close $handle;
+    return $contents;
 }
 
 sub find_last

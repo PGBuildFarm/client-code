@@ -158,8 +158,8 @@ sub installcheck
     my $self = shift;
     my $locale = shift;
 
-	return unless $locale eq 'C';
-	
+    return unless $locale eq 'C';
+
     my $make = $self->{bfconf}->{make};
 
     print time_str(), "install-checking $MODULE\n" if	$verbose;
@@ -176,7 +176,7 @@ sub installcheck
         last unless $status;
         next unless (-e $logfile );
         push(@log,"\n\n================== $logfile ==================\n");
-		push(@log,file_lines($logfile));
+        push(@log,file_lines($logfile));
     }
 
     writelog("$MODULE-installcheck-$locale",\@log);

@@ -98,8 +98,8 @@ sub installcheck
         }
     }
 
-	my $logpos = -s "$installdir/logfile" || 0;
-	
+    my $logpos = -s "$installdir/logfile" || 0;
+
     my @checklog;
     my $cmd ="./pg_regress --$binswitch=$installdir/bin --dlpath=. "
       ."$inputdir --port=$buildport collate.linux.utf8";
@@ -111,11 +111,11 @@ sub installcheck
     foreach my $logfile(@logfiles)
     {
         next unless (-e $logfile );
-		my $lpos = 0;
-		my $lpos = $logpos if $logfile eq "$installdir/logfile";
+        my $lpos = 0;
+        my $lpos = $logpos if $logfile eq "$installdir/logfile";
 
         push(@checklog,"\n\n================== $logfile ==================\n");
-		push(@checklog,file_lines($logfile,$lpos));
+        push(@checklog,file_lines($logfile,$lpos));
     }
     if ($status)
     {

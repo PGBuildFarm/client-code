@@ -275,8 +275,7 @@ sub test_upgrade
     my $installdir = "$upgrade_loc/inst";
     my $oversion = basename $other_branch;
 
-    print time_str(),
-      "checking upgrade from $oversion to $this_branch ...\n"
+    print time_str(),"checking upgrade from $oversion to $this_branch ...\n"
       if	$verbose;
 
     rmtree "$other_branch/inst/upgrade_test";
@@ -290,12 +289,12 @@ sub test_upgrade
 
     return undef if $?;
 
-	# The old version will have the unix sockets point to tmpdir from the
-	# run in which it was set up, which will be gone by now, so we repoint
-	# it to the current run's tmpdir.
-	# listen_addresses will be set correctly and requires no adjustment.
+    # The old version will have the unix sockets point to tmpdir from the
+    # run in which it was set up, which will be gone by now, so we repoint
+    # it to the current run's tmpdir.
+    # listen_addresses will be set correctly and requires no adjustment.
     open(my $opgconf, ">>$other_branch/inst/upgrade_test/postgresql.conf")
-	  || die "opening $other_branch/inst/upgrade_test/postgresql.conf: $!";
+      || die "opening $other_branch/inst/upgrade_test/postgresql.conf: $!";
     my $param =
       $oversion eq 'REL9_2_STABLE'
       ? "unix_socket_directory"
@@ -350,12 +349,12 @@ sub test_upgrade
     return undef if $?;
 
     open(my $pgconf, ">>$installdir/$oversion-upgrade/postgresql.conf")
-	  || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
+      || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
     my $param =
       $this_branch eq 'REL9_2_STABLE'
       ? "unix_socket_directory"
       :"unix_socket_directories";
-	print $pgconf "listen_addresses = ''\n";
+    print $pgconf "listen_addresses = ''\n";
     print $pgconf "$param = '$tmpdir'\n";
     close($pgconf);
 
@@ -363,7 +362,7 @@ sub test_upgrade
     {
         my $handle;
         open($handle,">>$installdir/$oversion-upgrade/postgresql.conf")
-		  || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
+          || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
         print $handle "shared_preload_libraries = 'dummy_seclabel'\n";
         close $handle;
     }
@@ -532,8 +531,7 @@ sub installcheck
         print "====== xversion upgrade $oversion to $this_branch =======\n",
           @testout
           if ($verbose > 1);
-        send_result("XversionUpgrade-$oversion-$this_branch",
-            $status,\@testout)
+        send_result("XversionUpgrade-$oversion-$this_branch",$status,\@testout)
           if $status;
         $steps_completed .= " XVersionUpgrade-$oversion-$this_branch";
     }

@@ -102,8 +102,8 @@ sub build
 
     my $cmd = "PATH=../inst:$ENV{PATH} make USE_PGXS=1";
 
-#	print STDERR `pwd`,',',-e $self->{where}, ": $cmd\n";
-	
+    #	print STDERR `pwd`,',',-e $self->{where}, ": $cmd\n";
+
     my @makeout = `cd $self->{where} && $cmd 2>&1`;
 
     my $status = $? >>8;
@@ -135,8 +135,8 @@ sub installcheck
     my $self = shift;
     my $locale = shift;
 
-	return unless $locale eq 'C';
-	
+    return unless $locale eq 'C';
+
     my $branch = $self->{pgbranch};
 
     # no testing in 9.1
@@ -152,16 +152,16 @@ sub installcheck
     my @log = `cd $self->{where} && $cmd 2>&1`;
 
     my $status = $? >>8;
-    my @logfiles =("$self->{where}/test/regression.diffs",
-				   "$installdir/logfile");
+    my @logfiles =
+      ("$self->{where}/test/regression.diffs","$installdir/logfile");
     foreach my $logfile(@logfiles)
     {
         last unless $status;
         next unless (-e $logfile );
-		my $lpos = 0;
-		$lpos = $logpos if $logfile  eq "$installdir/logfile";
-		push(@log,"\n\n================== $logfile ==================\n");
-		push(@log,file_lines($logfile,$lpos));
+        my $lpos = 0;
+        $lpos = $logpos if $logfile  eq "$installdir/logfile";
+        push(@log,"\n\n================== $logfile ==================\n");
+        push(@log,file_lines($logfile,$lpos));
     }
 
     writelog("$MODULE-installcheck-$locale",\@log);

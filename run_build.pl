@@ -55,7 +55,7 @@ BEGIN { use lib File::Spec->rel2abs(dirname(__FILE__)); }
 # this helps make sure we sort logfiles correctly
 BEGIN
 {
-	eval { require Time::HiRes; Time::HiRes->import('stat'); };
+    eval { require Time::HiRes; Time::HiRes->import('stat'); };
 }
 
 # save a copy of the original enviroment for reporting
@@ -85,8 +85,8 @@ use PGBuild::SCM;
 use PGBuild::Options;
 use PGBuild::WebTxn;
 use PGBuild::Utils qw(:DEFAULT $st_prefix $logdirname $branch_root
-					  $steps_completed %skip_steps %only_steps $tmpdir
-					  $temp_installs $devnull $send_result_routine);
+  $steps_completed %skip_steps %only_steps $tmpdir
+  $temp_installs $devnull $send_result_routine);
 
 $send_result_routine = \&send_res;
 
@@ -148,6 +148,7 @@ print_help() if ($help);
 # process config file
 #
 require $buildconf;
+
 # get this here before we change directories
 my $buildconf_mod = (stat $buildconf)[9];
 
@@ -763,10 +764,10 @@ foreach my $locale (@locales)
     {
         $ENV{PGHOST} = $tmpdir;
     }
-	else
-	{
-		$ENV{PGHOST} = 'localhost';
-	}
+    else
+    {
+        $ENV{PGHOST} = 'localhost';
+    }
 
     print time_str(),"starting db ($locale)...\n" if $verbose;
 
@@ -1182,8 +1183,8 @@ sub initdb
     if (!$status)
     {
         my $handle;
-        open($handle,">>$installdir/data-$locale/postgresql.conf") ||
-		  die "opening $installdir/data-$locale/postgresql.conf: $!";
+        open($handle,">>$installdir/data-$locale/postgresql.conf")
+          ||die "opening $installdir/data-$locale/postgresql.conf: $!";
 
         if (!$using_msvc && $Config{osname} !~ /msys|MSWin/)
         {
@@ -1221,8 +1222,10 @@ sub initdb
             {
                 $pg_regress = "$abspgsql/src/test/regress/pg_regress";
             }
-			my $roles = $branch ne 'HEAD' && $branch lt 'REL9_5' ?
-			  "buildfarm,dblink_regression_test" : "buildfarm";
+            my $roles =
+              $branch ne 'HEAD' && $branch lt 'REL9_5'
+              ?"buildfarm,dblink_regression_test"
+              : "buildfarm";
             my $setauth = "--create-role $roles --config-auth";
             my @lines = run_log("$pg_regress $setauth data-$locale");
             $status = $? >> 8;
@@ -1332,7 +1335,7 @@ sub make_install_check
     {
         next unless (-e $logfile );
         push(@checklog,"\n\n================== $logfile ==================\n");
-		push(@checklog,file_lines($logfile));
+        push(@checklog,file_lines($logfile));
     }
     if ($status)
     {
@@ -1370,7 +1373,7 @@ sub make_contrib_install_check
     {
         next unless (-e $logfile);
         push(@checklog,"\n\n================= $logfile ===================\n");
-		push(@checklog,file_lines($logfile));
+        push(@checklog,file_lines($logfile));
     }
     if ($status)
     {
@@ -1409,7 +1412,7 @@ sub make_testmodules_install_check
     {
         next unless (-e $logfile);
         push(@checklog,"\n\n================= $logfile ===================\n");
-		push(@checklog,file_lines($logfile));
+        push(@checklog,file_lines($logfile));
     }
     if ($status)
     {
@@ -1448,7 +1451,7 @@ sub make_pl_install_check
     {
         next unless (-e $logfile);
         push(@checklog,"\n\n================= $logfile ===================\n");
-		push(@checklog,file_lines($logfile));
+        push(@checklog,file_lines($logfile));
     }
     if ($status)
     {
@@ -1494,7 +1497,7 @@ sub make_isolation_check
     foreach my $logfile (@logs)
     {
         push(@makeout,"\n\n================== $logfile ===================\n");
-		push(@makeout,file_lines($logfile));
+        push(@makeout,file_lines($logfile));
     }
     if ($status)
     {
@@ -1518,7 +1521,7 @@ sub run_tap_test
 
     my $target = $is_install_check ? "installcheck" : "check";
 
-	return unless step_wanted("$testname-$target");
+    return unless step_wanted("$testname-$target");
 
     # fix path temporarily on msys
     my $save_path = $ENV{PATH};
@@ -1531,12 +1534,13 @@ sub run_tap_test
     my @makeout;
 
     my $pflags = "PROVE_FLAGS=--timer";
-	if (exists $ENV{PROVE_FLAGS})
-	{
-		$pflags = $ENV{PROVE_FLAGS} ?
-		  "PROVE_FLAGS=$ENV{PROVE_FLAGS}" :
-		  "";
-	}
+    if (exists $ENV{PROVE_FLAGS})
+    {
+        $pflags =
+          $ENV{PROVE_FLAGS}
+          ?"PROVE_FLAGS=$ENV{PROVE_FLAGS}"
+          :"";
+    }
 
     if ($using_msvc)
     {
@@ -1560,7 +1564,7 @@ sub run_tap_test
     foreach my $logfile (@logs)
     {
         push(@makeout,"\n\n================== $logfile ===================\n");
-		push(@makeout,file_lines($logfile));
+        push(@makeout,file_lines($logfile));
     }
 
     writelog("$testname-$target",\@makeout);
@@ -1657,7 +1661,7 @@ sub make_check
     foreach my $logfile (@logs)
     {
         push(@makeout,"\n\n================== $logfile ===================\n");
-		push(@makeout,file_lines($logfile));
+        push(@makeout,file_lines($logfile));
     }
     my $base = "$pgsql/src/test/regress/tmp_check";
     if ($status)
@@ -1714,7 +1718,7 @@ sub make_ecpg_check
     foreach my $logfile (@logs)
     {
         push(@makeout,"\n\n================== $logfile ===================\n");
-		push(@makeout,file_lines($logfile));
+        push(@makeout,file_lines($logfile));
     }
     if ($status)
     {
@@ -1853,9 +1857,10 @@ sub find_typedefs
     my %foundwords;
 
     my $setfound = sub{
-		# $_ is the name of the file being examined
-		# its directory is our current cwd
-		
+
+        # $_ is the name of the file being examined
+        # its directory is our current cwd
+
         return unless (-f $_ && /^.*\.[chly]\z/);
         my @lines;
         my $src = file_contents($_);
@@ -1944,7 +1949,7 @@ sub configure
 
         my $handle;
         open($handle,">$pgsql/src/tools/msvc/config.pl")
-		  || die "opening $pgsql/src/tools/msvc/config.pl: $!";
+          || die "opening $pgsql/src/tools/msvc/config.pl: $!";
         print $handle @text;
         close($handle);
 
@@ -1984,34 +1989,35 @@ sub configure
         # in the case of from_source, or has been changed for this run
         # or the run is forced, in the usual build from git case
         my $accachefile = "$accachedir/config-$branch.cache";
-		if (-e $accachefile)
-		{
-			my $obsolete;
-			my $cache_mod = (stat $accachefile)[9];
-			if ($from_source)
-			{
-				my $conffile = "$from_source/configure";
-				$obsolete = -e $conffile && (stat $conffile)[9] > $cache_mod;
-			}
-			else
-			{
-				$obsolete = grep { /^configure / } @changed_files;
-				$obsolete ||= $last_status = 0;
-			}
-			# also remove if the buildfarm config file is newer, or the options
-			# have been changed via --config_set.
-			#
-			# we currently don't allow overriding the config file
-			# environment settings via --config-set, but if we did
-			# we'd have to account for that here too.
-			#
-			# if the user alters the environment that's set externally
-			# for the buildfarm we can't really do anything about that.
-			$obsolete ||= grep {/config_opts/} @config_set;
-			$obsolete ||= $buildconf_mod > $cache_mod;
+        if (-e $accachefile)
+        {
+            my $obsolete;
+            my $cache_mod = (stat $accachefile)[9];
+            if ($from_source)
+            {
+                my $conffile = "$from_source/configure";
+                $obsolete = -e $conffile && (stat $conffile)[9] > $cache_mod;
+            }
+            else
+            {
+                $obsolete = grep { /^configure / } @changed_files;
+                $obsolete ||= $last_status = 0;
+            }
 
-			unlink $accachefile if $obsolete;
-		}
+            # also remove if the buildfarm config file is newer, or the options
+            # have been changed via --config_set.
+            #
+            # we currently don't allow overriding the config file
+            # environment settings via --config-set, but if we did
+            # we'd have to account for that here too.
+            #
+            # if the user alters the environment that's set externally
+            # for the buildfarm we can't really do anything about that.
+            $obsolete ||= grep {/config_opts/} @config_set;
+            $obsolete ||= $buildconf_mod > $cache_mod;
+
+            unlink $accachefile if $obsolete;
+        }
         $confstr .= " --cache-file='$accachefile'";
     }
 
@@ -2041,7 +2047,7 @@ sub configure
 
     if (-s "$pgsql/config.log")
     {
-		@config = file_contents("$pgsql/config.log");
+        @config = file_contents("$pgsql/config.log");
         writelog('config',\@config);
     }
 
@@ -2165,8 +2171,8 @@ sub send_res
     # this should now only apply to older Msys installs. All others should
     # be running with perl >= 5.8 since that's required to build postgres
     # anyway. However, the Msys DTK perl doesn't handle https.
-    if (!$^V or $^V lt v5.8.0 ||
-		($Config{osname} eq 'msys' && $target =~ /^https/))
+    if (  !$^V
+        or $^V lt v5.8.0 ||($Config{osname} eq 'msys' && $target =~ /^https/))
     {
 
         unless (-x "$aux_path/run_web_txn.pl")
@@ -2215,7 +2221,7 @@ sub get_config_summary
 
     unless ($using_msvc || !-e "$pgsql/config.log" )
     {
-		my @lines = file_lines("$pgsql/config.log");
+        my @lines = file_lines("$pgsql/config.log");
         my $start = undef;
         foreach (@lines)
         {
@@ -2232,11 +2238,11 @@ sub get_config_summary
             # split up long configure line
             if (m!\$.*configure.*--with!)
             {
-				foreach my $lpos (70,140,210,280,350,420)
-				{
-					my $pos = index($_," ",$lpos);
-					substr($_,$pos+1,0,"\\\n        ") if ($pos > 0);
-				}
+                foreach my $lpos (70,140,210,280,350,420)
+                {
+                    my $pos = index($_," ",$lpos);
+                    substr($_,$pos+1,0,"\\\n        ") if ($pos > 0);
+                }
             }
             $config .= $_;
         }

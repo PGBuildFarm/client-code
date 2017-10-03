@@ -98,9 +98,9 @@ sub installcheck
     {
         next unless (-e $logfile );
         push(@checklog,"\n\n================== $logfile ==================\n");
-		my $lpos = 0;
-		$lpos = $logpos if $logfile eq "$installdir/logfile";
-		push(@checklog,file_lines($logfile,$lpos));
+        my $lpos = 0;
+        $lpos = $logpos if $logfile eq "$installdir/logfile";
+        push(@checklog,file_lines($logfile,$lpos));
     }
     if ($status)
     {

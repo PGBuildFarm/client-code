@@ -26,6 +26,7 @@ my $hooks = {
 
     # 'check' => \&check,
     'install' => \&install,
+
     # 'installcheck' => \&installcheck,
     'cleanup' => \&cleanup,
 };

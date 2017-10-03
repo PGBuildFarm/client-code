@@ -192,7 +192,7 @@ sub find_last_status
     my $status_file =
       "$PGBuild::conf{build_root}/$brnch/$PGBuild::conf{animal}.last.status";
     return 0 unless (-e  $status_file);
-	my $ts = file_contents($status_file);
+    my $ts = file_contents($status_file);
     chomp $ts;
     return $ts + 0;
 }

@@ -146,6 +146,7 @@ sub check_access
     my $qsrvr = quotemeta($srvr);
     if (open($cvspass,glob("~/.cvspass")))
     {
+
         while (my $line = <$cvspass>)
         {
             if ($line =~ /:pserver:$qsrvr:/)
@@ -277,8 +278,7 @@ sub checkout
     {
         send_result("$target-CVS-Dirty",$mod_files,\@cvslog)
           if ($mod_files);
-        send_result("$target-CVS-Extraneous-Files",
-            $unknown_files,\@cvslog)
+        send_result("$target-CVS-Extraneous-Files",$unknown_files,\@cvslog)
           if ($unknown_files);
         send_result("$target-CVS-Extraneous-Ignore",
             scalar(@bad_ignore),\@bad_ignore)

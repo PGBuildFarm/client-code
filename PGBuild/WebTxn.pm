@@ -61,9 +61,9 @@ sub run_web_txn
     eval "require JSON::PP; import JSON::PP;";
     $json_available = 1 unless $@;
 
-	# avoid using the Utils file handling here so we don't introduce an
-	# additional dependency. It might be OK to use but it might not,
-	# so don't risk it. :-)
+    # avoid using the Utils file handling here so we don't introduce an
+    # additional dependency. It might be OK to use but it might not,
+    # so don't risk it. :-)
 
     my $txfname = "$lrname/web-txn.data";
     my $txdhandle;
@@ -150,7 +150,7 @@ sub run_web_txn
     $ua->agent("Postgres Build Farm Reporter");
     if (my $proxy = $ENV{BF_PROXY})
     {
-		my $targetURI = URI->new($target);
+        my $targetURI = URI->new($target);
         $ua->proxy($targetURI->scheme,$proxy);
     }
 
