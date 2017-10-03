@@ -119,11 +119,7 @@ sub check
     foreach my $log (@logfiles)
     {
         my $fname = basename $log;
-        local $/ = undef;
-        my $handle;
-        open($handle,$log);
-        my $contents = <$handle>;
-        close($handle);
+        my $contents = file_contents($log);
         push(@checklog,
             "=========================== $fname ================\n",$contents);
     }

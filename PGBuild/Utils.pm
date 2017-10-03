@@ -14,7 +14,9 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
+use Carp;
 use Config;
+use Fcntl qw(:seek);
 use File::Path;
 
 use Exporter   ();
@@ -26,6 +28,7 @@ use vars qw($VERSION); $VERSION = 'REL_5';
 @EXPORT      = qw(run_log time_str process_module_hooks register_module_hooks
 				  get_stack_trace cleanlogs writelog 
 				  set_last find_last step_wanted send_result
+				  file_lines file_contents
 				);
 %EXPORT_TAGS = qw();
 @EXPORT_OK   = qw($st_prefix $logdirname $branch_root $steps_completed
@@ -147,7 +150,7 @@ sub get_stack_trace
 
     my $cmdfile = "./gdbcmd";
     my $handle;
-    open($handle, ">$cmdfile");
+    open($handle, ">$cmdfile") || die "opening $cmdfile: $!";
     print $handle "bt\n";
     close($handle);
 
@@ -180,9 +183,38 @@ sub writelog
     my $loglines = shift;
     my $handle;
     my $lrname = $st_prefix . $logdirname;
-    open($handle,">$lrname/$fname") || die $!;
+    open($handle,">$lrname/$fname") || die "opening $lrname/$fname: $!";
     print $handle @$loglines;
     close($handle);
+}
+
+# get a file as a list of lines
+
+sub file_lines
+{
+	my $filename = shift;
+	my $filepos = shift;
+	my $handle;
+	open($handle, $filename) || croak "opening $filename: $!";
+	seek($handle, $filepos, SEEK_SET) if $filepos;
+	my @lines = <$handle>;
+	close $handle;
+	return @lines;
+}
+
+# get a file as a single string
+
+sub file_contents
+{
+	my $filename = shift;
+	my $filepos = shift;
+	my $handle;
+	open($handle, $filename) || croak "opening $filename: $!";
+	seek($handle, $filepos, SEEK_SET) if $filepos;
+	local $/ = undef;
+	my $contents = <$handle>;
+	close $handle;
+	return $contents;
 }
 
 sub find_last

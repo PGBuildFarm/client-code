@@ -98,14 +98,9 @@ sub installcheck
     {
         next unless (-e $logfile );
         push(@checklog,"\n\n================== $logfile ==================\n");
-        my $handle;
-        open($handle,$logfile);
-        seek($handle, $logpos, SEEK_SET) if $logfile =~ m!/logfile$!;
-        while(<$handle>)
-        {
-            push(@checklog,$_);
-        }
-        close($handle);
+		my $lpos = 0;
+		$lpos = $logpos if $logfile eq "$installdir/logfile";
+		push(@checklog,file_lines($logfile,$lpos));
     }
     if ($status)
     {

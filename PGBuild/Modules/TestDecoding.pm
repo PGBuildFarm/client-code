@@ -89,13 +89,9 @@ sub check
         my $fname = $log;
         $fname =~ s!.*/([^/]+/log/[^/]+log)$!$1!;
         $fname =~ s!.*/([^/]+/[^/]+diffs)$!$1!;
-        local $/ = undef;
-        my $handle;
-        open($handle,$log);
-        my $contents = <$handle>;
-        close($handle);
+		my $contents = file_contents($log);
         push(@checklog,
-            "=========================== $fname ================\n",$contents);
+			 "========================== $fname ================\n",$contents);
     }
 
     my $status = $? >>8;

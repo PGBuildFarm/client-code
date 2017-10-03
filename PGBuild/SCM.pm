@@ -146,7 +146,6 @@ sub check_access
     my $qsrvr = quotemeta($srvr);
     if (open($cvspass,glob("~/.cvspass")))
     {
-
         while (my $line = <$cvspass>)
         {
             if ($line =~ /:pserver:$qsrvr:/)

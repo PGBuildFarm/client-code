@@ -147,7 +147,8 @@ sub locale_end
 
     my $status = $? >>8;
 
-    open(my $handle,">>inst/sepgsql/postgresql.conf");
+    open(my $handle,">>inst/sepgsql/postgresql.conf")
+	  || die "opening inst/sepgsql/postgresql.conf: $!";
     my $param =
       $branch eq 'REL9_2_STABLE'
       ? "unix_socket_directory"
@@ -212,18 +213,14 @@ sub locale_end
 
     if ( -e "$pgsql/contrib/sepgsql/regression.diffs" )
     {
-        open(my $dhandle,"$pgsql/contrib/sepgsql/regression.diffs");
         push(@log,"================== regression.diffs ===============\n");
-        push(@log,$_) while (<$dhandle>);
-        close($dhandle);
+        push(@log,file_lines("$pgsql/contrib/sepgsql/regression.diffs"));
     }
 
     if ($status)
     {
         push(@log,"============== postgresql.log =================\n");
-        open(my $handle,"inst/sepgsql.log");
-        push(@log,$_) while (<$handle>);
-        close($handle);
+        push(@log,file_lines("inst/sepgsql.log"));
     }
 
     my @stoplog = run_log("cd inst && bin/pg_ctl -D sepgsql stop");

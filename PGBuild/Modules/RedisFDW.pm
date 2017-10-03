@@ -152,27 +152,22 @@ sub installcheck
     my @log = `cd $self->{where} && $cmd 2>&1`;
 
     my $status = $? >>8;
-    my @logfiles =("$self->{where}/test/regression.diffs","$installdir/logfile");
+    my @logfiles =("$self->{where}/test/regression.diffs",
+				   "$installdir/logfile");
     foreach my $logfile(@logfiles)
     {
         last unless $status;
         next unless (-e $logfile );
-        push(@log,"\n\n================== $logfile ==================\n");
-        my $handle;
-        open($handle,$logfile);
-		seek($handle, $logpos, SEEK_SET) if $logfile eq "$installdir/logfile";
-        while(<$handle>)
-        {
-            push(@log,$_);
-        }
-        close($handle);
+		my $lpos = 0;
+		$lpos = $logpos if $logfile  eq "$installdir/logfile";
+		push(@log,"\n\n================== $logfile ==================\n");
+		push(@log,file_lines($logfile,$lpos));
     }
 
     writelog("$MODULE-installcheck-$locale",\@log);
     print "======== installcheck ($locale) log ===========\n",@log
       if ($verbose > 1);
     send_result("$MODULE-installcheck-$locale",$status,\@log) if $status;
-
 }
 
 sub cleanup

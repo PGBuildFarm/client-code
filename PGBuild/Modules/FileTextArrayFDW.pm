@@ -176,13 +176,7 @@ sub installcheck
         last unless $status;
         next unless (-e $logfile );
         push(@log,"\n\n================== $logfile ==================\n");
-        my $handle;
-        open($handle,$logfile);
-        while(<$handle>)
-        {
-            push(@log,$_);
-        }
-        close($handle);
+		push(@log,file_lines($logfile));
     }
 
     writelog("$MODULE-installcheck-$locale",\@log);

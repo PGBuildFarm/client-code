@@ -553,7 +553,7 @@ if ($extra_config &&  $extra_config->{DEFAULT})
 if ($extra_config && $extra_config->{$branch})
 {
     my $tmpname = "$tmpdir/bfextra.conf";
-    open($extraconf, ">$tmpname") || die 'opening $tmpname';
+    open($extraconf, ">$tmpname") || die 'opening $tmpname $!';
     $ENV{TEMP_CONFIG} = $tmpname;
     foreach my $line (@{$extra_config->{$branch}})
     {
@@ -1182,7 +1182,8 @@ sub initdb
     if (!$status)
     {
         my $handle;
-        open($handle,">>$installdir/data-$locale/postgresql.conf");
+        open($handle,">>$installdir/data-$locale/postgresql.conf") ||
+		  die "opening $installdir/data-$locale/postgresql.conf: $!";
 
         if (!$using_msvc && $Config{osname} !~ /msys|MSWin/)
         {
@@ -1263,15 +1264,11 @@ sub start_db
     system($cmd);
     my $status = $? >>8;
     chdir($branch_root);
-    my $handle;
-    open($handle,"$installdir/startlog");
-    my @ctlout = <$handle>;
-    close($handle);
+    my @ctlout = file_lines("$installdir/startlog");
 
-    if (open($handle,"$installdir/logfile"))
+    if (-s "$installdir/logfile")
     {
-        my @loglines = <$handle>;
-        close($handle);
+        my @loglines = file_lines("$installdir/logfile");
         push(@ctlout,"=========== db log file ==========\n",@loglines);
     }
     writelog("startdb-$locale-$started_times",\@ctlout);
@@ -1296,18 +1293,12 @@ sub stop_db
     system($cmd);
     my $status = $? >>8;
     chdir($branch_root);
-    my $handle;
-    open($handle,"$installdir/stoplog");
-    my @ctlout = <$handle>;
-    close($handle);
+    my @ctlout = file_lines("$installdir/stoplog");
 
-    if (open($handle,"$installdir/logfile"))
+    if (-s "$installdir/logfile")
     {
-
-        # go to where the log file ended before we tried to shut down.
-        seek($handle, $logpos, SEEK_SET);
-        my @loglines = <$handle>;
-        close($handle);
+        # get contents from where log file ended before we tried to shut down.
+        my @loglines = file_lines("$installdir/logfile", $logpos);
         push(@ctlout,"=========== db log file ==========\n",@loglines);
     }
     writelog("stopdb-$locale-$started_times",\@ctlout);
@@ -1341,13 +1332,7 @@ sub make_install_check
     {
         next unless (-e $logfile );
         push(@checklog,"\n\n================== $logfile ==================\n");
-        my $handle;
-        open($handle,$logfile);
-        while(<$handle>)
-        {
-            push(@checklog,$_);
-        }
-        close($handle);
+		push(@checklog,file_lines($logfile));
     }
     if ($status)
     {
@@ -1385,13 +1370,7 @@ sub make_contrib_install_check
     {
         next unless (-e $logfile);
         push(@checklog,"\n\n================= $logfile ===================\n");
-        my $handle;
-        open($handle,$logfile);
-        while(<$handle>)
-        {
-            push(@checklog,$_);
-        }
-        close($handle);
+		push(@checklog,file_lines($logfile));
     }
     if ($status)
     {
@@ -1430,13 +1409,7 @@ sub make_testmodules_install_check
     {
         next unless (-e $logfile);
         push(@checklog,"\n\n================= $logfile ===================\n");
-        my $handle;
-        open($handle,$logfile);
-        while(<$handle>)
-        {
-            push(@checklog,$_);
-        }
-        close($handle);
+		push(@checklog,file_lines($logfile));
     }
     if ($status)
     {
@@ -1475,13 +1448,7 @@ sub make_pl_install_check
     {
         next unless (-e $logfile);
         push(@checklog,"\n\n================= $logfile ===================\n");
-        my $handle;
-        open($handle,$logfile);
-        while(<$handle>)
-        {
-            push(@checklog,$_);
-        }
-        close($handle);
+		push(@checklog,file_lines($logfile));
     }
     if ($status)
     {
@@ -1527,13 +1494,7 @@ sub make_isolation_check
     foreach my $logfile (@logs)
     {
         push(@makeout,"\n\n================== $logfile ===================\n");
-        my $handle;
-        open($handle,$logfile);
-        while(<$handle>)
-        {
-            push(@makeout,$_);
-        }
-        close($handle);
+		push(@makeout,file_lines($logfile));
     }
     if ($status)
     {
@@ -1599,13 +1560,7 @@ sub run_tap_test
     foreach my $logfile (@logs)
     {
         push(@makeout,"\n\n================== $logfile ===================\n");
-        my $handle;
-        open($handle,$logfile);
-        while(<$handle>)
-        {
-            push(@makeout,$_);
-        }
-        close($handle);
+		push(@makeout,file_lines($logfile));
     }
 
     writelog("$testname-$target",\@makeout);
@@ -1702,13 +1657,7 @@ sub make_check
     foreach my $logfile (@logs)
     {
         push(@makeout,"\n\n================== $logfile ===================\n");
-        my $handle;
-        open($handle,$logfile);
-        while(<$handle>)
-        {
-            push(@makeout,$_);
-        }
-        close($handle);
+		push(@makeout,file_lines($logfile));
     }
     my $base = "$pgsql/src/test/regress/tmp_check";
     if ($status)
@@ -1765,13 +1714,7 @@ sub make_ecpg_check
     foreach my $logfile (@logs)
     {
         push(@makeout,"\n\n================== $logfile ===================\n");
-        my $handle;
-        open($handle,$logfile);
-        while(<$handle>)
-        {
-            push(@makeout,$_);
-        }
-        close($handle);
+		push(@makeout,file_lines($logfile));
     }
     if ($status)
     {
@@ -1910,13 +1853,12 @@ sub find_typedefs
     my %foundwords;
 
     my $setfound = sub{
+		# $_ is the name of the file being examined
+		# its directory is our current cwd
+		
         return unless (-f $_ && /^.*\.[chly]\z/);
-        local ($/) = undef;
         my @lines;
-        my $handle;
-        open($handle,$_);
-        my $src = <$handle>;
-        close($handle);
+        my $src = file_contents($_);
 
         # strip C comments - see perlfaq6 for an explanation
         # of the complex regex.
@@ -2001,7 +1943,8 @@ sub configure
         );
 
         my $handle;
-        open($handle,">$pgsql/src/tools/msvc/config.pl");
+        open($handle,">$pgsql/src/tools/msvc/config.pl")
+		  || die "opening $pgsql/src/tools/msvc/config.pl: $!";
         print $handle @text;
         close($handle);
 
@@ -2094,15 +2037,11 @@ sub configure
 
     writelog('configure',\@confout);
 
-    my ($handle,@config);
+    my (@config);
 
-    if (open($handle,"$pgsql/config.log"))
+    if (-s "$pgsql/config.log")
     {
-        while(<$handle>)
-        {
-            push(@config,$_);
-        }
-        close($handle);
+		@config = file_contents("$pgsql/config.log");
         writelog('config',\@config);
     }
 
@@ -2178,7 +2117,7 @@ sub send_res
 
     my $txfname = "$lrname/web-txn.data";
     my $txdhandle;
-    open($txdhandle,">$txfname");
+    open($txdhandle,">$txfname") || die "opening $txfname: $!";
     print $txdhandle $savedata;
     close($txdhandle);
 
@@ -2269,7 +2208,6 @@ sub send_res
 
 sub get_config_summary
 {
-    my $handle;
     my $config = "";
 
     # if configure bugs out there might not be a log file at all
@@ -2277,9 +2215,9 @@ sub get_config_summary
 
     unless ($using_msvc || !-e "$pgsql/config.log" )
     {
-        open($handle,"$pgsql/config.log") || return undef;
+		my @lines = file_lines("$pgsql/config.log");
         my $start = undef;
-        while (<$handle>)
+        foreach (@lines)
         {
             if (!$start && /created by PostgreSQL configure/)
             {
@@ -2292,18 +2230,16 @@ sub get_config_summary
             next if /= <?unknown>?/;
 
             # split up long configure line
-            if (m!\$.*configure.*--with! && length > 70)
+            if (m!\$.*configure.*--with!)
             {
-                my $pos = index($_," ",70);
-                substr($_,$pos+1,0,"\\\n        ") if ($pos > 0);
-                $pos = index($_," ",140);
-                substr($_,$pos+1,0,"\\\n        ") if ($pos > 0);
-                $pos = index($_," ",210);
-                substr($_,$pos+1,0,"\\\n        ") if ($pos > 0);
+				foreach my $lpos (70,140,210,280,350,420)
+				{
+					my $pos = index($_," ",$lpos);
+					substr($_,$pos+1,0,"\\\n        ") if ($pos > 0);
+				}
             }
             $config .= $_;
         }
-        close($handle);
         $config .=
           "\n========================================================\n";
     }
