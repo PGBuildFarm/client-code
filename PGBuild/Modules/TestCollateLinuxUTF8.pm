@@ -112,7 +112,7 @@ sub installcheck
     {
         next unless (-e $logfile );
         my $lpos = 0;
-        my $lpos = $logpos if $logfile eq "$installdir/logfile";
+        $lpos = $logpos if $logfile eq "$installdir/logfile";
 
         push(@checklog,"\n\n================== $logfile ==================\n");
         push(@checklog,file_lines($logfile,$lpos));

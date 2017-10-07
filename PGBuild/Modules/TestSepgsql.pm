@@ -150,7 +150,7 @@ sub locale_end
     open(my $handle,">>inst/sepgsql/postgresql.conf")
       || die "opening inst/sepgsql/postgresql.conf: $!";
     my $param =
-      $branch eq 'REL9_2_STABLE'
+      $self->{pgbranch} eq 'REL9_2_STABLE'
       ? "unix_socket_directory"
       :"unix_socket_directories";
     print $handle "$param = '$tmpdir'\n";
