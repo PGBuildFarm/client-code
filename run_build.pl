@@ -2001,7 +2001,7 @@ sub configure
             else
             {
                 $obsolete = grep { /^configure / } @changed_files;
-                $obsolete ||= $last_status = 0;
+                $obsolete ||= $last_status == 0;
             }
 
             # also remove if the buildfarm config file is newer, or the options
