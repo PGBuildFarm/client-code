@@ -2047,7 +2047,7 @@ sub configure
 
     if (-s "$pgsql/config.log")
     {
-        @config = file_contents("$pgsql/config.log");
+        @config = file_lines("$pgsql/config.log");
         writelog('config',\@config);
     }
 

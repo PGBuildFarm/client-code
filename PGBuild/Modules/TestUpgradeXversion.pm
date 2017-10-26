@@ -480,7 +480,7 @@ sub installcheck
     foreach my $log (qw( fix save db ctl ))
     {
         next unless -e "$upgrade_loc/$log.log";
-        my@lines=file_lines("$upgrade_loc/$log.log");
+        my @lines = file_lines("$upgrade_loc/$log.log");
         push(@saveout,"===================== $log.log ==============\n",@lines)
           if @lines;
     }
@@ -522,7 +522,7 @@ sub installcheck
             next unless -e "$log";
             my $bn = basename $log;
             next if $bn =~ /^(origin|converted)/;
-            my@lines=file_lines($log);
+            my @lines = file_lines($log);
             push(@testout,"===================== $bn ==============\n",@lines)
               if (@lines || $bn =~/dumpdiff/);
         }
