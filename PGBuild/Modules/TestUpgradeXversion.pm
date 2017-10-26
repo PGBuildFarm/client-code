@@ -350,7 +350,7 @@ sub test_upgrade
 
     open(my $pgconf, ">>$installdir/$oversion-upgrade/postgresql.conf")
       || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
-    $param =
+    my $param =
       $this_branch eq 'REL9_2_STABLE'
       ? "unix_socket_directory"
       :"unix_socket_directories";
