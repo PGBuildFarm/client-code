@@ -215,6 +215,10 @@ if (exists $PGBuild::conf{base_port})
     {
         $buildport += (10 * ($1 - 7)) + $2;
     }
+	elsif ($branch =~ /REL_(\d+)/) # pattern used from REL_10_STABLE on
+	{
+        $buildport += 10 * ($1 - 7);
+	}
 }
 else
 {
