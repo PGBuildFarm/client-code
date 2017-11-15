@@ -676,7 +676,8 @@ my $started_times = 0;
 
 my $build_version=get_pg_version("$pgsql/configure.in");
 
-print time_str(),"Found version $build_version\n" if $verbose;
+print time_str(),"Found version $build_version building commit ",
+	substr($scm->{headref},0,7),"\n" if $verbose;
 $build_version =~ s/^1(\d)\./(chr(ord('A')+$1))."."/e;
 print time_str(),"running configure ...\n" if $verbose;
 # Setup list of locales as soon as we would be able to check for
