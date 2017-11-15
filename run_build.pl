@@ -72,7 +72,7 @@ BEGIN
         # this is to stop leaking of things like passwords
         $orig_env->{$k} =(
             (
-                    $k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|FLAG|LIBRAR|INCLUDE/
+                    $k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|CXX|LD|LD_LIBRARY_PATH|LIBRAR|INCLUDE/
                   ||$k =~/^(HOME|LOGNAME|USER|PATH|SHELL)$/
             )
             ? $v
