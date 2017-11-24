@@ -80,9 +80,11 @@ sub check
 
     my @logfiles = glob(
         "$self->{pgsql}/contrib/test_decoding/regression_output/log/*.log
-		   $self->{pgsql}/contrib/test_decoding/regression_output/*.diffs
-		   $self->{pgsql}/contrib/test_decoding/isolation_output/log/*.log
-		   $self->{pgsql}/contrib/test_decoding/isolation_output/*.diffs"
+         $self->{pgsql}/contrib/test_decoding/regression_output/*.diffs
+         $self->{pgsql}/contrib/test_decoding/isolation_output/log/*.log
+         $self->{pgsql}/contrib/test_decoding/isolation_output/*.diffs
+         $self->{pgsql}/contrib/test_decoding/log/*.log
+         $self->{pgsql}/contrib/test_decoding/*.diffs"
     );
     foreach my $log (@logfiles)
     {
