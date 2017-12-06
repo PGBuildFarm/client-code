@@ -1498,6 +1498,8 @@ sub make_isolation_check
     push(@logs,"$installdir/logfile");
     unshift(@logs,"$pgsql/src/test/isolation/regression.diffs")
       if (-e "$pgsql/src/test/isolation/regression.diffs");
+    unshift(@logs,"$pgsql/src/test/isolation/output_iso/regression.diffs")
+      if (-e "$pgsql/src/test/isolation/output_iso/regression.diffs");
     foreach my $logfile (@logs)
     {
         push(@makeout,"\n\n================== $logfile ===================\n");
