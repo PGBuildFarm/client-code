@@ -883,8 +883,8 @@ if (check_optional_step('find_typedefs') || $find_typedefs)
 
 my $saved_config = get_config_summary();
 
-rmtree("inst"); # only keep failures
-rmtree("$pgsql") unless $from_source;
+rmtree("inst") unless $keepall; # only keep failures
+rmtree("$pgsql") unless ($keepall || $from_source);
 
 print(time_str(),"OK\n") if $verbose;
 
