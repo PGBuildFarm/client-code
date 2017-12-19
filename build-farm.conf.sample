@@ -66,6 +66,14 @@ my $branch;
     build_root =>   undef, #  or '/path/to/buildroot',
     use_vpath => undef, # set true to do vpath builds
 
+	# valgrind settings - default is don't use valgrind
+	# It will use the .supp file in the source code	so that's not in the
+	# options here.
+    use_valgrind => undef,
+    valgrind_options => "--quiet --trace-children=yes " .
+        "--track-origins=yes --read-var-info=yes --num-callers=20 " .
+        "--leak-check=no --gen-suppressions=all   --error-limit=no",
+
     # path to directory with auxiliary web script
     # if relative, the must be relative to buildroot/branch
     # Now only used on older Msys installations

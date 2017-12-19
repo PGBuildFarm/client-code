@@ -165,13 +165,15 @@ my (
     $make, $optional_steps, $use_vpath,
     $tar_log_cmd, $using_msvc, $extra_config,
     $make_jobs, $core_file_glob, $ccache_failure_remove,
-    $wait_timeout, $use_accache, $use_installcheck_parallel
+    $wait_timeout, $use_accache,
+	$use_valgrind, $valgrind_options, $use_installcheck_parallel
   )
   =@PGBuild::conf{
     qw(build_root target animal aux_path trigger_exclude
       trigger_include secret keep_error_builds force_every make optional_steps
       use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob
-      ccache_failure_remove wait_timeout use_accache use_installcheck_parallel)
+      ccache_failure_remove wait_timeout use_accache
+      use_valgrind valgrind_options use_installcheck_parallel)
   };
 
 # default use_accache to on
@@ -1247,6 +1249,24 @@ sub initdb
     $steps_completed .= " Initdb-$locale";
 }
 
+sub start_valgrind_db
+{
+	# run the postmaster under valgrind.
+	# subroutine is run in a child process.
+
+	my $locale = shift;
+	chdir 'inst';
+	my $source = $from_source || '../pgsql';
+	open(STDOUT,">logfile");
+	open(STDERR,">&STDOUT");
+	unlink 'valgrind.log';
+	print "starting under valgrind\n";
+	my $supp = "--suppressions=$source/src/tools/valgrind.supp";
+	my $vglog = "--log-file=valgrind.log";
+	my $pgcmd = "bin/postgres -D data-$locale";
+	system("valgrind $valgrind_options $supp $vglog $pgcmd");
+}
+
 sub start_db
 {
 
@@ -1261,17 +1281,58 @@ sub start_db
         sleep(5) if $Config{osname} =~ /msys|MSWin|cygwin/;
     }
 
-    # must use -w here or we get horrid FATAL errors from trying to
-    # connect before the db is ready
-    # clear log file each time we start
-    # seem to need an intermediate file here to get round Windows bogosity
-    chdir($installdir);
-    my $cmd =
-      qq{"bin/pg_ctl" -D data-$locale -l logfile -w start >startlog 2>&1};
-    system($cmd);
+	if ($use_valgrind)
+	{
+		# can't use pg_ctl with valgrind, so we spawn a child process to run
+		# the postmaster. We don't wait for it, it will be shut down when we
+		# call stop_db and reaped when the main run ends.
+
+		spawn(\&start_valgrind_db, $locale);
+
+		# postmaster takes a while to start up under valgrind.
+		# We need to wait for it. We need to see the pid and socket files
+		# before continuing.
+
+		my $pidfile = "$installdir/data-$locale/postmaster.pid";
+		my $socketfile = "$tmpdir/.s.PGSQL.$buildport";
+
+		# wait until the database has started. Under valgrind it can
+		# take a while
+		foreach (1..600)
+		{
+			last if -e $pidfile && -e $socketfile;
+			sleep 1;
+		}
+		die "cannot find $pidfile and $socketfile" unless -e $pidfile &&
+		  -e $socketfile;
+
+		# wait until we can ping the database. can also take a while
+	    foreach (1..100)
+		{
+			system("$installdir/bin/psql -c 'select 1' postgres > /dev/null 2>&1");
+			last unless $?;
+			sleep(1);
+		}
+	}
+	else
+	{
+		# must use -w here or we get horrid FATAL errors from trying to
+		# connect before the db is ready
+		# clear log file each time we start
+		# seem to need an intermediate file here to get round Windows bogosity
+
+		chdir($installdir);
+		my $cmd =
+		  qq{"bin/pg_ctl" -D data-$locale -l logfile -w start >startlog 2>&1};
+		system($cmd);
+	}
+
     my $status = $? >>8;
     chdir($branch_root);
-    my @ctlout = file_lines("$installdir/startlog");
+
+    my @ctlout = ();
+	@ctlout = file_lines("$installdir/startlog")
+	  if -s "$installdir/startlog";
 
     if (-s "$installdir/logfile")
     {
@@ -1307,6 +1368,11 @@ sub stop_db
         # get contents from where log file ended before we tried to shut down.
         my @loglines = file_lines("$installdir/logfile", $logpos);
         push(@ctlout,"=========== db log file ==========\n",@loglines);
+    }
+    if (-s "$installdir/valgrind.log")
+    {
+        my @loglines = file_lines("$installdir/valgrind.log");
+        push(@ctlout,"=========== valgrind log file ==========\n",@loglines);
     }
     writelog("stopdb-$locale-$started_times",\@ctlout);
     print "======== stop db ($locale): $started_times log ==========\n",@ctlout
