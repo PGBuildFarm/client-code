@@ -2330,7 +2330,9 @@ sub spawn
     my $pid = fork;
     if (defined($pid) && $pid == 0)
     {
-        exit &$coderef(@_);
+		# call this rather than plain exit so we don't run the
+		# END handler. see `perldoc -f exit`
+        POSIX::_exit(&$coderef(@_));
     }
     return $pid;
 }
