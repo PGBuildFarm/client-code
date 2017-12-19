@@ -57,8 +57,8 @@ my $branch;
     # undef/0 means unlimited
     wait_timeout => undef,
 
-	# if true run installcheck-parallel instead of installcheck
-	use_installcheck_parallel => undef,
+    # if true run installcheck-parallel instead of installcheck
+    use_installcheck_parallel => undef,
 
     # where and how to build
     # must be absolute, can be either Unix or Windows style for MSVC
@@ -66,13 +66,15 @@ my $branch;
     build_root =>   undef, #  or '/path/to/buildroot',
     use_vpath => undef, # set true to do vpath builds
 
-	# valgrind settings - default is don't use valgrind
-	# It will use the .supp file in the source code	so that's not in the
-	# options here.
+    # valgrind settings - default is don't use valgrind
+    # It will use the .supp file in the source code	so that's not in the
+    # options here.
     use_valgrind => undef,
-    valgrind_options => "--quiet --trace-children=yes " .
-        "--track-origins=yes --read-var-info=yes --num-callers=20 " .
-        "--leak-check=no --gen-suppressions=all   --error-limit=no",
+    valgrind_options => join(
+        ' ', qw{--quiet --trace-children=yes
+          --track-origins=yes --read-var-info=yes --num-callers=20
+          --leak-check=no --gen-suppressions=all   --error-limit=no}
+    ),
 
     # path to directory with auxiliary web script
     # if relative, the must be relative to buildroot/branch

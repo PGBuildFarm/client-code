@@ -72,8 +72,8 @@ BEGIN
         # this is to stop leaking of things like passwords
         $orig_env->{$k} =(
             (
-                    $k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|CXX|LD|LD_LIBRARY_PATH|LIBRAR|INCLUDE/
-                  ||$k =~/^(HOME|LOGNAME|USER|PATH|SHELL)$/
+                    $k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|CXX|LD|LD_LIBRARY_PATH/
+                  ||$k =~/^(HOME|LOGNAME|USER|PATH|SHELL|LIBRAR|INCLUDE)$/
             )
             ? $v
             : 'xxxxxx'
@@ -159,14 +159,18 @@ $PGBuild::conf{build_root} ||= abs_path(dirname(__FILE__)) . "/buildroot";
 
 # get the config data into some local variables
 my (
-    $buildroot, $target, $animal,
-    $aux_path, $trigger_exclude, $trigger_include,
-    $secret, $keep_errs, $force_every,
-    $make, $optional_steps, $use_vpath,
-    $tar_log_cmd, $using_msvc, $extra_config,
-    $make_jobs, $core_file_glob, $ccache_failure_remove,
+    $buildroot, $target,
+    $animal,$aux_path,
+    $trigger_exclude, $trigger_include,
+    $secret, $keep_errs,
+    $force_every,$make,
+    $optional_steps, $use_vpath,
+    $tar_log_cmd, $using_msvc,
+    $extra_config,$make_jobs,
+    $core_file_glob, $ccache_failure_remove,
     $wait_timeout, $use_accache,
-	$use_valgrind, $valgrind_options, $use_installcheck_parallel
+    $use_valgrind, $valgrind_options,
+    $use_installcheck_parallel
   )
   =@PGBuild::conf{
     qw(build_root target animal aux_path trigger_exclude
@@ -217,10 +221,10 @@ if (exists $PGBuild::conf{base_port})
     {
         $buildport += (10 * ($1 - 7)) + $2;
     }
-	elsif ($branch =~ /REL_(\d+)/) # pattern used from REL_10_STABLE on
-	{
+    elsif ($branch =~ /REL_(\d+)/) # pattern used from REL_10_STABLE on
+    {
         $buildport += 10 * ($1 - 7);
-	}
+    }
 }
 else
 {
@@ -1251,20 +1255,20 @@ sub initdb
 
 sub start_valgrind_db
 {
-	# run the postmaster under valgrind.
-	# subroutine is run in a child process.
+    # run the postmaster under valgrind.
+    # subroutine is run in a child process.
 
-	my $locale = shift;
-	chdir 'inst';
-	my $source = $from_source || '../pgsql';
-	open(STDOUT,">logfile");
-	open(STDERR,">&STDOUT");
-	unlink 'valgrind.log';
-	print "starting under valgrind\n";
-	my $supp = "--suppressions=$source/src/tools/valgrind.supp";
-	my $vglog = "--log-file=valgrind.log";
-	my $pgcmd = "bin/postgres -D data-$locale";
-	system("valgrind $valgrind_options $supp $vglog $pgcmd");
+    my $locale = shift;
+    chdir 'inst';
+    my $source = $from_source || '../pgsql';
+    open(STDOUT,">logfile");
+    open(STDERR,">&STDOUT");
+    unlink 'valgrind.log';
+    print "starting under valgrind\n";
+    my $supp = "--suppressions=$source/src/tools/valgrind.supp";
+    my $vglog = "--log-file=valgrind.log";
+    my $pgcmd = "bin/postgres -D data-$locale";
+    system("valgrind $valgrind_options $supp $vglog $pgcmd");
 }
 
 sub start_db
@@ -1281,58 +1285,60 @@ sub start_db
         sleep(5) if $Config{osname} =~ /msys|MSWin|cygwin/;
     }
 
-	if ($use_valgrind)
-	{
-		# can't use pg_ctl with valgrind, so we spawn a child process to run
-		# the postmaster. We don't wait for it, it will be shut down when we
-		# call stop_db and reaped when the main run ends.
+    if ($use_valgrind)
+    {
+        # can't use pg_ctl with valgrind, so we spawn a child process to run
+        # the postmaster. We don't wait for it, it will be shut down when we
+        # call stop_db and reaped when the main run ends.
 
-		spawn(\&start_valgrind_db, $locale);
+        spawn(\&start_valgrind_db, $locale);
 
-		# postmaster takes a while to start up under valgrind.
-		# We need to wait for it. We need to see the pid and socket files
-		# before continuing.
+        # postmaster takes a while to start up under valgrind.
+        # We need to wait for it. We need to see the pid and socket files
+        # before continuing.
 
-		my $pidfile = "$installdir/data-$locale/postmaster.pid";
-		my $socketfile = "$tmpdir/.s.PGSQL.$buildport";
+        my $pidfile = "$installdir/data-$locale/postmaster.pid";
+        my $socketfile = "$tmpdir/.s.PGSQL.$buildport";
 
-		# wait until the database has started. Under valgrind it can
-		# take a while
-		foreach (1..600)
-		{
-			last if -e $pidfile && -e $socketfile;
-			sleep 1;
-		}
-		die "cannot find $pidfile and $socketfile" unless -e $pidfile &&
-		  -e $socketfile;
+        # wait until the database has started. Under valgrind it can
+        # take a while
+        foreach (1..600)
+        {
+            last if -e $pidfile && -e $socketfile;
+            sleep 1;
+        }
+        die "cannot find $pidfile and $socketfile"
+          unless -e $pidfile
+          &&-e $socketfile;
 
-		# wait until we can ping the database. can also take a while
-	    foreach (1..100)
-		{
-			system("$installdir/bin/psql -c 'select 1' postgres > /dev/null 2>&1");
-			last unless $?;
-			sleep(1);
-		}
-	}
-	else
-	{
-		# must use -w here or we get horrid FATAL errors from trying to
-		# connect before the db is ready
-		# clear log file each time we start
-		# seem to need an intermediate file here to get round Windows bogosity
+        # wait until we can ping the database. can also take a while
+        foreach (1..100)
+        {
+            system(
+                "$installdir/bin/psql -c 'select 1' postgres > /dev/null 2>&1");
+            last unless $?;
+            sleep(1);
+        }
+    }
+    else
+    {
+        # must use -w here or we get horrid FATAL errors from trying to
+        # connect before the db is ready
+        # clear log file each time we start
+        # seem to need an intermediate file here to get round Windows bogosity
 
-		chdir($installdir);
-		my $cmd =
-		  qq{"bin/pg_ctl" -D data-$locale -l logfile -w start >startlog 2>&1};
-		system($cmd);
-	}
+        chdir($installdir);
+        my $cmd =
+          qq{"bin/pg_ctl" -D data-$locale -l logfile -w start >startlog 2>&1};
+        system($cmd);
+    }
 
     my $status = $? >>8;
     chdir($branch_root);
 
     my @ctlout = ();
-	@ctlout = file_lines("$installdir/startlog")
-	  if -s "$installdir/startlog";
+    @ctlout = file_lines("$installdir/startlog")
+      if -s "$installdir/startlog";
 
     if (-s "$installdir/logfile")
     {
@@ -1390,8 +1396,10 @@ sub make_install_check
     my @checklog;
     unless ($using_msvc)
     {
-		my $target = $use_installcheck_parallel ? 'installcheck-parallel'
-		  : 'installcheck';
+        my $target =
+          $use_installcheck_parallel
+          ? 'installcheck-parallel'
+          : 'installcheck';
         @checklog =run_log("cd $pgsql/src/test/regress && $make $target");
     }
     else
@@ -2398,8 +2406,8 @@ sub spawn
     my $pid = fork;
     if (defined($pid) && $pid == 0)
     {
-		# call this rather than plain exit so we don't run the
-		# END handler. see `perldoc -f exit`
+        # call this rather than plain exit so we don't run the
+        # END handler. see `perldoc -f exit`
         POSIX::_exit(&$coderef(@_));
     }
     return $pid;
