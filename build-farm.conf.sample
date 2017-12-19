@@ -57,6 +57,9 @@ my $branch;
     # undef/0 means unlimited
     wait_timeout => undef,
 
+	# if true run installcheck-parallel instead of installcheck
+	use_installcheck_parallel => undef,
+
     # where and how to build
     # must be absolute, can be either Unix or Windows style for MSVC
     # undef means default, buildroot dir in script directory

@@ -165,13 +165,13 @@ my (
     $make, $optional_steps, $use_vpath,
     $tar_log_cmd, $using_msvc, $extra_config,
     $make_jobs, $core_file_glob, $ccache_failure_remove,
-    $wait_timeout, $use_accache
+    $wait_timeout, $use_accache, $use_installcheck_parallel
   )
   =@PGBuild::conf{
     qw(build_root target animal aux_path trigger_exclude
       trigger_include secret keep_error_builds force_every make optional_steps
       use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob
-      ccache_failure_remove wait_timeout use_accache)
+      ccache_failure_remove wait_timeout use_accache use_installcheck_parallel)
   };
 
 # default use_accache to on
@@ -1324,7 +1324,9 @@ sub make_install_check
     my @checklog;
     unless ($using_msvc)
     {
-        @checklog =run_log("cd $pgsql/src/test/regress && $make installcheck");
+		my $target = $use_installcheck_parallel ? 'installcheck-parallel'
+		  : 'installcheck';
+        @checklog =run_log("cd $pgsql/src/test/regress && $make $target");
     }
     else
     {
