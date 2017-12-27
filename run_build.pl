@@ -1259,14 +1259,16 @@ sub start_valgrind_db
     # subroutine is run in a child process.
 
     my $locale = shift;
+	my $started_times = shift;
+	my $vglogfile = "valgrind-$locale-$started_times.log";
     chdir 'inst';
     my $source = $from_source || '../pgsql';
     open(STDOUT,">logfile");
     open(STDERR,">&STDOUT");
-    unlink 'valgrind.log';
+    unlink $vglogfile;
     print "starting under valgrind\n";
     my $supp = "--suppressions=$source/src/tools/valgrind.supp";
-    my $vglog = "--log-file=valgrind.log";
+    my $vglog = "--log-file=$vglogfile";
     my $pgcmd = "bin/postgres -D data-$locale";
     system("valgrind $valgrind_options $supp $vglog $pgcmd");
 }
@@ -1291,7 +1293,7 @@ sub start_db
         # the postmaster. We don't wait for it, it will be shut down when we
         # call stop_db and reaped when the main run ends.
 
-        spawn(\&start_valgrind_db, $locale);
+        spawn(\&start_valgrind_db, $locale, $started_times);
 
         # postmaster takes a while to start up under valgrind.
         # We need to wait for it. We need to see the pid and socket files
@@ -1374,11 +1376,6 @@ sub stop_db
         # get contents from where log file ended before we tried to shut down.
         my @loglines = file_lines("$installdir/logfile", $logpos);
         push(@ctlout,"=========== db log file ==========\n",@loglines);
-    }
-    if (-s "$installdir/valgrind.log")
-    {
-        my @loglines = file_lines("$installdir/valgrind.log");
-        push(@ctlout,"=========== valgrind log file ==========\n",@loglines);
     }
     writelog("stopdb-$locale-$started_times",\@ctlout);
     print "======== stop db ($locale): $started_times log ==========\n",@ctlout
@@ -2186,6 +2183,11 @@ sub send_res
     {
         $confsum = get_script_config_dump();
     }
+
+	foreach my $vglog (glob("$installdir/valgrind-*.log"))
+	{
+		writelog(basename($vglog,".log"),[file_lines($vglog)]) if -s $vglog;
+	}
 
     my $savedata = Data::Dumper->Dump(
         [
