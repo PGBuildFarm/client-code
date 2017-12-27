@@ -1397,6 +1397,18 @@ sub make_install_check
           $use_installcheck_parallel
           ? 'installcheck-parallel'
           : 'installcheck';
+		if ($schedule && -s $schedule)
+		{
+			$target = 'TESTS=--schedule=' .
+			  abs_path($schedule) .
+			  " installcheck-tests";
+		}
+		elsif ($tests)
+		{
+			$target = 'TESTS=' .
+			  qq{"$tests"} .
+			  " installcheck-tests";
+		}
         @checklog =run_log("cd $pgsql/src/test/regress && $make $target");
     }
     else

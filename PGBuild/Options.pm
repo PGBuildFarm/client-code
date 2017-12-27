@@ -23,7 +23,7 @@ BEGIN
       $forcerun $buildconf $keepall $help
       $quiet $from_source $from_source_clean $testmode
       $test_mode $skip_steps $only_steps $find_typedefs
-      $nosend $nostatus $verbose @config_set
+      $nosend $nostatus $verbose @config_set $schedule $tests
     );
 }
 
@@ -41,7 +41,7 @@ our (
     $forcerun, $buildconf, $keepall,$help,
     $quiet, $from_source,$from_source_clean, $testmode,
     $test_mode, $skip_steps,$only_steps, $find_typedefs,
-    $nosend, $nostatus, $verbose, @config_set
+    $nosend, $nostatus, $verbose, @config_set, $schedule, $tests
 );
 
 my (%standard_options);
@@ -61,7 +61,9 @@ my (%standard_options);
     'quiet' => \$quiet,
     'skip-steps=s' => \$skip_steps,
     'only-steps=s' => \$only_steps,
-    'config-set=s' => \@config_set,
+	'config-set=s' => \@config_set,
+	'schedule=s'   => \$schedule,
+    'tests=s'      => \$tests,
 );
 
 $buildconf = "build-farm.conf"; # default value
