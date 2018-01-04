@@ -92,7 +92,7 @@ sub standard_option_list
     foreach my $k ( keys %standard_options )
     {
         my $vref = $standard_options{$k};
-		$vref = \$orig_force if $k eq 'verbose';
+		$vref = \$orig_verbose if $k eq 'verbose';
         next
           unless (ref $vref eq 'SCALAR' && defined($$vref))
           ||(ref $vref eq 'ARRAY' && @$vref);
