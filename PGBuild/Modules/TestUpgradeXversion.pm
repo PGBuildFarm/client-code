@@ -350,12 +350,12 @@ sub test_upgrade
 
     open(my $pgconf, ">>$installdir/$oversion-upgrade/postgresql.conf")
       || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
-    my $param =
+    my $tmp_param =
       $this_branch eq 'REL9_2_STABLE'
       ? "unix_socket_directory"
       :"unix_socket_directories";
     print $pgconf "listen_addresses = ''\n";
-    print $pgconf "$param = '$tmpdir'\n";
+    print $pgconf "$tmp_param = '$tmpdir'\n";
     close($pgconf);
 
     if ($oversion ge 'REL9_5_STABLE' || $oversion eq 'HEAD')

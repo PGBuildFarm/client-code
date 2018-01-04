@@ -91,12 +91,12 @@ sub standard_option_list
     my @result = ();
     foreach my $k ( keys %standard_options )
     {
+        (my $nicekey = $k) =~ s/[=:].*//;
         my $vref = $standard_options{$k};
-		$vref = \$orig_verbose if $k eq 'verbose';
+		$vref = \$orig_verbose if $nicekey eq 'verbose';
         next
           unless (ref $vref eq 'SCALAR' && defined($$vref))
           ||(ref $vref eq 'ARRAY' && @$vref);
-        (my $nicekey = $k) =~ s/[=:].*//;
         if (ref $vref ne 'ARRAY')
         {
             push(@result, "--$nicekey");
