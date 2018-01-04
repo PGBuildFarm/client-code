@@ -17,6 +17,8 @@ use Getopt::Long;
 
 use vars qw(@option_list);
 
+my $orig_verbose;
+
 BEGIN
 {
     @option_list =qw(
@@ -79,6 +81,7 @@ sub fetch_options
       || die "bad command line";
 
     # override GetOptions default for :i
+	$orig_verbose = $verbose;
     $verbose = 1 if (defined($verbose) && $verbose==0);
     $verbose ||= 0; # stop complaints about undefined var in numeric comparison
 }
@@ -89,6 +92,7 @@ sub standard_option_list
     foreach my $k ( keys %standard_options )
     {
         my $vref = $standard_options{$k};
+		$vref = \$orig_force if $k eq 'verbose';
         next
           unless (ref $vref eq 'SCALAR' && defined($$vref))
           ||(ref $vref eq 'ARRAY' && @$vref);
