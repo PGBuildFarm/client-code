@@ -22,7 +22,7 @@ use File::Path;
 use Exporter   ();
 our (@ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 
-use vars qw($VERSION); $VERSION = 'REL_5';
+use vars qw($VERSION); $VERSION = 'REL_6';
 
 @ISA         = qw(Exporter);
 @EXPORT      = qw(run_log time_str process_module_hooks register_module_hooks
