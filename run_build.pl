@@ -1259,8 +1259,8 @@ sub start_valgrind_db
     # subroutine is run in a child process.
 
     my $locale = shift;
-	my $started_times = shift;
-	my $vglogfile = "valgrind-$locale-$started_times.log";
+    my $started_times = shift;
+    my $vglogfile = "valgrind-$locale-$started_times.log";
     chdir 'inst';
     my $source = $from_source || '../pgsql';
     open(STDOUT,">logfile");
@@ -1397,18 +1397,15 @@ sub make_install_check
           $use_installcheck_parallel
           ? 'installcheck-parallel'
           : 'installcheck';
-		if ($schedule && -s $schedule)
-		{
-			$target = 'TESTS=--schedule=' .
-			  abs_path($schedule) .
-			  " installcheck-tests";
-		}
-		elsif ($tests)
-		{
-			$target = 'TESTS=' .
-			  qq{"$tests"} .
-			  " installcheck-tests";
-		}
+        if ($schedule && -s $schedule)
+        {
+            $target =
+              'TESTS=--schedule=' .abs_path($schedule) ." installcheck-tests";
+        }
+        elsif ($tests)
+        {
+            $target = 'TESTS=' .qq{"$tests"} ." installcheck-tests";
+        }
         @checklog =run_log("cd $pgsql/src/test/regress && $make $target");
     }
     else
@@ -2196,10 +2193,10 @@ sub send_res
         $confsum = get_script_config_dump();
     }
 
-	foreach my $vglog (glob("$installdir/valgrind-*.log"))
-	{
-		writelog(basename($vglog,".log"),[file_lines($vglog)]) if -s $vglog;
-	}
+    foreach my $vglog (glob("$installdir/valgrind-*.log"))
+    {
+        writelog(basename($vglog,".log"),[file_lines($vglog)]) if -s $vglog;
+    }
 
     my $savedata = Data::Dumper->Dump(
         [
