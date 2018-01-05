@@ -39,7 +39,7 @@ See accompanying License file for license details
 
 use strict;
 
-use vars qw($VERSION); $VERSION = 'REL_6';
+use vars qw($VERSION); $VERSION = 'REL_6.1';
 
 use File::Spec;
 use File::Basename;

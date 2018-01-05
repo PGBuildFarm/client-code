@@ -22,7 +22,7 @@ use Cwd;
 
 use strict;
 
-use vars qw($VERSION); $VERSION = 'REL_6';
+use vars qw($VERSION); $VERSION = 'REL_6.1';
 
 my $hooks = {
     'build' => \&build,
