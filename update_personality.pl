@@ -19,6 +19,10 @@ use HTTP::Request::Common;
 use MIME::Base64;
 use Digest::SHA  qw(sha1_hex);
 use Getopt::Long;
+use File::Spec;
+use File::Basename;
+
+BEGIN { use lib File::Spec->rel2abs(dirname(__FILE__)); }
 
 # copy command line before processing - so we can later report it
 # unmunged

@@ -41,6 +41,11 @@ use strict;
 
 use vars qw($VERSION); $VERSION = 'REL_6';
 
+use File::Spec;
+use File::Basename;
+
+BEGIN { use lib File::Spec->rel2abs(dirname(__FILE__)); }
+
 use PGBuild::WebTxn;
 
 my $lrname = $ARGV[0] || 'lastrun-logs';
