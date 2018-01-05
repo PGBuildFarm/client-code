@@ -81,7 +81,7 @@ sub fetch_options
       || die "bad command line";
 
     # override GetOptions default for :i
-	$orig_verbose = $verbose;
+    $orig_verbose = $verbose;
     $verbose = 1 if (defined($verbose) && $verbose==0);
     $verbose ||= 0; # stop complaints about undefined var in numeric comparison
 }
@@ -93,7 +93,7 @@ sub standard_option_list
     {
         (my $nicekey = $k) =~ s/[=:].*//;
         my $vref = $standard_options{$k};
-		$vref = \$orig_verbose if $nicekey eq 'verbose';
+        $vref = \$orig_verbose if $nicekey eq 'verbose';
         next
           unless (ref $vref eq 'SCALAR' && defined($$vref))
           ||(ref $vref eq 'ARRAY' && @$vref);
