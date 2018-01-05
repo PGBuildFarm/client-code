@@ -150,7 +150,8 @@ print_help() if ($help);
 require $buildconf;
 
 # get this here before we change directories
-my $buildconf_mod = (stat $buildconf)[9];
+my @conf_stat = stat $buildconf;
+my $buildconf_mod = $conf_stat[9];
 
 PGBuild::Options::fixup_conf(\%PGBuild::conf, \@config_set);
 
@@ -2080,11 +2081,13 @@ sub configure
         if (-e $accachefile)
         {
             my $obsolete;
-            my $cache_mod = (stat $accachefile)[9];
+            my @cache_stat = stat $accachefile;
+            my $cache_mod = $cache_stat[9];
             if ($from_source)
             {
                 my $conffile = "$from_source/configure";
-                $obsolete = -e $conffile && (stat $conffile)[9] > $cache_mod;
+                my @conffile_stat = stat $conffile;
+                $obsolete = -e $conffile && $conffile_stat[9] > $cache_mod;
             }
             else
             {
@@ -2239,13 +2242,12 @@ sub send_res
     if ($stage !~ /CVS|Git|SCM|Pre-run-port-check/ )
     {
 
-        my @logfiles = glob("$lrname/*.log");
-        my %mtimes = map { $_ => (stat $_)[9] } @logfiles;
-        @logfiles =
-          map { basename $_ }( sort { $mtimes{$a} <=> $mtimes{$b} } @logfiles );
+        chdir($lrname);
+        my @logfiles = glob("*.log");
+        my %mtimes = map { my @st = stat $_; $_ => $st[9] } @logfiles;
+        @logfiles = sort { $mtimes{$a} <=> $mtimes{$b} } @logfiles;
         my $logfiles = join(' ',@logfiles);
         $tar_log_cmd =~ s/\*\.log/$logfiles/;
-        chdir($lrname);
         system("$tar_log_cmd 2>&1 ");
         chdir($branch_root);
 
