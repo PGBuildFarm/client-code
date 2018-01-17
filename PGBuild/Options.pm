@@ -67,8 +67,8 @@ my (%standard_options);
     'only-steps=s' => \$only_steps,
     'config-set=s' => \@config_set,
     'schedule=s'   => \$schedule,
-	'tests=s'      => \$tests,
-	'check-warnings!' => \$check_warnings, # allow --nocheck-warnings
+    'tests=s'      => \$tests,
+    'check-warnings!' => \$check_warnings, # allow --nocheck-warnings
 );
 
 $buildconf = "build-farm.conf"; # default value

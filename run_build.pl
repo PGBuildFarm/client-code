@@ -1012,7 +1012,7 @@ sub make
     my $status = $? >>8;
     writelog('make',\@makeout);
     print "======== make log ===========\n",@makeout if ($verbose > 1);
-	$status ||= check_make_log_warnings('make', $verbose) if $check_warnings;
+    $status ||= check_make_log_warnings('make', $verbose) if $check_warnings;
     send_result('Make',$status,\@makeout) if $status;
     $steps_completed .= " Make";
 }
@@ -1116,8 +1116,8 @@ sub make_contrib
     my $status = $? >>8;
     writelog('make-contrib',\@makeout);
     print "======== make contrib log ===========\n",@makeout if ($verbose > 1);
-	$status ||= check_make_log_warnings('make-contrib', $verbose)
-	  if $check_warnings;
+    $status ||= check_make_log_warnings('make-contrib', $verbose)
+      if $check_warnings;
     send_result('Contrib',$status,\@makeout) if $status;
     $steps_completed .= " Contrib";
 }
@@ -1135,8 +1135,8 @@ sub make_testmodules
     writelog('make-testmodules',\@makeout);
     print "======== make testmodules log ===========\n",@makeout
       if ($verbose > 1);
-	$status ||= check_make_log_warnings('make-testmodules', $verbose)
-	  if $check_warnings;
+    $status ||= check_make_log_warnings('make-testmodules', $verbose)
+      if $check_warnings;
     send_result('TestModules',$status,\@makeout) if $status;
     $steps_completed .= " TestModules";
 }

@@ -108,8 +108,8 @@ sub build
     my $status = $? >>8;
     writelog("$MODULE-build",\@makeout);
     print "======== make log ===========\n",@makeout if ($verbose > 1);
-	$status ||= check_make_log_warnings("$MODULE-build", $verbose)
-	  if $check_warnings;
+    $status ||= check_make_log_warnings("$MODULE-build", $verbose)
+      if $check_warnings;
     send_result("$MODULE-build",$status,\@makeout) if $status;
 
 }

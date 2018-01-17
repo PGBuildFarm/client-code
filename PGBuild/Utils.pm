@@ -190,7 +190,7 @@ sub writelog
 sub check_make_log_warnings
 {
     my $stage = shift;
-	my $verbose = shift;
+    my $verbose = shift;
     my $fname = "$stage.log";
     my $lrname = $st_prefix . $logdirname;
     my @lines = grep { /warning/i } file_lines("$lrname/$fname");
