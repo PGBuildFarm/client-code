@@ -28,7 +28,7 @@ use vars qw($VERSION); $VERSION = 'REL_6.1';
 @EXPORT      = qw(run_log time_str process_module_hooks register_module_hooks
   get_stack_trace cleanlogs writelog
   set_last find_last step_wanted send_result
-  file_lines file_contents
+  file_lines file_contents check_make_log_warnings
 );
 %EXPORT_TAGS = qw();
 @EXPORT_OK   = qw($st_prefix $logdirname $branch_root $steps_completed
@@ -185,6 +185,17 @@ sub writelog
     open($handle,">$lrname/$fname") || die "opening $lrname/$fname: $!";
     print $handle @$loglines;
     close($handle);
+}
+
+sub check_make_log_warnings
+{
+    my $stage = shift;
+	my $verbose = shift;
+    my $fname = "$stage.log";
+    my $lrname = $st_prefix . $logdirname;
+    my @lines = grep { /warning/i } file_lines("$lrname/$fname");
+    print @lines  if $verbose;
+    return scalar(@lines);
 }
 
 # get a file as a list of lines

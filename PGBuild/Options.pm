@@ -26,6 +26,7 @@ BEGIN
       $quiet $from_source $from_source_clean $testmode
       $test_mode $skip_steps $only_steps $find_typedefs
       $nosend $nostatus $verbose @config_set $schedule $tests
+      $check_warnings
     );
 }
 
@@ -44,7 +45,7 @@ our (
     $quiet, $from_source,$from_source_clean, $testmode,
     $test_mode, $skip_steps,$only_steps, $find_typedefs,
     $nosend, $nostatus, $verbose, @config_set,
-    $schedule, $tests
+    $schedule, $tests, $check_warnings
 );
 
 my (%standard_options);
@@ -66,7 +67,8 @@ my (%standard_options);
     'only-steps=s' => \$only_steps,
     'config-set=s' => \@config_set,
     'schedule=s'   => \$schedule,
-    'tests=s'      => \$tests,
+	'tests=s'      => \$tests,
+	'check-warnings!' => \$check_warnings, # allow --nocheck-warnings
 );
 
 $buildconf = "build-farm.conf"; # default value
