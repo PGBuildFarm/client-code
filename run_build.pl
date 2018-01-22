@@ -894,10 +894,10 @@ if (check_optional_step('find_typedefs') || $find_typedefs)
 
 my $saved_config = get_config_summary();
 
-# make sure we save the valgrind logs before we remove the installdir
+# error out if there are non-empty valgrind logs
 foreach my $vglog (glob("$installdir/valgrind-*.log"))
 {
-	writelog(basename($vglog,".log"),[file_lines($vglog)]) if -s $vglog;
+	send_result('Valgrind',1,[file_lines($vglog)]) if -s $vglog;
 }
 
 
