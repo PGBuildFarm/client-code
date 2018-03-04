@@ -50,6 +50,11 @@ sub setup
 "overly long build root $buildroot will cause upgrade problems - try something shorter than 46 chars"
       if (length($buildroot) > 46);
 
+	# don't run module if builtin test is enabled.
+    my $using_tap_tests = $conf->{using_msvc} ? $conf->{config}->{tap_tests} :
+	  grep {$_ eq '--enable-tap-tests'} @{$conf->{config}} ;
+	return if $using_tap_tests && -d "$buildroot/$branch/pgsql/src/bin/pg_upgrade/t";
+
     # could even set up several of these (e.g. for different branches)
     my $self  = {
         buildroot => $buildroot,
