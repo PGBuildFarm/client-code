@@ -1970,55 +1970,12 @@ sub find_typedefs
         my @lines;
         my $src = file_contents($_);
 
-        # strip C comments - see perlfaq6 for an explanation
-        # of the complex regex.
-        # On some platforms psqlscan.l  causes perl to barf and crash
-        # on the more complicated regexp, so fall back to the simple one.
-        # The results are most likely to be the same anyway.
-        if ($_ eq 'psqlscan.l')
-        {
-            $src =~ s{/\*.*?\*/}{}gs;
-        }
-        else
-        {
-            # use the long form here to keep lines under 80
-            $src =~s{
-           /\*         ##  Start of /* ... */ comment
-           [^*]*\*+    ##  Non-* followed by 1-or-more *'s
-           (
-             [^/*][^*]*\*+
-           )*          ##  0-or-more things which don't start with /
-                       ##    but do end with '*'
-           /           ##  End of /* ... */ comment
+        # strip C comments
+		# We used to use the recipe in perlfaq6 but there is actually no point.
+        # We don't need to keep the quoted string values anyway, and 
+        # on some platforms the complex regex causes perl to barf and crash.
+		$src =~ s{/\*.*?\*/}{}gs;
 
-         |             ##     OR  various things which aren't comments:
-
-           (
-             "         ##  Start of " ... " string
-             (
-               \\.     ##  Escaped char
-             |         ##    OR
-               [^"\\]  ##  Non "\
-             )*
-             "         ##  End of " ... " string
-
-           |           ##     OR
-
-             '         ##  Start of ' ... ' string
-             (
-               \\.     ##  Escaped char
-             |         ##    OR
-               [^'\\]  ##  Non '\
-             )*
-             '         ##  End of ' ... ' string
-
-           |           ##     OR
-
-             .         ##  Anything other char
-             [^/"'\\]* ##  Chars which doesn't start a comment, string or escape
-           )
-         }{defined $2 ? $2 : ""}gxse;
-        }
         foreach my $word (split(/\W+/,$src))
         {
             $foundwords{$word} = 1;
