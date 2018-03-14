@@ -245,7 +245,7 @@ sub save_for_testing
 
     # disable modules known to cause pg_upgrade to fail
 
-    foreach my $bad_module ("test_ddl_parse")
+    foreach my $bad_module ("test_ddl_deparse")
     {
         system( "$installdir/bin/psql -X -e "
               . "-c 'drop database if exists contrib_regression_$bad_module' postgres"
