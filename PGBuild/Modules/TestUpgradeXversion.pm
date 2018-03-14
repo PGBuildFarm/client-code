@@ -375,6 +375,13 @@ sub test_upgrade
           ."--old-bindir=$other_branch/inst/bin "
           ."--new-bindir=$installdir/bin "
           .">> '$upgrade_loc/$oversion-upgrade.log' 2>&1");
+
+    foreach my $upgradelog (glob("$installdir/pg_upgrade*"))
+    {
+        my $bl = basename $upgradelog;
+        rename $upgradelog,"$installdir/$oversion-$bl";
+    }
+
     return undef if $?;
 
     system("pg_ctl -D $installdir/$oversion-upgrade -l "
@@ -408,12 +415,6 @@ sub test_upgrade
     {
         system("cd $installdir && sh ./delete_old_cluster.sh");
         return undef if $?;
-    }
-
-    foreach my $dumplog (glob("$installdir/pg_upgrade*"))
-    {
-        my $bl = basename $dumplog;
-        rename $dumplog,"$installdir/$oversion-$bl";
     }
 
     system("diff -I '^-- ' -u $upgrade_loc/origin-$oversion.sql "
