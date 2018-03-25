@@ -897,9 +897,8 @@ my $saved_config = get_config_summary();
 # error out if there are non-empty valgrind logs
 foreach my $vglog (glob("$installdir/valgrind-*.log"))
 {
-	send_result('Valgrind',1,[file_lines($vglog)]) if -s $vglog;
+    send_result('Valgrind',1,[file_lines($vglog)]) if -s $vglog;
 }
-
 
 rmtree("inst") unless $keepall; # only keep failures
 rmtree("$pgsql") unless ($keepall || $from_source);
@@ -1971,10 +1970,10 @@ sub find_typedefs
         my $src = file_contents($_);
 
         # strip C comments
-		# We used to use the recipe in perlfaq6 but there is actually no point.
-        # We don't need to keep the quoted string values anyway, and 
+        # We used to use the recipe in perlfaq6 but there is actually no point.
+        # We don't need to keep the quoted string values anyway, and
         # on some platforms the complex regex causes perl to barf and crash.
-		$src =~ s{/\*.*?\*/}{}gs;
+        $src =~ s{/\*.*?\*/}{}gs;
 
         foreach my $word (split(/\W+/,$src))
         {

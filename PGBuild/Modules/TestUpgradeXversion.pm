@@ -518,7 +518,8 @@ sub installcheck
 
         my @testout;
 
-        foreach my $log (glob("$upgrade_loc/*$oversion*"), glob("$installdir/${oversion}_pg_upgrade*"))
+        foreach my $log (glob("$upgrade_loc/*$oversion*"),
+            glob("$installdir/${oversion}_pg_upgrade*"))
         {
             next unless -e "$log";
             my $bn = basename $log;
