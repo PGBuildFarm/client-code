@@ -92,14 +92,20 @@ elsif ($PGBuild::conf{branches_to_build} =~
     $ENV{PATH} = $PGBuild::conf{build_env}->{PATH}
       if ($PGBuild::conf{build_env}->{PATH});
     (my $url = $PGBuild::conf{target}) =~s/cgi-bin.*/branches_of_interest.txt/;
-    my $branches_of_interest =(
-        ($^O eq 'msys' && $^V lt v5.8.0)
-        ? # msys: use perl in PATH
-          `perl -MLWP::Simple -e "getprint(q{$url})"`
-        : # everyone else: use this perl
-          LWP::Simple::get($url)
-    );
-    die "getting branches of interest" unless $branches_of_interest;
+    my $branches_of_interest;
+    if ($^O eq 'msys' && $^V lt v5.8.0)
+    {
+        # msys: use perl in PATH
+        $branches_of_interest =  `perl -MLWP::Simple -e "getprint(q{$url})"`;
+    }
+    else
+    {
+        # everyone else: use this perl
+        # make sure we have https protocol support if it's required
+        require LWP::Protocol::https if $url =~ /^https:/;
+        $branches_of_interest = LWP::Simple::get($url);
+    }
+    die "getting branches of interest ($url)" unless $branches_of_interest;
     $ENV{PATH} = $save_path;
     push(@branches,$_)foreach (split(/\s+/,$branches_of_interest));
     @branches = grep {$_ ne 'REL8_2_STABLE'} @branches
