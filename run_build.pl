@@ -471,6 +471,9 @@ END
 
     kill('TERM', $waiter_pid) if $waiter_pid;
 
+	# save the exit status in case $? is mangled by system() calls below
+	my $exit_status = $?;
+
     # if we have the lock we must already be in the build root, so
     # removing things there should be safe.
     # there should only be anything to cleanup if we didn't have
@@ -541,6 +544,8 @@ END
         close($lockfile);
         unlink("builder.LCK");
     }
+
+	$? = $exit_status;
 }
 
 $waiter_pid = spawn(\&wait_timeout,$wait_timeout) if $wait_timeout;
@@ -2122,6 +2127,17 @@ sub configure
 
         send_result('Configure',$status,\@confout);
     }
+
+	if ($use_vpath && $from_source)
+	{
+		# vpath construction copies stuff from the source directory including
+		# the buildroot stucture if it's there. Clean it up. This is not
+		# necessary except in from-source builds because otherwise we would
+		# have already checked that the directory was git-clean. This stuff
+		# is not harmful but it can be confusing.
+		my $bfdir = basename $buildroot;
+		rmtree("$pgsql/$bfdir") if -d "$pgsql/bfdir";
+	}
 
     $steps_completed .= " Configure";
 }
