@@ -25,6 +25,14 @@ my $branch;
     $branch = $main::branch;
 }
 
+# useful for making settinngs relative to the config file location
+# all the clients should have used these two standfard packages
+my $confdir =   File::Spec->rel2abs(File::Basename->dirname(__FILE__));
+
+# to force from-source in the directory where this config file is located,
+# uncomment the line below. See also buildroot below
+# $PGBuild::Options::from_source = $confdir;
+
 %conf =(
 
     # identity
@@ -62,7 +70,9 @@ my $branch;
 
     # where and how to build
     # must be absolute, can be either Unix or Windows style for MSVC
-    # undef means default, buildroot dir in script directory
+	# undef means default, buildroot dir in script directory
+	# "$confdir/buildroot" means buildroot in the config file's directory,
+	# which is useful for auto from-source setups
     build_root =>   undef, #  or '/path/to/buildroot',
     use_vpath => undef, # set true to do vpath builds
 
@@ -262,6 +272,7 @@ my $branch;
     #
 );
 
+# settings used by run_branches.pl
 if ($branch eq 'global')
 {
 
