@@ -977,9 +977,17 @@ sub clean_from_source
 {
     if (-e "$pgsql/GNUmakefile")
     {
+		my $command;
+		if (using_msvc)
+		{
+			$command = "cd $pgsql && src\\tools\\msvc\\clean dist";
+		}
+		else
+		{
+			$command = "cd $pgsql && $make distclean";
+		}
 
-        # fixme for MSVC
-        my @makeout = run_log("cd $pgsql && $make distclean");
+        my @makeout = run_log($command);
         my $status = $? >>8;
         writelog('distclean',\@makeout);
         print "======== distclean log ===========\n",@makeout if ($verbose > 1);
