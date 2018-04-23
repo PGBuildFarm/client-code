@@ -975,24 +975,21 @@ sub check_optional_step
 
 sub clean_from_source
 {
-    if (-e "$pgsql/GNUmakefile")
-    {
-		my $command;
-		if ($using_msvc)
-		{
-			$command = "cd $pgsql && src\\tools\\msvc\\clean dist";
-		}
-		else
-		{
-			$command = "cd $pgsql && $make distclean";
-		}
+	my $command;
+	if ($using_msvc)
+	{
+		$command = "cd $pgsql && src\\tools\\msvc\\clean dist";
+	}
+	else
+	{
+		$command = "cd $pgsql && $make distclean";
+	}
 
-        my @makeout = run_log($command);
-        my $status = $? >>8;
-        writelog('distclean',\@makeout);
-        print "======== distclean log ===========\n",@makeout if ($verbose > 1);
-        send_result('distclean',$status,\@makeout) if $status;
-    }
+	my @makeout = run_log($command);
+	my $status = $? >>8;
+	writelog('distclean',\@makeout);
+	print "======== distclean log ===========\n",@makeout if ($verbose > 1);
+	send_result('distclean',$status,\@makeout) if $status;
 }
 
 sub interrupt_exit
