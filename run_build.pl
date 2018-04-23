@@ -91,7 +91,7 @@ use PGBuild::Utils qw(:DEFAULT $st_prefix $logdirname $branch_root
 $send_result_routine = \&send_res;
 
 my $orig_dir = getcwd();
-push @INC, $orig_dir;
+unshift @INC, $orig_dir;
 
 # make sure we exit nicely on any normal interrupt
 # so the cleanup handler gets called.

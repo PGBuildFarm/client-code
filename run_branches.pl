@@ -15,8 +15,12 @@ use warnings;
 use Fcntl qw(:flock :seek);
 use File::Spec;
 use File::Basename;
+use Cwd qw(getcwd);
 
 BEGIN { use lib File::Spec->rel2abs(dirname(__FILE__)); }
+
+my $orig_dir = getcwd();
+unshift @INC, $orig_dir;
 
 use PGBuild::Options;
 
