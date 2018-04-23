@@ -978,7 +978,7 @@ sub clean_from_source
     if (-e "$pgsql/GNUmakefile")
     {
 		my $command;
-		if (using_msvc)
+		if ($using_msvc)
 		{
 			$command = "cd $pgsql && src\\tools\\msvc\\clean dist";
 		}
