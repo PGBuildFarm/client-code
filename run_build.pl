@@ -297,9 +297,28 @@ if ($ccachedir)
     $ccachedir = abs_path($ccachedir);
 }
 
-if ($^V lt v5.8.0 || ($Config{osname} eq 'msys' && $target =~ /^https/))
+# this should now only apply to older Msys installs. All others should
+# be running with perl >= 5.8 since that's required to build postgres
+# anyway. However, the Msys DTK perl doesn't handle https, but Msys2 perl
+# does, so detect if it's there. If we're not sending this is all moot anyway.
+my $use_auxpath = undef;
+
+unless ($nosend)
 {
-    die "no aux_path in config file" unless $aux_path;
+	if (!$^V || $^V lt v5.8.0)
+	{
+		die "no aux_path in config file" unless $aux_path;
+		$use_auxpath = 1;
+	}
+	elsif ($Config{osname} eq 'msys' && $target =~ /^https/)
+	{
+		eval (require LWP::Protocol::https; } ;
+		if ($@)
+		{
+			die "no aux_path in config file" unless $aux_path;
+			$use_auxpath = 1;
+		}
+	}
 }
 
 die "cannot run as root/Administrator" unless ($using_msvc or $> > 0);
@@ -2256,11 +2275,7 @@ sub send_res
 
     my $txstatus;
 
-    # this should now only apply to older Msys installs. All others should
-    # be running with perl >= 5.8 since that's required to build postgres
-    # anyway. However, the Msys DTK perl doesn't handle https.
-    if (  !$^V
-        or $^V lt v5.8.0 ||($Config{osname} eq 'msys' && $target =~ /^https/))
+    if ($use_auxpath)
     {
 
         unless (-x "$aux_path/run_web_txn.pl")
