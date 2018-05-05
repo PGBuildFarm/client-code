@@ -312,7 +312,7 @@ unless ($nosend)
 	}
 	elsif ($Config{osname} eq 'msys' && $target =~ /^https/)
 	{
-		eval (require LWP::Protocol::https; } ;
+		eval { require LWP::Protocol::https; } ;
 		if ($@)
 		{
 			die "no aux_path in config file" unless $aux_path;
