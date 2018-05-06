@@ -294,7 +294,7 @@ sub test_upgrade
     # run in which it was set up, which will be gone by now, so we repoint
     # it to the current run's tmpdir.
     # listen_addresses will be set correctly and requires no adjustment.
-    open(my $opgconf, ">>$other_branch/inst/upgrade_test/postgresql.conf")
+    open(my $opgconf, ">>", "$other_branch/inst/upgrade_test/postgresql.conf")
       || die "opening $other_branch/inst/upgrade_test/postgresql.conf: $!";
     my $param =
       $oversion eq 'REL9_2_STABLE'
@@ -349,7 +349,7 @@ sub test_upgrade
           ."> '$upgrade_loc/$oversion-initdb.log' 2>&1");
     return undef if $?;
 
-    open(my $pgconf, ">>$installdir/$oversion-upgrade/postgresql.conf")
+    open(my $pgconf, ">>","$installdir/$oversion-upgrade/postgresql.conf")
       || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
     my $tmp_param =
       $this_branch eq 'REL9_2_STABLE'
@@ -362,7 +362,7 @@ sub test_upgrade
     if ($oversion ge 'REL9_5_STABLE' || $oversion eq 'HEAD')
     {
         my $handle;
-        open($handle,">>$installdir/$oversion-upgrade/postgresql.conf")
+        open($handle,">>","$installdir/$oversion-upgrade/postgresql.conf")
           || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
         print $handle "shared_preload_libraries = 'dummy_seclabel'\n";
         close $handle;

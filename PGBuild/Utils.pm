@@ -92,7 +92,7 @@ sub run_log
     if (-e $file)
     {
         # shouldn't fail, but I've seen it, so die if it does
-        open(my $handle,$file) || die "opening $file for $command: $!";
+        open(my $handle,'<', $file) || die "opening $file for $command: $!";
         @loglines = <$handle>;
         close $handle;
 
@@ -150,7 +150,7 @@ sub get_stack_trace
 
     my $cmdfile = "./gdbcmd";
     my $handle;
-    open($handle, ">$cmdfile") || die "opening $cmdfile: $!";
+    open($handle, '>', $cmdfile) || die "opening $cmdfile: $!";
     print $handle "bt\n";
     close($handle);
 
@@ -183,7 +183,7 @@ sub writelog
     my $loglines = shift;
     my $handle;
     my $lrname = $st_prefix . $logdirname;
-    open($handle,">$lrname/$fname") || die "opening $lrname/$fname: $!";
+    open($handle,'>', "$lrname/$fname") || die "opening $lrname/$fname: $!";
     print $handle @$loglines;
     close($handle);
 }
@@ -206,7 +206,7 @@ sub file_lines
     my $filename = shift;
     my $filepos = shift;
     my $handle;
-    open($handle, $filename) || croak "opening $filename: $!";
+    open($handle, '<', $filename) || croak "opening $filename: $!";
     seek($handle, $filepos, SEEK_SET) if $filepos;
     my @lines = <$handle>;
     close $handle;
@@ -220,7 +220,7 @@ sub file_contents
     my $filename = shift;
     my $filepos = shift;
     my $handle;
-    open($handle, $filename) || croak "opening $filename: $!";
+    open($handle, '<', $filename) || croak "opening $filename: $!";
     seek($handle, $filepos, SEEK_SET) if $filepos;
     local $/ = undef;
     my $contents = <$handle>;
@@ -233,7 +233,7 @@ sub find_last
     my $which = shift;
     my $stname = $st_prefix . "last.$which";
     my $handle;
-    open($handle,$stname) or return undef;
+    open($handle, '<', $stname) or return undef;
     my $time = <$handle>;
     close($handle);
     chomp $time;
@@ -246,7 +246,7 @@ sub set_last
     my $stname = $st_prefix . "last.$which";
     my $st_now = shift || time;
     my $handle;
-    open($handle,">$stname") or die "opening $stname: $!";
+    open($handle,'>',$stname) or die "opening $stname: $!";
     print $handle "$st_now\n";
     close($handle);
 }

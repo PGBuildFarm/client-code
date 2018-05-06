@@ -139,7 +139,7 @@ my $lockfile;
 
 my $lockfilename = "$global_lock_dir/GLOBAL.lck";
 
-open($lockfile, ">$lockfilename") || die "opening lockfile: $!";
+open($lockfile, ">","$lockfilename") || die "opening lockfile: $!";
 
 if ( !flock($lockfile,LOCK_EX|LOCK_NB) )
 {

@@ -69,7 +69,7 @@ sub run_web_txn
     my $txfname = "$lrname/web-txn.data";
     my $txdhandle;
     $/=undef;
-    open($txdhandle,"$txfname") or die "opening $txfname: $!";
+    open($txdhandle,'<',"$txfname") or die "opening $txfname: $!";
     my $txdata = <$txdhandle>;
     close($txdhandle);
 
@@ -82,7 +82,7 @@ sub run_web_txn
 
     my $tarname = "$lrname/runlogs.tgz";
     my $tardata="";
-    if (open($txdhandle,$tarname))
+    if (open($txdhandle,'<',$tarname))
     {
         binmode $txdhandle;
         $tardata=<$txdhandle>;

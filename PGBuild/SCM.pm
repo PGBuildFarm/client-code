@@ -148,7 +148,7 @@ sub check_access
     my $srvr;
     (undef,,undef,$srvr,undef) = split(/:/,$self->{cvsrepo});
     my $qsrvr = quotemeta($srvr);
-    if (open($cvspass,glob("~/.cvspass")))
+    if (open($cvspass,'<',glob("~/.cvspass")))
     {
 
         while (my $line = <$cvspass>)
@@ -324,7 +324,7 @@ sub find_ignore
         elsif (-f $_ && $_ eq '.cvsignore')
         {
             my $fh;
-            open($fh,$_) || die "cannot open $File::Find::name for reading";
+            open($fh,'<',$_) || die "cannot open $File::Find::name for reading";
             my @names = (<$fh>);
             close($fh);
             chomp @names;
@@ -564,7 +564,7 @@ sub checkout
         && $^O ne "msys"
         && -d '../HEAD/')
     {
-        open($lockfile, ">../HEAD/checkout.LCK")
+        open($lockfile, ">", "../HEAD/checkout.LCK")
           || die "opening checkout lockfile: $!";
 
         # no LOCK_NB here so we wait for the lock

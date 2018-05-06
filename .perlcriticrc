@@ -1,7 +1,15 @@
+
+# sev 5
 [-Subroutines::ProhibitExplicitReturnUndef]
 [-BuiltinFunctions::ProhibitStringyEval]
-[-InputOutput::ProhibitTwoArgOpen]
+
+# we're enforcing this now
+# [-InputOutput::ProhibitTwoArgOpen]
+
+# sev 4
 [-Variables::RequireLocalizedPunctuationVars]
 [-Subroutines::RequireFinalReturn]
+
+# these two are pretty sill and I doubt we'll ever enforce them
 [-InputOutput::RequireBriefOpen]
 [-Subroutines::RequireArgUnpacking]

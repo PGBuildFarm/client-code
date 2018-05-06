@@ -424,7 +424,7 @@ foreach my $module (@{$PGBuild::conf{modules}})
 my $lockfile;
 my $have_lock;
 
-open($lockfile, ">builder.LCK") || die "opening lockfile: $!";
+open($lockfile, ">","builder.LCK") || die "opening lockfile: $!";
 
 # only one builder at a time allowed per branch
 # having another build running is not a failure, and so we do not output
@@ -594,7 +594,7 @@ if ($extra_config &&  $extra_config->{DEFAULT})
 if ($extra_config && $extra_config->{$branch})
 {
     my $tmpname = "$tmpdir/bfextra.conf";
-    open($extraconf, ">$tmpname") || die 'opening $tmpname $!';
+    open($extraconf, ">","$tmpname") || die 'opening $tmpname $!';
     $ENV{TEMP_CONFIG} = $tmpname;
     foreach my $line (@{$extra_config->{$branch}})
     {
@@ -1239,7 +1239,7 @@ sub initdb
     if (!$status)
     {
         my $handle;
-        open($handle,">>$installdir/data-$locale/postgresql.conf")
+        open($handle,">>","$installdir/data-$locale/postgresql.conf")
           ||die "opening $installdir/data-$locale/postgresql.conf: $!";
 
         if (!$using_msvc && $Config{osname} !~ /msys|MSWin/)
@@ -1309,8 +1309,8 @@ sub start_valgrind_db
     my $vglogfile = "valgrind-$locale-$started_times.log";
     chdir 'inst';
     my $source = $from_source || '../pgsql';
-    open(STDOUT,">logfile");
-    open(STDERR,">&STDOUT");
+    open(STDOUT,">","logfile");
+    open(STDERR,">&STDOUT"); # allowed by perlcritic
     unlink $vglogfile;
     print "starting under valgrind\n";
     my $supp = "--suppressions=$source/src/tools/valgrind.supp";
@@ -2039,7 +2039,7 @@ sub configure
         );
 
         my $handle;
-        open($handle,">$pgsql/src/tools/msvc/config.pl")
+        open($handle,">","$pgsql/src/tools/msvc/config.pl")
           || die "opening $pgsql/src/tools/msvc/config.pl: $!";
         print $handle @text;
         close($handle);
@@ -2232,7 +2232,7 @@ sub send_res
 
     my $txfname = "$lrname/web-txn.data";
     my $txdhandle;
-    open($txdhandle,">$txfname") || die "opening $txfname: $!";
+    open($txdhandle,">","$txfname") || die "opening $txfname: $!";
     print $txdhandle $savedata;
     close($txdhandle);
 

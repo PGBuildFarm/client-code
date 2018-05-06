@@ -148,7 +148,7 @@ sub locale_end
 
     my $status = $? >>8;
 
-    open(my $handle,">>inst/sepgsql/postgresql.conf")
+    open(my $handle,">>","inst/sepgsql/postgresql.conf")
       || die "opening inst/sepgsql/postgresql.conf: $!";
     my $param =
       $self->{pgbranch} eq 'REL9_2_STABLE'
