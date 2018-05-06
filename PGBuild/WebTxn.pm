@@ -14,6 +14,7 @@ needed on older Msys installations (i.e. things running perl < 5.8).
 =cut
 
 use strict;
+use warnings;
 
 use vars qw($VERSION); $VERSION = 'REL_7';
 
@@ -127,7 +128,8 @@ sub run_web_txn
     # this ensures that what is seen at the other end is EXACTLY what we
     # see when we calculate the signature
 
-    map{ $_=encode_base64($_,""); tr/+=/$@/; }(
+    do { $_=encode_base64($_,""); tr/+=/$@/; }
+	  foreach (
         $log_data,$confsum,$changed_this_run,$changed_since_success,$tardata,
         $frozen_sconf
     );
@@ -146,7 +148,7 @@ sub run_web_txn
         $content .= "&logtar=$tardata";
     }
 
-    my $ua = new LWP::UserAgent;
+    my $ua = LWP::UserAgent->new;
     $ua->agent("Postgres Build Farm Reporter");
     if (my $proxy = $ENV{BF_PROXY})
     {

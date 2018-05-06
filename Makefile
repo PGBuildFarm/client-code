@@ -51,6 +51,9 @@ syncheck:
 tidy:
 	perltidy $(ALLPERLFILES) 
 
+critic:
+	perlcritic -4 $(ALLPERLFILES) 
+
 clean:
 	find . "(" -name '*.bak' -o -name '*.orig' -o -name '*~' ")" -type f -exec rm -f {} \;
 

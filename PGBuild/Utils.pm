@@ -20,7 +20,8 @@ use Fcntl qw(:seek);
 use File::Path;
 
 use Exporter   ();
-our (@ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
+out(@EXPORT);   ## no critic (ProhibitAutomaticExportation)
+our (@ISA, @EXPORT_OK, %EXPORT_TAGS);
 
 use vars qw($VERSION); $VERSION = 'REL_7';
 
@@ -53,7 +54,7 @@ sub send_result
 
 sub run_log
 {
-    no warnings qw(once);
+    no warnings qw(once); ## no critic (ProhibitNoWarnings)
 
     my $command = shift;
     my $filedir = "$branch_root/$st_prefix$logdirname";

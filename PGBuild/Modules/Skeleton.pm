@@ -15,7 +15,9 @@ package PGBuild::Modules::Skeleton;
 use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils;
+
 use strict;
+use warnings;
 
 use vars qw($VERSION); $VERSION = 'REL_7';
 

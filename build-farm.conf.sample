@@ -9,7 +9,7 @@ See accompanying License file for license details
 
 =cut 
 
-package PGBuild;
+package PGBuild; ## no critic (RequireFilenameMatchesPackage)
 
 use strict;
 
@@ -21,7 +21,7 @@ use vars qw(%conf);
 
 my $branch;
 {
-    no warnings qw(once);
+    no warnings qw(once); ## no critic (ProhibitNoWarnings)
     $branch = $main::branch;
 }
 

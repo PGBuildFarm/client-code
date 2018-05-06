@@ -19,6 +19,7 @@ use PGBuild::Utils qw(:DEFAULT $steps_completed $temp_installs);
 use File::Basename;
 
 use strict;
+use warnings;
 
 use vars qw($VERSION); $VERSION = 'REL_7';
 
@@ -101,7 +102,7 @@ sub check
         my $cmd;
         my $instflags;
         {
-            no warnings qw(once);
+            no warnings qw(once); ## no critic (ProhibitNoWarnings)
             $instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
         }
         if ($self->{pgbranch} eq 'HEAD' || $self->{pgbranch} ge 'REL9_5')
@@ -139,7 +140,7 @@ sub check
       if ($verbose > 1);
     send_result("pg_upgradeCheck",$status,\@checklog) if $status;
     {
-        no warnings 'once';
+        no warnings 'once'; ## no critic (ProhibitNoWarnings)
         $steps_completed .= " pg_upgradeCheck";
     }
 

@@ -8,11 +8,12 @@ See accompanying License file for license details
 
 =cut
 
-use vars qw($VERSION); $VERSION = 'REL_7';
-
 use strict;
 use warnings;
-no warnings qw(once); # suppress spurious warning about conf structure
+# suppress spurious warning about conf structure
+no warnings qw(once);  ## no critic (ProhibitNoWarnings)
+
+use vars qw($VERSION); $VERSION = 'REL_7';
 
 use LWP;
 use HTTP::Request::Common;
@@ -70,8 +71,8 @@ unless ($upgrade_target)
 # this ensures that what is seen at the other end is EXACTLY what we
 # see when we calculate the signature
 
-map{ $_ ||= ""; $_ = encode_base64($_,""); tr/+=/$@/; }
-  ($os_version,$compiler_version);
+do { $_ ||= ""; $_ = encode_base64($_,""); tr/+=/$@/; }
+  foreach ($os_version,$compiler_version);
 
 my $ts = time;
 
@@ -87,7 +88,7 @@ while (my ($envkey,$envval) = each %{$PGBuild::conf{build_env}})
     $ENV{$envkey}=$envval;
 }
 
-my $ua = new LWP::UserAgent;
+my $ua = LWP::UserAgent->new;
 $ua->agent("Postgres Build Farm Reporter");
 if (my $proxy = $ENV{BF_PROXY})
 {

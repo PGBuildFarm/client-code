@@ -1,5 +1,3 @@
-use strict;
-
 =comment
 
 Copyright (c) 2003-2017, Andrew Dunstan
@@ -16,6 +14,9 @@ See accompanying License file for license details
 
 package PGBuild::SCM;
 
+use strict;
+use warnings;
+
 use vars qw($VERSION); $VERSION = 'REL_7';
 
 # factory function to return the right subclass
@@ -27,14 +28,14 @@ sub new
     if (defined($conf->{scm}) &&  $conf->{scm} =~ /^git$/i)
     {
         $conf->{scm} = 'git';
-        return new PGBuild::SCM::Git $conf, $target;
+        return PGBuild::SCM::Git->new($conf, $target);
     }
     elsif ((defined($conf->{scm}) &&  $conf->{scm} =~ /^cvs$/i )
         ||$conf->{csvrepo}
         ||$conf->{cvsmethod})
     {
         $conf->{scm} = 'cvs';
-        return new PGBuild::SCM::CVS $conf, $target;
+        return PGBuild::SCM::CVS->new($conf, $target);
     }
     die "only CVS and Git currently supported";
 }
@@ -81,7 +82,10 @@ sub copy_source
 #
 ##################################
 
-package PGBuild::SCM::CVS;
+package PGBuild::SCM::CVS;  ## no critic (ProhibitMultiplePackages)
+
+use strict;
+use warnings;
 
 use File::Find;
 use File::Basename;
@@ -168,7 +172,7 @@ sub get_build_path
     my $use_vpath = shift;
     my $target = $self->{target};
     $self->{build_path} =
-      ($self->{cvsmethod} eq 'export' && not $use_vpath)
+      ($self->{cvsmethod} eq 'export' && (! $use_vpath))
       ?"$target"
       :"$target.build";
     return 	$self->{build_path};
@@ -325,7 +329,7 @@ sub find_ignore
             close($fh);
             chomp @names;
             my $found_dir = $File::Find::dir;
-            map { s!^!$found_dir/!; } @names;
+            do { s!^!$found_dir/!; } foreach @names;
             @{$ignore_file}{@names} = (1) x @names;
         }
     };
@@ -439,7 +443,10 @@ sub get_versions
 #
 ##################################
 
-package PGBuild::SCM::Git;
+package PGBuild::SCM::Git;  ## no critic (ProhibitMultiplePackages)
+
+use strict;
+use warnings;
 
 use Cwd qw(getcwd abs_path);
 use File::Copy;

@@ -10,6 +10,7 @@ use PGBuild::Utils;
 use Fcntl qw(:seek);
 
 use strict;
+use warnings;
 
 # strip required namespace from package name
 (my $MODULE = __PACKAGE__ ) =~ s/PGBuild::Modules:://;
@@ -60,7 +61,7 @@ sub setup
         build_root => $self->{buildroot},
     };
 
-    $self->{scm} = new PGBuild::SCM $scmconf, 'blackhole_fdw';
+    $self->{scm} = PGBuild::SCM->new($scmconf, 'blackhole_fdw');
     my $where = $self->{scm}->get_build_path();
     $self->{where} = $where;
 

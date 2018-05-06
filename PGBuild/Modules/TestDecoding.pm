@@ -16,6 +16,7 @@ use PGBuild::Utils qw(:DEFAULT $steps_completed $temp_installs);
 use File::Basename;
 
 use strict;
+use warnings;
 
 use vars qw($VERSION); $VERSION = 'REL_7';
 
@@ -103,7 +104,7 @@ sub check
       if ($verbose > 1);
     send_result("test-decoding-check",$status,\@checklog) if $status;
     {
-        no warnings 'once';
+        no warnings 'once'; ## no critic (ProhibitNoWarnings)
         $steps_completed .= " test-decoding-check";
     }
 

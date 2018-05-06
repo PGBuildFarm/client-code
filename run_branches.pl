@@ -8,10 +8,11 @@ See accompanying License file for license details
 
 =cut
 
-use vars qw($VERSION); $VERSION = 'REL_7';
-
 use strict;
 use warnings;
+
+use vars qw($VERSION); $VERSION = 'REL_7';
+
 use Fcntl qw(:flock :seek);
 use File::Spec;
 use File::Basename;

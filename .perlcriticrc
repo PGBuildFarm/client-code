@@ -1,0 +1,7 @@
+[-Subroutines::ProhibitExplicitReturnUndef]
+[-BuiltinFunctions::ProhibitStringyEval]
+[-InputOutput::ProhibitTwoArgOpen]
+[-Variables::RequireLocalizedPunctuationVars]
+[-Subroutines::RequireFinalReturn]
+[-InputOutput::RequireBriefOpen]
+[-Subroutines::RequireArgUnpacking]

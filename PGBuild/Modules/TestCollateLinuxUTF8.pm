@@ -19,6 +19,7 @@ use PGBuild::Utils qw(:DEFAULT $steps_completed);
 use Fcntl qw(:seek);
 
 use strict;
+use warnings;
 
 use vars qw($VERSION); $VERSION = 'REL_7';
 
@@ -129,7 +130,7 @@ sub installcheck
     send_result("InstallCheck-collate-$locale",$status,\@checklog)
       if $status;
     {
-        no warnings 'once';
+        no warnings 'once'; ## no critic (ProhibitNoWarnings)
         $steps_completed .= " InstallCheck-collate-$locale";
     }
 

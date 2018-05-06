@@ -32,10 +32,11 @@ See accompanying License file for license details
 
 ###################################################
 
-use vars qw($VERSION); $VERSION = 'REL_7';
-
 use strict;
 use warnings;
+
+use vars qw($VERSION); $VERSION = 'REL_7';
+
 use Config;
 use Fcntl qw(:flock :seek);
 use File::Path;
@@ -363,7 +364,7 @@ $tmpdir = File::Temp::tempdir(
 );
 umask $oldmask unless $using_msvc;
 
-my $scm = new PGBuild::SCM \%PGBuild::conf;
+my $scm = PGBuild::SCM->new(\%PGBuild::conf);
 if (!$from_source)
 {
     $scm->check_access($using_msvc);

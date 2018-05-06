@@ -31,7 +31,8 @@ BEGIN
 }
 
 use Exporter   ();
-our (@ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
+out(@EXPORT);   ## no critic (ProhibitAutomaticExportation)
+our (@ISA, @EXPORT_OK, %EXPORT_TAGS);
 
 use vars qw($VERSION); $VERSION = 'REL_7';
 

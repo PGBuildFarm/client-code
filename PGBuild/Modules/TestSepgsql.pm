@@ -21,6 +21,7 @@ use File::Find;
 use Cwd;
 
 use strict;
+use warnings;
 
 use vars qw($VERSION); $VERSION = 'REL_7';
 
@@ -92,7 +93,7 @@ sub build
     send_result("sepgsql-policy-build",$status,\@log)
       if $status;
     {
-        no warnings 'once';
+        no warnings 'once'; ## no critic (ProhibitNoWarnings)
         $steps_completed .= " sepgsql-policy-build";
     }
 }
@@ -126,7 +127,7 @@ sub install
     send_result("sepgsql-policy-install",$status,\@log)
       if $status;
     {
-        no warnings 'once';
+        no warnings 'once'; ## no critic (ProhibitNoWarnings)
         $steps_completed .= " sepgsql-policy-install";
     }
 }
@@ -236,7 +237,7 @@ sub locale_end
     }
 
     {
-        no warnings 'once';
+        no warnings 'once'; ## no critic (ProhibitNoWarnings)
         $steps_completed .= " sepgsql-test";
     }
 }
