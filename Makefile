@@ -49,10 +49,10 @@ syncheck:
 	for f in $(ALLPERLFILES) ; do perl -cw $${f}; done;
 
 tidy:
-	perltidy $(ALLPERLFILES) 
+	perltidy $(ALLPERLFILES)
 
 critic:
-	perlcritic -4 $(ALLPERLFILES) 
+	perlcritic -4 $(ALLPERLFILES)
 
 clean:
 	find . "(" -name '*.bak' -o -name '*.orig' -o -name '*~' ")" -type f -exec rm -f {} \;
