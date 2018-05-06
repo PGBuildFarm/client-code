@@ -49,7 +49,7 @@ syncheck:
 	for f in $(ALLPERLFILES) ; do perl -cw $${f}; done;
 
 tidy:
-	perltidy -b -bl -nsfs -naws -l=80 -ole=unix $(ALLPERLFILES) 
+	perltidy $(ALLPERLFILES) 
 
 clean:
 	find . "(" -name '*.bak' -o -name '*.orig' -o -name '*~' ")" -type f -exec rm -f {} \;
