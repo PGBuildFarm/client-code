@@ -344,7 +344,7 @@ sub find_ignore
 	return;
 }
 
-sub find_changed ## no critic (Subroutines::ProhibitManyArgs)
+sub find_changed    ## no critic (Subroutines::ProhibitManyArgs)
 {
 	my $self                  = shift;
 	my $current_snap          = shift;

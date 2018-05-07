@@ -1325,9 +1325,9 @@ sub start_valgrind_db
 	# run the postmaster under valgrind.
 	# subroutine is run in a child process.
 
-	my $locale        = shift;
+	my $locale          = shift;
 	my $vgstarted_times = shift;
-	my $vglogfile     = "valgrind-$locale-$vgstarted_times.log";
+	my $vglogfile       = "valgrind-$locale-$vgstarted_times.log";
 	chdir 'inst';
 	my $source = $from_source || '../pgsql';
 	open(STDOUT, ">", "logfile") || die "opening valgrind log";
