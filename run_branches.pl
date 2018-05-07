@@ -190,6 +190,7 @@ sub run_branch
     # to run with the native perl, even on Cygwin, which it picks up from
     # the path. (Head exploding yet?).
     system("perl",@args);
+	return;
 }
 
 sub branch_last_sort

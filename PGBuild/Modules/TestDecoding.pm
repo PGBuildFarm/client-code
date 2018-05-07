@@ -46,7 +46,7 @@ sub setup
     bless($self, $class);
 
     register_module_hooks($self,$hooks);
-
+	return;
 }
 
 sub check
@@ -107,7 +107,7 @@ sub check
         no warnings 'once'; ## no critic (ProhibitNoWarnings)
         $steps_completed .= " test-decoding-check";
     }
-
+	return;
 }
 
 1;

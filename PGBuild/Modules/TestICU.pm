@@ -47,7 +47,7 @@ sub setup
 
     # for each instance you create, do:
     register_module_hooks($self,$hooks);
-
+	return;
 }
 
 sub installcheck
@@ -118,7 +118,7 @@ sub installcheck
         no warnings 'once'; ## no critic (ProhibitNoWarnings)
         $steps_completed .= " InstallCheck-ICU-$locale";
     }
-
+	return;
 }
 
 1;

@@ -60,7 +60,7 @@ sub copy_source
     }
     my $status = $? >> 8;
     die "copying directories: $status" if $status;
-
+	return;
 }
 
 # required operations in each subclass:
@@ -127,6 +127,7 @@ sub copy_source
     my $build_path = $self->{build_path};
     die "no build path" unless $build_path;
     PGBuild::SCM::copy_source($using_msvc,$target,$build_path);
+	return;
 }
 
 sub check_access
@@ -164,6 +165,7 @@ sub check_access
     }
     die "Need to login to :pserver:$srvr first"
       unless $loginfound;
+	return;
 }
 
 sub get_build_path
@@ -298,6 +300,7 @@ sub cleanup
 {
     my $self = shift;
     unlink keys %{$self->{ignore_files}};
+	return;
 }
 
 sub rm_worktree
@@ -335,6 +338,7 @@ sub find_ignore
     };
 
     File::Find::find({wanted => $wanted}, $target);
+	return;
 }
 
 sub find_changed
@@ -383,6 +387,7 @@ sub find_changed
     };
 
     File::Find::find({wanted => $wanted}, $target);
+	return;
 }
 
 sub get_versions
@@ -435,6 +440,7 @@ sub get_versions
         push(@repolines,"$5 $1");
     }
     @$flist = (@repolines);
+	return;
 }
 
 ##################################
@@ -511,6 +517,7 @@ sub copy_source
     move "$target/.git", "./git-save";
     PGBuild::SCM::copy_source($using_msvc,$target,$build_path);
     move "./git-save","$target/.git";
+	return;
 }
 
 sub get_build_path
@@ -533,6 +540,7 @@ sub log_id
     my $self = shift;
     writelog('githead',[$self->{headref}])
       if $self->{headref};
+	return;
 }
 
 sub checkout
@@ -815,6 +823,7 @@ sub cleanup
     chdir $target;
     system("git clean -dfxq");
     chdir "..";
+	return;
 }
 
 sub rm_worktree
@@ -835,6 +844,7 @@ sub rm_worktree
         }
     }
     chdir "..";
+	return;
 }
 
 # private Class level routine for getting changed file data
@@ -911,6 +921,7 @@ sub find_changed
 
     @$changed_files = sort keys %{$self->{changed_since_last_run}};
     @$changed_since_success = sort keys %{$self->{changed_since_success}};
+	return;
 }
 
 sub get_versions
@@ -937,6 +948,7 @@ sub get_versions
         }
     }
     @$flist = @repoversions;
+	return;
 }
 
 1;

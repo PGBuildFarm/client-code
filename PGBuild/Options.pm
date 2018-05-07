@@ -87,6 +87,7 @@ sub fetch_options
     $orig_verbose = $verbose;
     $verbose = 1 if (defined($verbose) && $verbose==0);
     $verbose ||= 0; # stop complaints about undefined var in numeric comparison
+	return;
 }
 
 sub standard_option_list
@@ -188,6 +189,7 @@ sub fixup_conf
             die "invalid conf_set argument: $confset";
         }
     }
+	return;
 }
 
 1;

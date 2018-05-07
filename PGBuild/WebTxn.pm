@@ -59,7 +59,7 @@ sub run_web_txn
     # A number of perl installations won't have JSON::PP installed, although
     # since it's pure perl installing it should be fairly simple.
     my $json_available;
-    eval "require JSON::PP; import JSON::PP;";
+    eval { require JSON::PP; import JSON::PP; };
     $json_available = 1 unless $@;
 
     # avoid using the Utils file handling here so we don't introduce an
@@ -73,7 +73,7 @@ sub run_web_txn
     my $txdata = <$txdhandle>;
     close($txdhandle);
 
-    eval $txdata;
+    eval $txdata; ## no critic (ProhibitStringyEval)
     if ($@)
     {
         warn $@;
@@ -100,7 +100,9 @@ sub run_web_txn
     my $sconf = $confsum;
     $sconf =~ s/.*(\$Script_Config)/$1/ms;
     my $Script_Config;
-    eval $sconf;
+	# this whole area could do with a revisit
+	# but for now just mark the stringy eval as ok
+    eval $sconf; ## no critic (ProhibitStringyEval)
 
     # for some reason we see intermittent failures of above code
     # so we also set this directly so it gets into frozen_sconf, which is what

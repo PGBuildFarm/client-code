@@ -54,7 +54,7 @@ sub setup
 
     # for each instance you create, do:
     register_module_hooks($self,$hooks);
-
+	return;
 }
 
 sub checkout
@@ -65,6 +65,7 @@ sub checkout
     print time_str(), "checking out ",__PACKAGE__,"\n" if	$verbose;
 
     push(@$savescmlog,"Skeleton processed checkout\n");
+	return;
 }
 
 sub setup_target
@@ -74,6 +75,7 @@ sub setup_target
     # copy the code or setup a vpath dir if supported as appropriate
 
     print time_str(), "setting up ",__PACKAGE__,"\n" if	$verbose;
+	return;
 
 }
 
@@ -87,7 +89,7 @@ sub need_run
 
     print time_str(), "checking if run needed by ",__PACKAGE__,"\n"
       if	$verbose;
-
+	return;
 }
 
 sub configure
@@ -95,6 +97,7 @@ sub configure
     my $self = shift;
 
     print time_str(), "configuring ",__PACKAGE__,"\n" if	$verbose;
+	return;
 }
 
 sub build
@@ -102,6 +105,7 @@ sub build
     my $self = shift;
 
     print time_str(), "building ",__PACKAGE__,"\n" if	$verbose;
+	return;
 }
 
 sub install
@@ -109,6 +113,7 @@ sub install
     my $self = shift;
 
     print time_str(), "installing ",__PACKAGE__,"\n" if	$verbose;
+	return;
 }
 
 sub check
@@ -116,6 +121,7 @@ sub check
     my $self = shift;
 
     print time_str(), "checking ",__PACKAGE__,"\n" if	$verbose;
+	return;
 }
 
 sub installcheck
@@ -125,6 +131,7 @@ sub installcheck
 
     print time_str(), "installchecking $locale",__PACKAGE__,"\n"
       if	$verbose;
+	return;
 }
 
 sub locale_end
@@ -134,6 +141,7 @@ sub locale_end
 
     print time_str(), "end of locale $locale processing",__PACKAGE__,"\n"
       if	$verbose;
+	return;
 }
 
 sub cleanup
@@ -141,6 +149,7 @@ sub cleanup
     my $self = shift;
 
     print time_str(), "cleaning up ",__PACKAGE__,"\n" if	$verbose > 1;
+	return;
 }
 
 1;

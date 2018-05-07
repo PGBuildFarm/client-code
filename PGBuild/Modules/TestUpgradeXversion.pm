@@ -22,7 +22,6 @@ use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils qw(:DEFAULT $tmpdir $steps_completed);
 
-use Data::Dumper;
 use File::Copy;
 use File::Path;
 use File::Basename;
@@ -64,7 +63,7 @@ sub setup
     bless($self, $class);
 
     register_module_hooks($self,$hooks);
-
+	return;
 }
 
 sub need_run
@@ -74,6 +73,7 @@ sub need_run
     my $upgrade_install_root = $self->{upgrade_install_root};
     my $upgrade_loc = "$upgrade_install_root/$self->{pgbranch}";
     $$need_run_ref = 1 unless -d $upgrade_loc;
+	return;
 }
 
 sub setinstenv
@@ -131,7 +131,7 @@ sub setinstenv
     {
         $ENV{PATH} = "$installdir/bin:$ENV{PATH}";
     }
-
+	return;
 }
 
 sub save_for_testing
@@ -463,7 +463,11 @@ sub installcheck
 
     $ENV{PGHOST} = $tmpdir;
 
-    my $save_env = eval Dumper(\%ENV);
+	my $save_env = {};
+	while (my ($env_key, $env_val) = each %ENV)
+	{
+		$save_env->{$env_key} = $env_val;
+	}
 
     my $this_branch = $self->{pgbranch};
 
@@ -538,6 +542,7 @@ sub installcheck
           if $status;
         $steps_completed .= " XVersionUpgrade-$oversion-$this_branch";
     }
+	return;
 }
 
 1;

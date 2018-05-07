@@ -70,7 +70,7 @@ sub setup
 
     # for each instance you create, do:
     register_module_hooks($self,$hooks);
-
+	return;
 }
 
 sub check
@@ -143,7 +143,7 @@ sub check
         no warnings 'once'; ## no critic (ProhibitNoWarnings)
         $steps_completed .= " pg_upgradeCheck";
     }
-
+	return;
 }
 
 1;

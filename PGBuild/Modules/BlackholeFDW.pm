@@ -67,7 +67,7 @@ sub setup
 
     # for each instance you create, do:
     register_module_hooks($self,$hooks);
-
+	return;
 }
 
 sub checkout
@@ -80,7 +80,8 @@ sub checkout
     my $scmlog = $self->{scm}->checkout('HEAD');
 
     push(@$savescmlog,
-        "------------- $MODULE checkout ----------------\n",@$scmlog);
+		 "------------- $MODULE checkout ----------------\n",@$scmlog);
+	return;
 }
 
 sub setup_target
@@ -93,7 +94,7 @@ sub setup_target
       if $verbose;
 
     $self->{scm}->copy_source(undef);
-
+	return;
 }
 
 sub build
@@ -112,7 +113,7 @@ sub build
     $status ||= check_make_log_warnings("$MODULE-build", $verbose)
       if $check_warnings;
     send_result("$MODULE-build",$status,\@makeout) if $status;
-
+	return;
 }
 
 sub install
@@ -129,7 +130,7 @@ sub install
     writelog("$MODULE-install",\@log);
     print "======== install log ===========\n",@log if ($verbose > 1);
     send_result("$MODULE-install",$status,\@log) if $status;
-
+	return;
 }
 
 sub cleanup
@@ -139,6 +140,7 @@ sub cleanup
     print time_str(), "cleaning up $MODULE\n" if	$verbose > 1;
 
     system("rm -rf $self->{where}");
+	return;
 }
 
 1;

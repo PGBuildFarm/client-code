@@ -5,15 +5,22 @@
 # so use that instead
 # [-Subroutines::ProhibitExplicitReturnUndef]
 
-[-BuiltinFunctions::ProhibitStringyEval]
+# legitimate uses of stringy eval are now marked with no critic
+#[-BuiltinFunctions::ProhibitStringyEval]
 
 # we're enforcing this now
 # [-InputOutput::ProhibitTwoArgOpen]
 
 # sev 4
-[-Variables::RequireLocalizedPunctuationVars]
-[-Subroutines::RequireFinalReturn]
 
-# these two are pretty sill and I doubt we'll ever enforce them
+# this one is silly and horribly named. Even if I have a local copy of the
+# value e.g. %ENV a later assignment of a value in there gets the error
+# so just disable.
+[-Variables::RequireLocalizedPunctuationVars]
+
+# we enforce this one now too
+#[-Subroutines::RequireFinalReturn]
+
+# these two are pretty silly and I doubt we'll ever enforce them
 [-InputOutput::RequireBriefOpen]
 [-Subroutines::RequireArgUnpacking]

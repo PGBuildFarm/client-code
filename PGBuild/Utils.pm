@@ -46,7 +46,8 @@ use vars qw($core_file_glob $st_prefix $logdirname $branch_root
 # wrap the main program's send_res routine (formerly send_result)
 sub send_result
 {
-    &$send_result_routine(@_);
+	# shouldn't return, but keep perlcritic happy.
+    return &$send_result_routine(@_);
 }
 
 # something like IPC::RUN but without requiring it, as some installations
@@ -120,6 +121,7 @@ sub register_module_hooks
         $module_hooks{$hook} ||= [];
         push(@{$module_hooks{$hook}},[$func,$who]);
     }
+	return;
 }
 
 sub process_module_hooks
@@ -132,6 +134,7 @@ sub process_module_hooks
         my ($func,$module_instance) = @$module;
         &$func($module_instance, @_);
     }
+	return;
 }
 
 sub get_stack_trace
@@ -174,6 +177,7 @@ sub cleanlogs
     my $lrname = $st_prefix . $logdirname;
     rmtree("$lrname");
     mkdir "$lrname" || die "can't make $lrname dir: $!";
+	return;
 }
 
 sub writelog
@@ -186,6 +190,7 @@ sub writelog
     open($handle,'>', "$lrname/$fname") || die "opening $lrname/$fname: $!";
     print $handle @$loglines;
     close($handle);
+	return;
 }
 
 sub check_make_log_warnings
@@ -249,6 +254,7 @@ sub set_last
     open($handle,'>',$stname) or die "opening $stname: $!";
     print $handle "$st_now\n";
     close($handle);
+	return;
 }
 
 sub step_wanted

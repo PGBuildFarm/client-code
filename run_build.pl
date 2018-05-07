@@ -413,7 +413,9 @@ foreach my $module (@{$PGBuild::conf{modules}})
               \\\%PGBuild::conf,
               \$pgsql);
     !;
-    eval $str;
+	# the string is built at runtime so there is no option but
+	# to use stringy eval
+    eval $str; ## no critic (ProhibitStringyEval)
 
     # make errors fatal
     die $@ if $@;
@@ -576,8 +578,10 @@ $waiter_pid = spawn(\&wait_timeout,$wait_timeout) if $wait_timeout;
 # Dumper() because the MSys DTK perl doesn't have Storable. This
 # is less efficient but it hardly matters here for this shallow
 # structure.
-
-eval Data::Dumper->Dump([$extra_config],['extra_config']);
+{
+	 ## no critic (ProhibitStringyEval)
+	eval Data::Dumper->Dump([$extra_config],['extra_config']);
+}
 
 if ($extra_config &&  $extra_config->{DEFAULT})
 {
@@ -1010,6 +1014,7 @@ sub clean_from_source
 	writelog('distclean',\@makeout);
 	print "======== distclean log ===========\n",@makeout if ($verbose > 1);
 	send_result('distclean',$status,\@makeout) if $status;
+	return;
 }
 
 sub interrupt_exit
@@ -1051,6 +1056,7 @@ sub make
     $status ||= check_make_log_warnings('make', $verbose) if $check_warnings;
     send_result('Make',$status,\@makeout) if $status;
     $steps_completed .= " Make";
+	return;
 }
 
 sub make_doc
@@ -1074,6 +1080,7 @@ sub make_doc
     print "======== make doc log ===========\n",@makeout if ($verbose > 1);
     send_result('Doc',$status,\@makeout) if $status;
     $steps_completed .= " Doc";
+	return;
 }
 
 sub make_install
@@ -1136,6 +1143,7 @@ sub make_install
     }
 
     $steps_completed .= " Install";
+	return;
 }
 
 sub make_contrib
@@ -1156,6 +1164,7 @@ sub make_contrib
       if $check_warnings;
     send_result('Contrib',$status,\@makeout) if $status;
     $steps_completed .= " Contrib";
+	return;
 }
 
 sub make_testmodules
@@ -1175,6 +1184,7 @@ sub make_testmodules
       if $check_warnings;
     send_result('TestModules',$status,\@makeout) if $status;
     $steps_completed .= " TestModules";
+	return;
 }
 
 sub make_contrib_install
@@ -1198,6 +1208,7 @@ sub make_contrib_install
     send_result('ContribInstall',$status,\@makeout) if $status;
     $temp_installs++;
     $steps_completed .= " ContribInstall";
+	return;
 }
 
 sub make_testmodules_install
@@ -1219,6 +1230,7 @@ sub make_testmodules_install
     send_result('TestModulesInstall',$status,\@makeout) if $status;
     $temp_installs++;
     $steps_completed .= " TestModulesInstall";
+	return;
 }
 
 sub initdb
@@ -1297,6 +1309,7 @@ sub initdb
       if ($verbose > 1);
     send_result("Initdb-$locale",$status,\@initout) if $status;
     $steps_completed .= " Initdb-$locale";
+	return;
 }
 
 sub start_valgrind_db
@@ -1317,6 +1330,7 @@ sub start_valgrind_db
     my $vglog = "--log-file=$vglogfile";
     my $pgcmd = "bin/postgres -D data-$locale";
     system("valgrind $valgrind_options $supp $vglog $pgcmd");
+	return;
 }
 
 sub start_db
@@ -1404,6 +1418,7 @@ sub start_db
         send_result("StartDb-$locale:$started_times",$status,\@ctlout);
     }
     $dbstarted=1;
+	return;
 }
 
 sub stop_db
@@ -1428,6 +1443,7 @@ sub stop_db
       if ($verbose > 1);
     send_result("StopDb-$locale:$started_times",$status,\@ctlout) if $status;
     $dbstarted=undef;
+	return;
 }
 
 sub make_install_check
@@ -1480,6 +1496,7 @@ sub make_install_check
       if ($verbose > 1);
     send_result("InstallCheck-$locale",$status,\@checklog) if $status;
     $steps_completed .= " InstallCheck-$locale";
+	return;
 }
 
 sub make_contrib_install_check
@@ -1518,6 +1535,7 @@ sub make_contrib_install_check
       if ($verbose > 1);
     send_result("ContribCheck-$locale",$status,\@checklog) if $status;
     $steps_completed .= " ContribCheck-$locale";
+	return;
 }
 
 sub make_testmodules_install_check
@@ -1556,6 +1574,7 @@ sub make_testmodules_install_check
       if ($verbose > 1);
     send_result("TestModulesCheck-$locale",$status,\@checklog) if $status;
     $steps_completed .= " TestModulesCheck-$locale";
+	return;
 }
 
 sub make_pl_install_check
@@ -1599,6 +1618,7 @@ sub make_pl_install_check
     # only report PLCheck as a step if it actually tried to do anything
     $steps_completed .= " PLCheck-$locale"
       if (grep {/pg_regress|Checking pl/} @checklog);
+	return;
 }
 
 sub make_isolation_check
@@ -1645,6 +1665,7 @@ sub make_isolation_check
 
     send_result('IsolationCheck',$status,\@makeout) if $status;
     $steps_completed .= " IsolationCheck";
+	return;
 }
 
 sub run_tap_test
@@ -1713,6 +1734,7 @@ sub run_tap_test
 
     send_result("$captest$captarget",$status,\@makeout) if $status;
     $steps_completed .= " $captest$captarget";
+	return;
 }
 
 sub run_bin_tests
@@ -1739,6 +1761,7 @@ sub run_bin_tests
         next unless -d "$bin/t";
         run_tap_test($bin, basename($bin), undef);
     }
+	return;
 }
 
 sub run_misc_tests
@@ -1765,6 +1788,7 @@ sub run_misc_tests
         next unless -d "$pgsql/src/test/$test/t";
         run_tap_test("$pgsql/src/test/$test", $test, undef);
     }
+	return;
 }
 
 sub make_check
@@ -1824,6 +1848,7 @@ sub make_check
         $ENV{NO_TEMP_INSTALL} = "yes";
     }
     $steps_completed .= " Check";
+	return;
 }
 
 sub make_ecpg_check
@@ -1867,6 +1892,7 @@ sub make_ecpg_check
 
     send_result('ECPG-Check',$status,\@makeout) if $status;
     $steps_completed .= " ECPG-Check";
+	return;
 }
 
 sub find_typedefs
@@ -2020,6 +2046,7 @@ sub find_typedefs
 
     writelog('typedefs',\@foundsyms);
     $steps_completed .= " find-typedefs";
+	return;
 }
 
 sub configure
@@ -2165,6 +2192,7 @@ sub configure
 	}
 
     $steps_completed .= " Configure";
+	return;
 }
 
 # a reference to this subroutine is stored in the Utils module and it is called
@@ -2377,6 +2405,7 @@ sub get_script_config_dump
     my %versions;
     foreach my $mod (sort @modkeys)
     {
+		## no critic (ProhibitStringyEval)
         my $str = "\$versions{'$mod'} = \$${mod}::VERSION;";
         eval $str;
     }
@@ -2403,6 +2432,7 @@ sub scm_timeout
     {
         print "scm timeout kill failed\n";
     }
+	return;
 }
 
 sub silent_terminate
@@ -2420,6 +2450,7 @@ sub wait_timeout
     $SIG{'TERM'} = \&silent_terminate;
     sleep($wait_time);
     kill 'TERM', $main_pid;
+	return;
 }
 
 sub spawn

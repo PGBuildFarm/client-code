@@ -59,7 +59,7 @@ sub setup
 
     # for each instance you create, do:
     register_module_hooks($self,$hooks);
-
+	return;
 }
 
 # assumes the user has passwordless sudo privs
@@ -96,6 +96,7 @@ sub build
         no warnings 'once'; ## no critic (ProhibitNoWarnings)
         $steps_completed .= " sepgsql-policy-build";
     }
+	return;
 }
 
 sub install
@@ -130,6 +131,7 @@ sub install
         no warnings 'once'; ## no critic (ProhibitNoWarnings)
         $steps_completed .= " sepgsql-policy-install";
     }
+	return;
 }
 
 sub locale_end
@@ -240,6 +242,7 @@ sub locale_end
         no warnings 'once'; ## no critic (ProhibitNoWarnings)
         $steps_completed .= " sepgsql-test";
     }
+	return;
 }
 
 sub cleanup
@@ -251,6 +254,7 @@ sub cleanup
     print time_str(), "cleaning up ",__PACKAGE__,"\n" if	$verbose > 1;
 
     system("sudo semodule -r sepgsql-regtest");
+	return;
 }
 
 1;
