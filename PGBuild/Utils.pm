@@ -19,12 +19,14 @@ use Config;
 use Fcntl qw(:seek);
 use File::Path;
 
-use Exporter   ();
-our (@EXPORT);   ## no critic (ProhibitAutomaticExportation)
-our (@ISA, @EXPORT_OK, %EXPORT_TAGS);
 
 use vars qw($VERSION); $VERSION = 'REL_7';
 
+use Exporter   ();
+## no critic (ProhibitAutomaticExportation)
+## no critic (ClassHierarchies::ProhibitExplicitISA)
+use Exporter   ();
+our (@EXPORT, @ISA, @EXPORT_OK, %EXPORT_TAGS);
 @ISA         = qw(Exporter);
 @EXPORT      = qw(run_log time_str process_module_hooks register_module_hooks
   get_stack_trace cleanlogs writelog

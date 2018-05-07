@@ -15,6 +15,8 @@ use strict;
 use warnings;
 use Getopt::Long;
 
+use vars qw($VERSION); $VERSION = 'REL_7';
+
 use vars qw(@option_list);
 
 my $orig_verbose;
@@ -30,11 +32,10 @@ BEGIN
     );
 }
 
+## no critic (ProhibitAutomaticExportation)
+## no critic (ClassHierarchies::ProhibitExplicitISA)
 use Exporter   ();
-our (@EXPORT);   ## no critic (ProhibitAutomaticExportation)
-our (@ISA, @EXPORT_OK, %EXPORT_TAGS);
-
-use vars qw($VERSION); $VERSION = 'REL_7';
+our (@EXPORT, @ISA, @EXPORT_OK, %EXPORT_TAGS);
 
 @ISA         = qw(Exporter);
 @EXPORT      = @option_list;
