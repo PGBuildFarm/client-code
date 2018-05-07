@@ -165,7 +165,7 @@ sub save_for_testing
     }
     system(qq{$cp "$install_loc" "$installdir" >"$upgrade_loc/save.log" 2>&1});
 
-    return undef if $?;
+    return if $?;
 
     # at some stage we stopped installing regress.so
     copy "$install_loc/../pgsql.build/src/test/regress/regress.so",
@@ -183,7 +183,7 @@ sub save_for_testing
     system(qq{$installdir/bin/pg_ctl -D $installdir/data-C -o -F }
           .qq{-l "$upgrade_loc/db.log" -w start >"$upgrade_loc/ctl.log" 2>&1});
 
-    return undef if $?;
+    return if $?;
 
     # fix the regression database so its functions point to $libdir rather than
     # the source directory, which won't persist past this build.
@@ -216,19 +216,19 @@ sub save_for_testing
     system("$installdir/bin/psql -A -X -t -c '$sql' regression "
           .">> '$upgrade_loc/fix.log' 2>&1");
 
-    return undef if $?;
+    return if $?;
 
     system("$installdir/bin/psql -A -X -t -c '$sql' contrib_regression "
           .">> '$upgrade_loc/fix.log' 2>&1");
 
-    return undef if $?;
+    return if $?;
 
     if ($this_branch ge 'REL9_5' || $self->{pgbranch} eq 'HEAD')
     {
         system(
             "$installdir/bin/psql -A -X -t -c '$sql' contrib_regression_dblink "
               .">> '$upgrade_loc/fix.log' 2>&1");
-        return undef if $?;
+        return if $?;
     }
 
     my $opsql;
@@ -241,7 +241,7 @@ sub save_for_testing
         # quoting the operator can also fail,  so it's left unquoted.
         system("$installdir/bin/psql -A -X -t -c '$opsql' regression "
               .">> '$upgrade_loc/fix.log' 2>&1");
-        return undef if $?;
+        return if $?;
     }
 
     # disable modules known to cause pg_upgrade to fail
@@ -251,12 +251,12 @@ sub save_for_testing
         system( "$installdir/bin/psql -X -e "
               . "-c 'drop database if exists contrib_regression_$bad_module' postgres"
               . ">> '$upgrade_loc/fix.log' 2>&1");
-        return undef if $?;
+        return if $?;
     }
 
     system("pg_ctl -D $installdir/data-C -w stop "
           .">> '$upgrade_loc/ctl.log' 2>&1");
-    return undef if $?;
+    return if $?;
 
     return 1;
 
@@ -288,7 +288,7 @@ sub test_upgrade
     $testcmd =~ s/\n//g;
     system $testcmd;
 
-    return undef if $?;
+    return if $?;
 
     # The old version will have the unix sockets point to tmpdir from the
     # run in which it was set up, which will be gone by now, so we repoint
@@ -313,7 +313,7 @@ sub test_upgrade
           ."$other_branch/inst/dump-$this_branch.log -w start "
           .">> '$upgrade_loc/$oversion-ctl.log' 2>&1");
 
-    return undef if $?;
+    return if $?;
 
     if ($this_branch gt 'REL9_6_STABLE' || $this_branch eq 'HEAD')
     {
@@ -321,13 +321,13 @@ sub test_upgrade
               ." -c 'drop database if exists contrib_regression_tsearch2' "
               ."postgres "
               .">> '$upgrade_loc/$oversion-copy.log' 2>&1");
-        return undef if $?;
+        return if $?;
 
         system("$other_branch/inst/bin/psql -X -e "
               ." -c 'drop function if exists oldstyle_length(integer, text)' "
               ."regression "
               .">> '$upgrade_loc/$oversion-copy.log' 2>&1");
-        return undef if $?;
+        return if $?;
     }
 
     # use the NEW pg_dumpall so we're comparing apples with apples.
@@ -335,19 +335,19 @@ sub test_upgrade
     system("$installdir/bin/pg_dumpall -p $sport -f "
           ."$upgrade_loc/origin-$oversion.sql "
           .">'$upgrade_loc/$oversion-dump1.log' 2>&1");
-    return undef if $?;
+    return if $?;
     setinstenv($self, "$other_branch/inst", $save_env);
 
     system("$other_branch/inst/bin/pg_ctl -D "
           ."$other_branch/inst/upgrade_test -w stop "
           .">> '$upgrade_loc/$oversion-ctl.log' 2>&1");
-    return undef if $?;
+    return if $?;
     setinstenv($self,$installdir, $save_env);
 
     system("initdb -U buildfarm --locale=C "
           ."$installdir/$oversion-upgrade "
           ."> '$upgrade_loc/$oversion-initdb.log' 2>&1");
-    return undef if $?;
+    return if $?;
 
     open(my $pgconf, ">>","$installdir/$oversion-upgrade/postgresql.conf")
       || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
@@ -383,39 +383,39 @@ sub test_upgrade
         rename $upgradelog,"$installdir/$oversion-$bl";
     }
 
-    return undef if $?;
+    return if $?;
 
     system("pg_ctl -D $installdir/$oversion-upgrade -l "
           ."$installdir/upgrade_log -w start "
           .">> '$upgrade_loc/$oversion-ctl.log' 2>&1");
-    return undef if $?;
+    return if $?;
 
     if (-e "$installdir/analyze_new_cluster.sh")
     {
         system("cd $installdir && sh ./analyze_new_cluster.sh "
               ."> '$upgrade_loc/$oversion-analyse.log' 2>&1 ");
-        return undef if $?;
+        return if $?;
     }
 
     if (-e "$installdir/reindex_hash.sh")
     {
         system( qq{psql -X -e -f "$installdir/reindex_hash.sql" postgres >}
               . "> '$upgrade_loc/$oversion-reindex_hash.log' 2>&1 ");
-        return undef if $?;
+        return if $?;
     }
 
     system("pg_dumpall -f "
           ."$upgrade_loc/converted-$oversion-to-$this_branch.sql");
-    return undef if $?;
+    return if $?;
 
     system("pg_ctl -D $installdir/$oversion-upgrade -w stop "
           .">> '$upgrade_loc/$oversion-ctl.log'");
-    return undef if $?;
+    return if $?;
 
     if (-e "$installdir/delete_old_cluster.sh")
     {
         system("cd $installdir && sh ./delete_old_cluster.sh");
-        return undef if $?;
+        return if $?;
     }
 
     system("diff -I '^-- ' -u $upgrade_loc/origin-$oversion.sql "
@@ -423,7 +423,7 @@ sub test_upgrade
           ."> $upgrade_loc/dumpdiff-$oversion 2>&1");
 
     # diff exits with status 1 if files differ
-    return undef if $? >> 8 > 1;
+    return if $? >> 8 > 1;
 
     my $difflines = `wc -l < $upgrade_loc/dumpdiff-$oversion`;
     chomp($difflines);
@@ -439,7 +439,7 @@ sub test_upgrade
     }
     else
     {
-        return undef;
+        return;
     }
 
 }

@@ -1,6 +1,10 @@
 
 # sev 5
-[-Subroutines::ProhibitExplicitReturnUndef]
+# tl;dr - return undef returns (undef) instead of () in list context
+# bare return returns undef in scalar context and () in list context
+# so use that instead
+# [-Subroutines::ProhibitExplicitReturnUndef]
+
 [-BuiltinFunctions::ProhibitStringyEval]
 
 # we're enforcing this now

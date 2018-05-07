@@ -233,7 +233,7 @@ sub find_last
     my $which = shift;
     my $stname = $st_prefix . "last.$which";
     my $handle;
-    open($handle, '<', $stname) or return undef;
+    open($handle, '<', $stname) or return;
     my $time = <$handle>;
     close($handle);
     chomp $time;

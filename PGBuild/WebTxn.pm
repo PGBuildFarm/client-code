@@ -77,7 +77,7 @@ sub run_web_txn
     if ($@)
     {
         warn $@;
-        return undef;
+        return;
     }
 
     my $tarname = "$lrname/runlogs.tgz";
@@ -170,7 +170,7 @@ sub run_web_txn
         print "Status Line: ",$response->status_line,"\n";
         print "Content: \n", $response->content,"\n"
           if ($verbose && $response->content);
-        return undef;
+        return;
     }
 
     return 1;

@@ -970,22 +970,22 @@ sub check_optional_step
     my $oconf;
     my $shandle;
 
-    return undef unless ref($oconf = $optional_steps->{$step});
+    return unless ref($oconf = $optional_steps->{$step});
     if ($oconf->{branches})
     {
-        return undef unless grep {$_ eq $branch} @{$oconf->{branches}};
+        return unless grep {$_ eq $branch} @{$oconf->{branches}};
     }
 
     my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =localtime(time);
-    return undef if (exists $oconf->{min_hour} &&  $hour < $oconf->{min_hour});
-    return undef if (exists $oconf->{max_hour} &&  $hour > $oconf->{max_hour});
-    return undef
+    return if (exists $oconf->{min_hour} &&  $hour < $oconf->{min_hour});
+    return if (exists $oconf->{max_hour} &&  $hour > $oconf->{max_hour});
+    return
       if (exists $oconf->{dow}
         && grep {$_ eq $wday} @{$oconf->{dow}});
 
     my $last_step = $last_status = find_last("$step") || 0;
 
-    return undef
+    return
       if  (exists($oconf->{min_hours_since})
         && time < $last_step + (3600 * $oconf->{min_hours_since}));
     set_last("$step") unless $nostatus;
@@ -1022,7 +1022,7 @@ sub interrupt_exit
 sub check_make
 {
     my @out = run_log("$make -v");
-    return undef unless ($? == 0 && grep {/GNU Make/} @out);
+    return unless ($? == 0 && grep {/GNU Make/} @out);
     return 'OK';
 }
 
