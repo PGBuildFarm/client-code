@@ -104,7 +104,7 @@ sub check
       if ($verbose > 1);
     send_result("test-decoding-check",$status,\@checklog) if $status;
     {
-        no warnings 'once'; ## no critic (ProhibitNoWarnings)
+        no warnings 'once';
         $steps_completed .= " test-decoding-check";
     }
 	return;

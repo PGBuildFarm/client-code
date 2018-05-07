@@ -18,6 +18,11 @@
 # so just disable.
 [-Variables::RequireLocalizedPunctuationVars]
 
+# allow 'no warnings qw(once)
+[TestingAndDebugging::ProhibitNoWarnings]
+allow = once
+
+
 # we enforce this one now too
 #[-Subroutines::RequireFinalReturn]
 

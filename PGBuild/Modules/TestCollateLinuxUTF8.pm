@@ -130,7 +130,7 @@ sub installcheck
     send_result("InstallCheck-collate-$locale",$status,\@checklog)
       if $status;
     {
-        no warnings 'once'; ## no critic (ProhibitNoWarnings)
+        no warnings 'once';
         $steps_completed .= " InstallCheck-collate-$locale";
     }
 	return;

@@ -12,7 +12,7 @@ use strict;
 use warnings;
 
 # suppress spurious warning about conf structure
-no warnings qw(once); ## no critic (ProhibitNoWarnings)
+no warnings qw(once);
 
 use vars qw($VERSION); $VERSION = 'REL_7';
 

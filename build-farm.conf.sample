@@ -21,7 +21,7 @@ use vars qw(%conf);
 
 my $branch;
 {
-    no warnings qw(once); ## no critic (ProhibitNoWarnings)
+    no warnings qw(once);
     $branch = $main::branch;
 }
 

@@ -102,7 +102,7 @@ sub check
         my $cmd;
         my $instflags;
         {
-            no warnings qw(once); ## no critic (ProhibitNoWarnings)
+            no warnings qw(once);
             $instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
         }
         if ($self->{pgbranch} eq 'HEAD' || $self->{pgbranch} ge 'REL9_5')
@@ -140,7 +140,7 @@ sub check
       if ($verbose > 1);
     send_result("pg_upgradeCheck",$status,\@checklog) if $status;
     {
-        no warnings 'once'; ## no critic (ProhibitNoWarnings)
+        no warnings 'once';
         $steps_completed .= " pg_upgradeCheck";
     }
 	return;
