@@ -281,10 +281,10 @@ sub test_upgrade
 
 	rmtree "$other_branch/inst/upgrade_test";
 	my $testcmd = qq{
-		  cp -r "$other_branch/inst/data-C"
-				"$other_branch/inst/upgrade_test"
-		  > '$upgrade_loc/$oversion-copy.log' 2>&1
-	};
+          cp -r "$other_branch/inst/data-C"
+                "$other_branch/inst/upgrade_test"
+          > '$upgrade_loc/$oversion-copy.log' 2>&1
+    };
 	$testcmd =~ s/\n//g;
 	system $testcmd;
 
