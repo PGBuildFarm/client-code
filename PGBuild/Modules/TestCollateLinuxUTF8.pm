@@ -23,116 +23,116 @@ use warnings;
 
 use vars qw($VERSION); $VERSION = 'REL_7';
 
-my $hooks = {'installcheck' => \&installcheck,};
+my $hooks = { 'installcheck' => \&installcheck, };
 
 sub setup
 {
-    my $class = __PACKAGE__;
+	my $class = __PACKAGE__;
 
-    my $buildroot = shift; # where we're building
-    my $branch = shift; # The branch of Postgres that's being built.
-    my $conf = shift;  # ref to the whole config object
-    my $pgsql = shift; # postgres build dir
+	my $buildroot = shift;    # where we're building
+	my $branch    = shift;    # The branch of Postgres that's being built.
+	my $conf      = shift;    # ref to the whole config object
+	my $pgsql     = shift;    # postgres build dir
 
-    return unless $branch eq 'HEAD' || $branch ge 'REL9_1_STABLE';
+	return unless $branch eq 'HEAD' || $branch ge 'REL9_1_STABLE';
 
-    my $locales = $conf->{locales};
-    my $found = 0;
-    return unless ref $locales eq 'ARRAY';
-    foreach my $locale (@$locales)
-    {
-        next unless $locale =~ /utf8$/i;
-        $found = 1;
-        last;
-    }
+	my $locales = $conf->{locales};
+	my $found   = 0;
+	return unless ref $locales eq 'ARRAY';
+	foreach my $locale (@$locales)
+	{
+		next unless $locale =~ /utf8$/i;
+		$found = 1;
+		last;
+	}
 
-    return unless $found;
+	return unless $found;
 
-    my $os = `uname -s`;
-    return unless $os =~ /linux/i;
+	my $os = `uname -s`;
+	return unless $os =~ /linux/i;
 
-    # could even set up several of these (e.g. for different branches)
-    my $self  = {
-        buildroot => $buildroot,
-        pgbranch=> $branch,
-        bfconf => $conf,
-        pgsql => $pgsql
-    };
-    bless($self, $class);
+	# could even set up several of these (e.g. for different branches)
+	my $self = {
+		buildroot => $buildroot,
+		pgbranch  => $branch,
+		bfconf    => $conf,
+		pgsql     => $pgsql
+	};
+	bless($self, $class);
 
-    # for each instance you create, do:
-    register_module_hooks($self,$hooks);
+	# for each instance you create, do:
+	register_module_hooks($self, $hooks);
 	return;
 }
 
 sub installcheck
 {
-    my $self = shift;
-    my $locale = shift;
+	my $self   = shift;
+	my $locale = shift;
 
-    my $pgsql = $self->{pgsql};
-    my $branch = $self->{pgbranch};
-    my $buildroot = "$self->{buildroot}/$branch";
-    my $binswitch =
-      ($branch eq 'HEAD' || $branch ge 'REL9_5') ? 'bindir' : 'psqldir';
-    my $installdir = "$buildroot/inst";
+	my $pgsql     = $self->{pgsql};
+	my $branch    = $self->{pgbranch};
+	my $buildroot = "$self->{buildroot}/$branch";
+	my $binswitch =
+	  ($branch eq 'HEAD' || $branch ge 'REL9_5') ? 'bindir' : 'psqldir';
+	my $installdir = "$buildroot/inst";
 
-    return unless $locale =~ /utf8$/i;
+	return unless $locale =~ /utf8$/i;
 
-    return unless step_wanted("installcheck-collate-$locale");
+	return unless step_wanted("installcheck-collate-$locale");
 
-    print time_str(), "installchecking $locale",__PACKAGE__,"\n"
-      if	$verbose;
+	print time_str(), "installchecking $locale", __PACKAGE__, "\n"
+	  if $verbose;
 
-    (my $buildport = $ENV{EXTRA_REGRESS_OPTS}) =~ s/--port=//;
+	(my $buildport = $ENV{EXTRA_REGRESS_OPTS}) =~ s/--port=//;
 
-    my $inputdir = "";
-    if ($self->{bfconf}->{use_vpath})
-    {
-        if ($from_source)
-        {
-            $inputdir = "--inputdir=$from_source/src/test/regress";
-        }
-        else
-        {
-            $inputdir = "--inputdir=$buildroot/pgsql/src/test/regress";
-        }
-    }
+	my $inputdir = "";
+	if ($self->{bfconf}->{use_vpath})
+	{
+		if ($from_source)
+		{
+			$inputdir = "--inputdir=$from_source/src/test/regress";
+		}
+		else
+		{
+			$inputdir = "--inputdir=$buildroot/pgsql/src/test/regress";
+		}
+	}
 
-    my $logpos = -s "$installdir/logfile" || 0;
+	my $logpos = -s "$installdir/logfile" || 0;
 
-    my @checklog;
-    my $cmd ="./pg_regress --$binswitch=$installdir/bin --dlpath=. "
-      ."$inputdir --port=$buildport collate.linux.utf8";
-    @checklog = run_log("cd $pgsql/src/test/regress && $cmd");
+	my @checklog;
+	my $cmd = "./pg_regress --$binswitch=$installdir/bin --dlpath=. "
+	  . "$inputdir --port=$buildport collate.linux.utf8";
+	@checklog = run_log("cd $pgsql/src/test/regress && $cmd");
 
-    my $status = $? >>8;
-    my @logfiles =
-      ("$pgsql/src/test/regress/regression.diffs","$installdir/logfile");
-    foreach my $logfile(@logfiles)
-    {
-        next unless (-e $logfile );
-        my $lpos = 0;
-        $lpos = $logpos if $logfile eq "$installdir/logfile";
+	my $status = $? >> 8;
+	my @logfiles =
+	  ("$pgsql/src/test/regress/regression.diffs", "$installdir/logfile");
+	foreach my $logfile (@logfiles)
+	{
+		next unless (-e $logfile);
+		my $lpos = 0;
+		$lpos = $logpos if $logfile eq "$installdir/logfile";
 
-        push(@checklog,"\n\n================== $logfile ==================\n");
-        push(@checklog,file_lines($logfile,$lpos));
-    }
-    if ($status)
-    {
-        my @trace =
-          get_stack_trace("$installdir/bin","$installdir/data-$locale");
-        push(@checklog,@trace);
-    }
-    writelog("install-check-collate-$locale",\@checklog);
-    print "======== make installcheck collate-$locale log ========\n",@checklog
-      if ($verbose > 1);
-    send_result("InstallCheck-collate-$locale",$status,\@checklog)
-      if $status;
-    {
-        no warnings 'once';
-        $steps_completed .= " InstallCheck-collate-$locale";
-    }
+		push(@checklog, "\n\n================== $logfile ==================\n");
+		push(@checklog, file_lines($logfile, $lpos));
+	}
+	if ($status)
+	{
+		my @trace =
+		  get_stack_trace("$installdir/bin", "$installdir/data-$locale");
+		push(@checklog, @trace);
+	}
+	writelog("install-check-collate-$locale", \@checklog);
+	print "======== make installcheck collate-$locale log ========\n", @checklog
+	  if ($verbose > 1);
+	send_result("InstallCheck-collate-$locale", $status, \@checklog)
+	  if $status;
+	{
+		no warnings 'once';
+		$steps_completed .= " InstallCheck-collate-$locale";
+	}
 	return;
 }
 

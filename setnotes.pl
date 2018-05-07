@@ -19,7 +19,7 @@ use vars qw($VERSION); $VERSION = 'REL_7';
 use LWP;
 use HTTP::Request::Common;
 use MIME::Base64;
-use Digest::SHA  qw(sha1_hex);
+use Digest::SHA qw(sha1_hex);
 use Getopt::Long;
 use File::Spec;
 use File::Basename;
@@ -31,14 +31,14 @@ BEGIN { use lib File::Spec->rel2abs(dirname(__FILE__)); }
 
 my @invocation_args = (@ARGV);
 
-my $buildconf = "build-farm.conf"; # default value
-my ($sys_notes,$help,$del);
+my $buildconf = "build-farm.conf";    # default value
+my ($sys_notes, $help, $del);
 
 GetOptions(
-    'config=s' => \$buildconf,
-    'help' => \$help,
-    'delete' => \$del,
-)|| usage("bad command line");
+	'config=s' => \$buildconf,
+	'help'     => \$help,
+	'delete'   => \$del,
+) || usage("bad command line");
 
 $sys_notes = shift;
 
@@ -59,7 +59,7 @@ usage("must specify notes")
 #
 require $buildconf;
 
-my ($target,$animal,$secret) =@PGBuild::conf{qw(target animal secret)};
+my ($target, $animal, $secret) = @PGBuild::conf{qw(target animal secret)};
 
 $target =~ s/pgstatus.pl/addnotes.pl/;
 
@@ -67,41 +67,42 @@ $target =~ s/pgstatus.pl/addnotes.pl/;
 # this ensures that what is seen at the other end is EXACTLY what we
 # see when we calculate the signature
 
-do { $_ ||= ""; $_ = encode_base64($_,""); tr/+=/$@/; } foreach ($sys_notes);
+do { $_ ||= ""; $_ = encode_base64($_, ""); tr/+=/$@/; }
+  foreach ($sys_notes);
 
 my $content = "animal=$animal\&sysnotes=$sys_notes";
 
-my $sig= sha1_hex($content,$secret);
+my $sig = sha1_hex($content, $secret);
 
 # set environment from config
-while (my ($envkey,$envval) = each %{$PGBuild::conf{build_env}})
+while (my ($envkey, $envval) = each %{ $PGBuild::conf{build_env} })
 {
-    $ENV{$envkey}=$envval;
+	$ENV{$envkey} = $envval;
 }
 
 my $ua = LWP::UserAgent->new;
 $ua->agent("Postgres Build Farm Reporter");
 if (my $proxy = $ENV{BF_PROXY})
 {
-    my $targetURI = URI->new($target);
-    $ua->proxy($targetURI->scheme,$proxy);
+	my $targetURI = URI->new($target);
+	$ua->proxy($targetURI->scheme, $proxy);
 }
 
-my $request=HTTP::Request->new(POST => "$target/$sig");
+my $request = HTTP::Request->new(POST => "$target/$sig");
 $request->content_type("application/x-www-form-urlencoded");
 $request->content($content);
 
-my $response=$ua->request($request);
+my $response = $ua->request($request);
 
 unless ($response->is_success)
 {
-    print
-      "Query for: animal=$animal\n",
-      "Target: $target/$sig\n",
-      "Query Content: $content\n";
-    print "Status Line: ",$response->status_line,"\n";
-    print "Content: \n", $response->content,"\n";
-    exit 1;
+	print
+	  "Query for: animal=$animal\n",
+	  "Target: $target/$sig\n",
+	  "Query Content: $content\n";
+	print "Status Line: ", $response->status_line, "\n";
+	print "Content: \n",   $response->content,     "\n";
+	exit 1;
 }
 
 exit(0);
@@ -110,9 +111,9 @@ exit(0);
 
 sub usage
 {
-    my $opt_message = shift;
-    print "$opt_message\n" if $opt_message;
-    print  <<EOH;
+	my $opt_message = shift;
+	print "$opt_message\n" if $opt_message;
+	print <<EOH;
 set_notes.pl [ option ... ] notes
 or
 set_notes.pl --delete [ option ... ]
@@ -122,6 +123,6 @@ where option is one or more of
   --help                        get this message
 EOH
 
-    exit defined($opt_message)+0;
+	exit defined($opt_message) + 0;
 }
 

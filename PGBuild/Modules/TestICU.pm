@@ -23,101 +23,101 @@ use warnings;
 
 use vars qw($VERSION); $VERSION = 'REL_7';
 
-my $hooks = {'installcheck' => \&installcheck,};
+my $hooks = { 'installcheck' => \&installcheck, };
 
 sub setup
 {
-    my $class = __PACKAGE__;
+	my $class = __PACKAGE__;
 
-    my $buildroot = shift; # where we're building
-    my $branch = shift; # The branch of Postgres that's being built.
-    my $conf = shift;  # ref to the whole config object
-    my $pgsql = shift; # postgres build dir
+	my $buildroot = shift;    # where we're building
+	my $branch    = shift;    # The branch of Postgres that's being built.
+	my $conf      = shift;    # ref to the whole config object
+	my $pgsql     = shift;    # postgres build dir
 
-    return unless grep {$_ eq '--with-icu' } @{$conf->{config_opts}},
+	return unless grep { $_ eq '--with-icu' } @{ $conf->{config_opts} },
 
-      # could even set up several of these (e.g. for different branches)
-      my $self  = {
-        buildroot => $buildroot,
-        pgbranch=> $branch,
-        bfconf => $conf,
-        pgsql => $pgsql
-      };
-    bless($self, $class);
+	  # could even set up several of these (e.g. for different branches)
+	  my $self = {
+		buildroot => $buildroot,
+		pgbranch  => $branch,
+		bfconf    => $conf,
+		pgsql     => $pgsql
+	  };
+	bless($self, $class);
 
-    # for each instance you create, do:
-    register_module_hooks($self,$hooks);
+	# for each instance you create, do:
+	register_module_hooks($self, $hooks);
 	return;
 }
 
 sub installcheck
 {
-    my $self = shift;
-    my $locale = shift;
+	my $self   = shift;
+	my $locale = shift;
 
-    return unless $locale =~ /utf8/i;
+	return unless $locale =~ /utf8/i;
 
-    my $pgsql = $self->{pgsql};
-    my $branch = $self->{pgbranch};
-    my $buildroot = "$self->{buildroot}/$branch";
-    my $binswitch = 'bindir';
-    my $installdir = "$buildroot/inst";
+	my $pgsql      = $self->{pgsql};
+	my $branch     = $self->{pgbranch};
+	my $buildroot  = "$self->{buildroot}/$branch";
+	my $binswitch  = 'bindir';
+	my $installdir = "$buildroot/inst";
 
-    return unless $locale =~ /utf8$/i;
+	return unless $locale =~ /utf8$/i;
 
-    return unless step_wanted("installcheck-icu");
+	return unless step_wanted("installcheck-icu");
 
-    print time_str(), "installchecking ICU-$locale\n"
-      if	$verbose;
+	print time_str(), "installchecking ICU-$locale\n"
+	  if $verbose;
 
-    (my $buildport = $ENV{EXTRA_REGRESS_OPTS}) =~ s/--port=//;
+	(my $buildport = $ENV{EXTRA_REGRESS_OPTS}) =~ s/--port=//;
 
-    my $inputdir = "";
-    if ($self->{bfconf}->{use_vpath})
-    {
-        if ($from_source)
-        {
-            $inputdir = "--inputdir=$from_source/src/test/regress";
-        }
-        else
-        {
-            $inputdir = "--inputdir=$buildroot/pgsql/src/test/regress";
-        }
-    }
+	my $inputdir = "";
+	if ($self->{bfconf}->{use_vpath})
+	{
+		if ($from_source)
+		{
+			$inputdir = "--inputdir=$from_source/src/test/regress";
+		}
+		else
+		{
+			$inputdir = "--inputdir=$buildroot/pgsql/src/test/regress";
+		}
+	}
 
-    my $logpos = -s "$installdir/logfile" || 0;
+	my $logpos = -s "$installdir/logfile" || 0;
 
-    my @checklog;
-    my $cmd ="./pg_regress --$binswitch=$installdir/bin --dlpath=. "
-      ."$inputdir --port=$buildport collate.icu.utf8";
-    @checklog = run_log("cd $pgsql/src/test/regress && $cmd");
+	my @checklog;
+	my $cmd = "./pg_regress --$binswitch=$installdir/bin --dlpath=. "
+	  . "$inputdir --port=$buildport collate.icu.utf8";
+	@checklog = run_log("cd $pgsql/src/test/regress && $cmd");
 
-    my $status = $? >>8;
-    my @logfiles =
-      ("$pgsql/src/test/regress/regression.diffs","$installdir/logfile");
-    foreach my $logfile(@logfiles)
-    {
-        next unless (-e $logfile );
-        push(@checklog,"\n\n================== $logfile ==================\n");
-        my $lpos = 0;
-        $lpos = $logpos if $logfile eq "$installdir/logfile";
-        push(@checklog,file_lines($logfile,$lpos));
-    }
-    if ($status)
-    {
-        my @trace =
-          get_stack_trace("$installdir/bin","$installdir/data-$locale");
-        push(@checklog,@trace);
-    }
-    writelog("install-check-ICU-$locale",\@checklog);
-    print "======== make installcheck -ICU-$locale log ========\n",@checklog
-      if ($verbose > 1);
-    send_result("InstallCheck-ICU-$locale",$status,\@checklog)
-      if $status;
-    {
-        no warnings 'once';
-        $steps_completed .= " InstallCheck-ICU-$locale";
-    }
+	my $status = $? >> 8;
+	my @logfiles =
+	  ("$pgsql/src/test/regress/regression.diffs", "$installdir/logfile");
+	foreach my $logfile (@logfiles)
+	{
+		next unless (-e $logfile);
+		push(@checklog, "\n\n================== $logfile ==================\n");
+		my $lpos = 0;
+		$lpos = $logpos if $logfile eq "$installdir/logfile";
+		push(@checklog, file_lines($logfile, $lpos));
+	}
+	if ($status)
+	{
+		my @trace =
+		  get_stack_trace("$installdir/bin", "$installdir/data-$locale");
+		push(@checklog, @trace);
+	}
+	writelog("install-check-ICU-$locale", \@checklog);
+	print "======== make installcheck -ICU-$locale log ========\n", @checklog
+	  if ($verbose > 1);
+	send_result("InstallCheck-ICU-$locale", $status, \@checklog)
+	  if $status;
+	{
+		no warnings 'once';
+		$steps_completed .= " InstallCheck-ICU-$locale";
+	}
 	return;
 }
 
