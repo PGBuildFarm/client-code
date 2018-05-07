@@ -29,3 +29,28 @@ allow = once
 # these two are pretty silly and I doubt we'll ever enforce them
 [-InputOutput::RequireBriefOpen]
 [-Subroutines::RequireArgUnpacking]
+# sev 3
+
+# don't require all regexes to use /x
+[-RegularExpressions::RequireExtendedFormatting]
+
+# allow use of 'our' and 'use vars'
+[-Variables::ProhibitPackageVars]
+
+# allow 'die' and 'warn' instead of croak/carp
+[-ErrorHandling::RequireCarping]
+
+# it doesn't like our version strings, but they should really be fine
+[-ValuesAndExpressions::ProhibitComplexVersion]
+
+# allow capturing output from backticks
+[InputOutput::ProhibitBacktickOperators]
+only_in_void_context = 1
+
+# don't worry about large main sections
+[-Modules::ProhibitExcessMainComplexity]
+
+# ditto subroutines
+[-Subroutines::ProhibitExcessComplexity]
+
+
