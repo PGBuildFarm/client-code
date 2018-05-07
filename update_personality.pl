@@ -122,7 +122,7 @@ sub usage
 {
 	my $opt_message = shift;
 	print "$opt_message\n" if $opt_message;
-	print <<EOH;
+	print <<'EOH';
 update_personality.pl [ option ... ]
 where option is one or more of
   --config=path                 /path/to/buildfarm.conf

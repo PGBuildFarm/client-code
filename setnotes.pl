@@ -113,7 +113,7 @@ sub usage
 {
 	my $opt_message = shift;
 	print "$opt_message\n" if $opt_message;
-	print <<EOH;
+	print <<'EOH';
 set_notes.pl [ option ... ] notes
 or
 set_notes.pl --delete [ option ... ]

@@ -262,7 +262,7 @@ sub save_for_testing
 
 }
 
-sub test_upgrade
+sub test_upgrade ## no critic (Subroutines::ProhibitManyArgs)
 {
 	my $self                 = shift;
 	my $save_env             = shift;

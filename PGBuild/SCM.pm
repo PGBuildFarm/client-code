@@ -344,7 +344,7 @@ sub find_ignore
 	return;
 }
 
-sub find_changed
+sub find_changed ## no critic (Subroutines::ProhibitManyArgs)
 {
 	my $self                  = shift;
 	my $current_snap          = shift;
@@ -421,6 +421,7 @@ sub get_versions
 	my @repolines;
 	foreach (@fchunks)
 	{
+		## no critic (RegularExpressions::ProhibitComplexRegexes)
 
 		# we need to report the working revision rather than the
 		# repository revision version in case the file has been

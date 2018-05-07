@@ -23,6 +23,9 @@ use vars qw($changed_this_run $changed_since_success $branch $status $stage
 
 BEGIN
 {
+	## no critic (ValuesAndExpressions::ProhibitMismatchedOperators)
+	# perlcritic gets confused by version comparisons - this usage is
+	# sanctioned by perldoc perlvar
 
 	# see below for why we can't always make these compile time requirements
 	if (defined($^V) && $^V ge v5.8.0)

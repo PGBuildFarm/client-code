@@ -53,4 +53,17 @@ only_in_void_context = 1
 # ditto subroutines
 [-Subroutines::ProhibitExcessComplexity]
 
+# allow newlines in qq{}
+[-ValuesAndExpressions::ProhibitImplicitNewlines]
 
+# allow lots of elsif clauses
+[-ControlStructures::ProhibitCascadingIfElse]
+
+# allow negations in until and unless
+[-ControlStructures::ProhibitNegativeExpressionsInUnlessAndUntilConditions]
+
+# don't worry about this for now - possibly revisit later
+[-ErrorHandling::RequireCheckingReturnValueOfEval ]
+
+# allow multi-statement map blocks
+[-BuiltinFunctions::ProhibitComplexMappings]

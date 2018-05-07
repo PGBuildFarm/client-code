@@ -306,6 +306,9 @@ my $use_auxpath = undef;
 
 unless ($nosend)
 {
+	## no critic (ValuesAndExpressions::ProhibitMismatchedOperators)
+	# perlcritic gets confused by version comparisons - this usage is
+	# sanctioned by perldoc perlvar
 	if (!$^V || $^V lt v5.8.0)
 	{
 		die "no aux_path in config file" unless $aux_path;
@@ -977,7 +980,6 @@ sub check_optional_step
 {
 	my $step = shift;
 	my $oconf;
-	my $shandle;
 
 	return unless ref($oconf = $optional_steps->{$step});
 	if ($oconf->{branches})
@@ -1324,12 +1326,13 @@ sub start_valgrind_db
 	# subroutine is run in a child process.
 
 	my $locale        = shift;
-	my $started_times = shift;
-	my $vglogfile     = "valgrind-$locale-$started_times.log";
+	my $vgstarted_times = shift;
+	my $vglogfile     = "valgrind-$locale-$vgstarted_times.log";
 	chdir 'inst';
 	my $source = $from_source || '../pgsql';
-	open(STDOUT, ">", "logfile");
-	open(STDERR, ">&STDOUT");    # allowed by perlcritic
+	open(STDOUT, ">", "logfile") || die "opening valgrind log";
+	open(STDERR, ">&STDOUT")    # allowed by perlcritic
+	  || die "duping STDOUT for valgrind";
 	unlink $vglogfile;
 	print "starting under valgrind\n";
 	my $supp  = "--suppressions=$source/src/tools/valgrind.supp";
@@ -1461,20 +1464,20 @@ sub make_install_check
 	my @checklog;
 	unless ($using_msvc)
 	{
-		my $target =
+		my $chktarget =
 		  $use_installcheck_parallel
 		  ? 'installcheck-parallel'
 		  : 'installcheck';
 		if ($schedule && -s $schedule)
 		{
-			$target =
+			$chktarget =
 			  'TESTS=--schedule=' . abs_path($schedule) . " installcheck-tests";
 		}
 		elsif ($tests)
 		{
-			$target = 'TESTS=' . qq{"$tests"} . " installcheck-tests";
+			$chktarget = 'TESTS=' . qq{"$tests"} . " installcheck-tests";
 		}
-		@checklog = run_log("cd $pgsql/src/test/regress && $make $target");
+		@checklog = run_log("cd $pgsql/src/test/regress && $make $chktarget");
 	}
 	else
 	{
@@ -1680,9 +1683,9 @@ sub run_tap_test
 	my $testname         = shift;
 	my $is_install_check = shift;
 
-	my $target = $is_install_check ? "installcheck" : "check";
+	my $taptarget = $is_install_check ? "installcheck" : "check";
 
-	return unless step_wanted("$testname-$target");
+	return unless step_wanted("$testname-$taptarget");
 
 	# fix path temporarily on msys
 	my $save_path = $ENV{PATH};
@@ -1715,7 +1718,7 @@ sub run_tap_test
 		my $instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
 
 		@makeout =
-		  run_log("cd $dir && $make NO_LOCALE=1 $pflags $instflags $target");
+		  run_log("cd $dir && $make NO_LOCALE=1 $pflags $instflags $taptarget");
 	}
 
 	my $status = $? >> 8;
@@ -1728,8 +1731,8 @@ sub run_tap_test
 		push(@makeout, file_lines($logfile));
 	}
 
-	writelog("$testname-$target", \@makeout);
-	print "======== make $testname-$target log ===========\n", @makeout
+	writelog("$testname-$taptarget", \@makeout);
+	print "======== make $testname-$taptarget log ===========\n", @makeout
 	  if ($verbose > 1);
 
 	# restore path
@@ -1997,6 +2000,7 @@ sub find_typedefs
 				next unless (@flds == 3);
 				next unless ($flds[0] eq "AT_name(");
 				next unless ($flds[1] =~ m/^"(.*)"$/);
+				## no critic (RegularExpressions::ProhibitCaptureWithoutTest)
 				$syms{$1} = 1;
 			}
 		}
@@ -2009,6 +2013,7 @@ sub find_typedefs
 				@flds = split;
 				next if (@flds < 7);
 				next if ($flds[1] ne 'LSYM' || $flds[6] !~ /([^:]+):t/);
+				## no critic (RegularExpressions::ProhibitCaptureWithoutTest)
 				$syms{$1} = 1;
 			}
 		}

@@ -27,7 +27,13 @@ use PGBuild::Options;
 
 # older msys is ging to use a different perl to run LWP, so we can't absolutely
 # require this module there
-BEGIN { require LWP::Simple if $^O ne 'msys' || $^V ge v5.8.0; }
+BEGIN
+{
+	## no critic (ValuesAndExpressions::ProhibitMismatchedOperators)
+	# perlcritic gets confused by version comparisons - this usage is
+	# sanctioned by perldoc perlvar
+	require LWP::Simple if $^O ne 'msys' || $^V ge v5.8.0;
+}
 
 my %branch_last;
 sub branch_last_sort;
@@ -98,6 +104,9 @@ elsif ($PGBuild::conf{branches_to_build} =~
 	  if ($PGBuild::conf{build_env}->{PATH});
 	(my $url = $PGBuild::conf{target}) =~ s/cgi-bin.*/branches_of_interest.txt/;
 	my $branches_of_interest;
+	## no critic (ValuesAndExpressions::ProhibitMismatchedOperators)
+	# perlcritic gets confused by version comparisons - this usage is
+	# sanctioned by perldoc perlvar
 	if ($^O eq 'msys' && $^V lt v5.8.0)
 	{
 		# msys: use perl in PATH
@@ -211,8 +220,8 @@ sub find_last_status
 
 sub apply_throttle
 {
-	my @branches = @_;
-	return @branches unless exists $PGBuild::conf{throttle};
+	my @thrbranches = @_;
+	return @thrbranches unless exists $PGBuild::conf{throttle};
 	my @result;
 	my %throttle = %{ $PGBuild::conf{throttle} };
 
@@ -221,19 +230,19 @@ sub apply_throttle
 	my $replacement;
 	if (exists $throttle{ALL})
 	{
-		@candidates  = @branches;
+		@candidates  = @thrbranches;
 		$replacement = $throttle{ALL};
 	}
 	elsif (exists $throttle{'!HEAD'})
 	{
-		@candidates = grep { $_ ne 'HEAD' } @branches;
+		@candidates = grep { $_ ne 'HEAD' } @thrbranches;
 		$replacement = $throttle{'!HEAD'};
 	}
 	elsif (exists $throttle{'!RECENT'})
 	{
 
 		# sort branches, make sure we get numeric major version sorting right
-		my @stable = grep { $_ ne 'HEAD' } @branches;
+		my @stable = grep { $_ ne 'HEAD' } @thrbranches;
 		s/^REL(\d)_/0$1/ foreach (@stable);
 		@stable = sort @stable;
 		s/^REL0/REL/ foreach (@stable);
@@ -250,7 +259,7 @@ sub apply_throttle
 	}
 
 	# apply throttle filters
-	foreach my $branch (@branches)
+	foreach my $branch (@thrbranches)
 	{
 		my $this_throttle = $throttle{$branch};
 		unless (defined $this_throttle)
