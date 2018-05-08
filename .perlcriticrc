@@ -72,10 +72,10 @@ only_in_void_context = 1
 [-BuiltinFunctions::ProhibitComplexMappings]
 
 
-## out aim is currently to comply down to sev 3
-## below are the policies that we don't comply with at levels 2 and 1
-## in most cases we don't care and have no interest in complying
-## since we're not checking below 3 they are commented out for now
+## Our aim is currently to comply down to sev 3.
+## Below are the policies that we don't comply with at levels 2 and 1.
+## In most cases we don't care and have no interest in complying.
+## Since we're not checking below 3 they are commented out for now.
 
 ## sev 2
 #
