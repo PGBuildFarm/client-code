@@ -22,13 +22,16 @@
 [TestingAndDebugging::ProhibitNoWarnings]
 allow = once
 
-
 # we enforce this one now too
 #[-Subroutines::RequireFinalReturn]
 
 # these two are pretty silly and I doubt we'll ever enforce them
 [-InputOutput::RequireBriefOpen]
 [-Subroutines::RequireArgUnpacking]
+
+# from perl-critic-more - don't require use of exceptions
+[-ErrorHandling::RequireUseOfExceptions ]
+
 # sev 3
 
 # don't require all regexes to use /x

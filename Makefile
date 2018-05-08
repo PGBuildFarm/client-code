@@ -52,7 +52,7 @@ tidy:
 	perltidy $(ALLPERLFILES)
 
 critic:
-	perlcritic -3 $(ALLPERLFILES)
+	perlcritic -3 --theme core $(ALLPERLFILES)
 
 clean:
 	find . "(" -name '*.bak' -o -name '*.orig' -o -name '*~' ")" -type f -exec rm -f {} \;
