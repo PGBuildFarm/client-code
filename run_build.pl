@@ -626,6 +626,7 @@ $ENV{PGUSER} = 'buildfarm';
 
 if ($from_source_clean)
 {
+	cleanlogs(); # do this here so we capture the "make dist" log
 	print time_str(), "cleaning source in $pgsql ...\n";
 	clean_from_source();
 }
@@ -726,7 +727,7 @@ elsif (!$from_source)
 
 }    # end of unless ($from_source)
 
-cleanlogs();
+cleanlogs() unless $from_source_clean; # we did this already in this case
 
 writelog('SCM-checkout', $savescmlog) unless $from_source;
 $scm->log_id() unless $from_source;
