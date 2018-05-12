@@ -25,8 +25,8 @@ my $branch;
 	$branch = $main::branch;
 }
 
-# useful for making settinngs relative to the config file location
-# all the clients should have used these two standfard packages
+# useful for making settings relative to the config file location
+# all the clients should have used these two standard packages
 my $confdir = File::Spec->rel2abs(File::Basename->dirname(__FILE__));
 
 # to force from-source in the directory where this config file is located,
