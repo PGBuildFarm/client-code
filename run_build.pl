@@ -266,7 +266,7 @@ if ($from_source || $from_source_clean)
 	if (!$from_source_clean && $use_vpath)
 	{
 		my $ofiles = 0;
-		File::Find::find(sub {/\.o$/ && $ofiles++;}, $from_source);
+		File::Find::find(sub {/\.o$/ && $ofiles++;}, "$from_source/src");
 		if ($ofiles)
 		{
 			die "from source directory has object files. vpath build will fail";
