@@ -73,6 +73,9 @@ $branch = 'global';
 #
 require $buildconf;
 
+die "from-source cannot be used with run_branches,pl"
+  if ($from_source || $from_source_clean);
+
 PGBuild::Options::fixup_conf(\%PGBuild::conf, \@config_set);
 
 unless (
