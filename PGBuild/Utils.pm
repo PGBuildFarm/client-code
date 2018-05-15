@@ -32,6 +32,7 @@ our (@EXPORT, @ISA, @EXPORT_OK, %EXPORT_TAGS);
   get_stack_trace cleanlogs writelog
   set_last find_last step_wanted send_result
   file_lines file_contents check_make_log_warnings
+  find_in_path
 );
 %EXPORT_TAGS = qw();
 @EXPORT_OK   = qw($st_prefix $logdirname $branch_root $steps_completed
@@ -267,6 +268,26 @@ sub step_wanted
 	return $only_steps{$step}  if (keys %only_steps);
 	return !$skip_steps{$step} if (keys %skip_steps);
 	return 1;    # default is everything is wanted
+}
+
+sub find_in_path
+{
+	my $what = shift;
+	my $sep = $Config{path_sep};
+	my @elements;
+	if ($sep eq ';')
+	{
+		@elements = split(/;/,$ENV{PATH});
+	}
+	else
+	{
+		@elements = split(/:/,$ENV{PATH});
+	}
+	foreach my $pathelem (@elements)
+	{
+		return File::Spec->rel2abs($pathelem) if -f "$pathelem/$what";
+	}
+	return;
 }
 
 1;

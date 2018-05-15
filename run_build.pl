@@ -325,6 +325,7 @@ unless ($nosend)
 	# sanctioned by perldoc perlvar
 	if (!$^V || $^V lt v5.8.0)
 	{
+		$aux_path ||= find_in_path('run_web_txn.pl');
 		die "no aux_path in config file" unless $aux_path;
 		$use_auxpath = 1;
 	}
@@ -333,6 +334,7 @@ unless ($nosend)
 		eval { require LWP::Protocol::https; };
 		if ($@)
 		{
+			$aux_path ||= find_in_path('run_web_txn.pl');
 			die "no aux_path in config file" unless $aux_path;
 			$use_auxpath = 1;
 		}
