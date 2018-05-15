@@ -18,7 +18,11 @@ use File::Spec;
 use File::Basename;
 use Cwd qw(getcwd);
 
-BEGIN { use lib File::Spec->rel2abs(dirname(__FILE__)); }
+BEGIN
+{
+	unshift(@INC,$ENV{BFLIB}) if $ENV{BFLIB};
+	use lib File::Spec->rel2abs(dirname(__FILE__));
+}
 
 my $orig_dir = getcwd();
 unshift @INC, $orig_dir;

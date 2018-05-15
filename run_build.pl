@@ -50,7 +50,11 @@ use Data::Dumper;
 use Cwd qw(abs_path getcwd);
 use File::Find ();
 
-BEGIN { use lib File::Spec->rel2abs(dirname(__FILE__)); }
+BEGIN
+{
+	unshift(@INC,$ENV{BFLIB}) if $ENV{BFLIB};
+	use lib File::Spec->rel2abs(dirname(__FILE__));
+}
 
 # use High Resolution stat times if the module is available
 # this helps make sure we sort logfiles correctly

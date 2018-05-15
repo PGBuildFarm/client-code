@@ -24,7 +24,11 @@ use Getopt::Long;
 use File::Spec;
 use File::Basename;
 
-BEGIN { use lib File::Spec->rel2abs(dirname(__FILE__)); }
+BEGIN
+{
+	unshift(@INC,$ENV{BFLIB}) if $ENV{BFLIB};
+	use lib File::Spec->rel2abs(dirname(__FILE__));
+}
 
 # copy command line before processing - so we can later report it
 # unmunged
