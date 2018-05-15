@@ -1816,8 +1816,19 @@ sub make_check
 	my @makeout;
 	unless ($using_msvc)
 	{
+		my $chktarget = "check";
+		if ($schedule && -s $schedule)
+		{
+			$chktarget =
+			  'TESTS=--schedule=' . abs_path($schedule) . " check-tests";
+		}
+		elsif ($tests)
+		{
+			$chktarget = 'TESTS=' . qq{"$tests"} . " check-tests";
+		}
+
 		@makeout =
-		  run_log("cd $pgsql/src/test/regress && $make NO_LOCALE=1 check");
+		  run_log("cd $pgsql/src/test/regress && $make NO_LOCALE=1 $chktarget");
 	}
 	else
 	{
