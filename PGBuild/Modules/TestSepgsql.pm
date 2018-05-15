@@ -152,10 +152,7 @@ sub locale_end
 
 	open(my $handle, ">>", "inst/sepgsql/postgresql.conf")
 	  || die "opening inst/sepgsql/postgresql.conf: $!";
-	my $param =
-	  $self->{pgbranch} eq 'REL9_2_STABLE'
-	  ? "unix_socket_directory"
-	  : "unix_socket_directories";
+	my $param = "unix_socket_directories";
 	print $handle "$param = '$tmpdir'\n";
 	print $handle "listen_addresses = ''\n";
 	print $handle "shared_preload_libraries = 'sepgsql'\n";

@@ -279,12 +279,7 @@ if ($from_source || $from_source_clean)
 }
 
 my @locales;
-if ($branch eq 'HEAD' || $branch ge 'REL8_4')
-{
-
-	# non-C locales are not regression-safe before 8.4
-	@locales = @{ $PGBuild::conf{locales} } if exists $PGBuild::conf{locales};
-}
+@locales = @{ $PGBuild::conf{locales} } if exists $PGBuild::conf{locales};
 unshift(@locales, 'C') unless grep { $_ eq "C" } @locales;
 
 # sanity checks
@@ -929,8 +924,7 @@ foreach my $locale (@locales)
 	  unless $keepall;
 }
 
-# ecpg checks are not supported in 8.1 and earlier
-if (($branch eq 'HEAD' || $branch gt 'REL8_2') && step_wanted('ecpg-check'))
+if (step_wanted('ecpg-check'))
 {
 	print time_str(), "running make ecpg check ...\n" if $verbose;
 
@@ -1066,7 +1060,7 @@ sub make
 	{
 		my $make_cmd = $make;
 		$make_cmd = "$make -j $make_jobs"
-		  if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
+		  if ($make_jobs > 1);
 		@makeout = run_log("cd $pgsql && $make_cmd");
 	}
 	else
@@ -1180,7 +1174,7 @@ sub make_contrib
 
 	my $make_cmd = $make;
 	$make_cmd = "$make -j $make_jobs"
-	  if ($make_jobs > 1 && ($branch eq 'HEAD' || $branch ge 'REL9_1'));
+	  if ($make_jobs > 1);
 	my @makeout = run_log("cd $pgsql/contrib && $make_cmd");
 	my $status  = $? >> 8;
 	writelog('make-contrib', \@makeout);
@@ -1281,10 +1275,7 @@ sub initdb
 
 		if (!$using_msvc && $Config{osname} !~ /msys|MSWin/)
 		{
-			my $param =
-			  $branch eq 'REL9_2_STABLE'
-			  ? "unix_socket_directory"
-			  : "unix_socket_directories";
+			my $param = "unix_socket_directories";
 			print $handle "$param = '$tmpdir'\n";
 			print $handle "listen_addresses = ''\n";
 		}

@@ -41,8 +41,6 @@ sub setup
 	my $conf      = shift;    # ref to the whole config object
 	my $pgsql     = shift;    # postgres build dir
 
-	return unless $branch ge 'REL9_1_STABLE' || $branch eq 'HEAD';
-
 	# could even set up several of these (e.g. for different branches)
 	my $self = {
 		buildroot => $buildroot,

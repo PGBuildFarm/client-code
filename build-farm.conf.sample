@@ -118,7 +118,6 @@ my $confdir = File::Spec->rel2abs(File::Basename->dirname(__FILE__));
 	force_every => {
 
 		# HEAD => 48,
-		# REL8_3_STABLE => 72,
 		# default => 168,
 	},
 
@@ -127,8 +126,8 @@ my $confdir = File::Spec->rel2abs(File::Basename->dirname(__FILE__));
 
 	alerts => {
 
-		#HEAD          => { alert_after => 72,  alert_every => 24 },
-		# REL8_1_STABLE => { alert_after => 240, alert_every => 48 },
+		# HEAD          => { alert_after => 72,  alert_every => 24 },
+		# REL_10_STABLE => { alert_after => 240, alert_every => 48 },
 	},
 
 	# include / exclude patterns for files that trigger a build

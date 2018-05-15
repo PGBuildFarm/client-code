@@ -129,8 +129,6 @@ elsif ($PGBuild::conf{branches_to_build} =~
 	die "getting branches of interest ($url)" unless $branches_of_interest;
 	$ENV{PATH} = $save_path;
 	push(@branches, $_) foreach (split(/\s+/, $branches_of_interest));
-	@branches = grep { $_ ne 'REL8_2_STABLE' } @branches
-	  if $PGBuild::conf{using_msvc};
 	splice(@branches, 0, -2)
 	  if $PGBuild::conf{branches_to_build} eq 'HEAD_PLUS_LATEST';
 	splice(@branches, 0, 0 - ($latest + 1))

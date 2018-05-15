@@ -296,10 +296,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	# listen_addresses will be set correctly and requires no adjustment.
 	open(my $opgconf, ">>", "$other_branch/inst/upgrade_test/postgresql.conf")
 	  || die "opening $other_branch/inst/upgrade_test/postgresql.conf: $!";
-	my $param =
-	  $oversion eq 'REL9_2_STABLE'
-	  ? "unix_socket_directory"
-	  : "unix_socket_directories";
+	my $param = "unix_socket_directories";
 	print $opgconf "$param = '$tmpdir'\n";
 	close($opgconf);
 
@@ -351,10 +348,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	open(my $pgconf, ">>", "$installdir/$oversion-upgrade/postgresql.conf")
 	  || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
-	my $tmp_param =
-	  $this_branch eq 'REL9_2_STABLE'
-	  ? "unix_socket_directory"
-	  : "unix_socket_directories";
+	my $tmp_param = "unix_socket_directories";
 	print $pgconf "listen_addresses = ''\n";
 	print $pgconf "$tmp_param = '$tmpdir'\n";
 	close($pgconf);
