@@ -821,102 +821,106 @@ foreach my $locale (@locales)
 
 	initdb($locale);
 
-	my %saveenv = %ENV;
-	if (!$using_msvc && $Config{osname} !~ /msys|MSWin/)
+	do
 	{
-		$ENV{PGHOST} = $tmpdir;
-	}
-	else
-	{
-		$ENV{PGHOST} = 'localhost';
-	}
+		local %ENV = %ENV;
+		if (!$using_msvc && $Config{osname} !~ /msys|MSWin/)
+		{
+			$ENV{PGHOST} = $tmpdir;
+		}
+		else
+		{
+			$ENV{PGHOST} = 'localhost';
+		}
 
-	print time_str(), "starting db ($locale)...\n" if $verbose;
+		print time_str(), "starting db ($locale)...\n" if $verbose;
 
-	start_db($locale);
-
-	make_install_check($locale);
-
-	process_module_hooks('installcheck', $locale);
-
-	if (   -d "$pgsql/src/test/isolation"
-		&& $locale eq 'C'
-		&& step_wanted('isolation-check'))
-	{
-
-		# restart the db to clear the log file
-		print time_str(), "restarting db ($locale)...\n" if $verbose;
-
-		stop_db($locale);
 		start_db($locale);
 
-		print time_str(), "running make isolation check ...\n" if $verbose;
+		make_install_check($locale);
 
-		make_isolation_check($locale);
-	}
+		process_module_hooks('installcheck', $locale);
 
-	if (
-		step_wanted('pl-install-check')
-		&& (
-			(!$using_msvc
-				&& (grep { /--with-(perl|python|tcl)/ } @$config_opts))
-			|| (
-				$using_msvc
-				&& (   defined($config_opts->{perl})
-					|| defined($config_opts->{python})
-					|| defined($config_opts->{tcl}))
+		if (   -d "$pgsql/src/test/isolation"
+			&& $locale eq 'C'
+			&& step_wanted('isolation-check'))
+		{
+
+			# restart the db to clear the log file
+			print time_str(), "restarting db ($locale)...\n" if $verbose;
+
+			stop_db($locale);
+			start_db($locale);
+
+			print time_str(), "running make isolation check ...\n" if $verbose;
+
+			make_isolation_check($locale);
+		}
+
+		if (
+			step_wanted('pl-install-check')
+			&& (
+				(
+					!$using_msvc
+					&& (grep { /--with-(perl|python|tcl)/ } @$config_opts)
+				)
+				|| (
+					$using_msvc
+					&& (   defined($config_opts->{perl})
+						|| defined($config_opts->{python})
+						|| defined($config_opts->{tcl}))
+				)
 			)
-		)
-	  )
-	{
+		  )
+		{
 
-		# restart the db to clear the log file
-		print time_str(), "restarting db ($locale)...\n" if $verbose;
+			# restart the db to clear the log file
+			print time_str(), "restarting db ($locale)...\n" if $verbose;
+
+			stop_db($locale);
+			start_db($locale);
+
+			print time_str(), "running make PL installcheck ($locale)...\n"
+			  if $verbose;
+
+			make_pl_install_check($locale);
+		}
+
+		if (step_wanted('contrib-install-check'))
+		{
+
+			# restart the db to clear the log file
+			print time_str(), "restarting db ($locale)...\n" if $verbose;
+
+			stop_db($locale);
+			start_db($locale);
+
+			print time_str(), "running make contrib installcheck ($locale)...\n"
+			  if $verbose;
+
+			make_contrib_install_check($locale);
+		}
+
+		if (step_wanted('testmodules-install-check')
+			&& ($branch eq 'HEAD' || $branch ge 'REL9_5'))
+		{
+			print time_str(), "restarting db ($locale)...\n" if $verbose;
+
+			stop_db($locale);
+			start_db($locale);
+
+			print time_str(),
+			  "running make test-modules installcheck ($locale)...\n"
+			  if $verbose;
+
+			make_testmodules_install_check($locale);
+		}
+
+		print time_str(), "stopping db ($locale)...\n" if $verbose;
 
 		stop_db($locale);
-		start_db($locale);
 
-		print time_str(), "running make PL installcheck ($locale)...\n"
-		  if $verbose;
-
-		make_pl_install_check($locale);
-	}
-
-	if (step_wanted('contrib-install-check'))
-	{
-
-		# restart the db to clear the log file
-		print time_str(), "restarting db ($locale)...\n" if $verbose;
-
-		stop_db($locale);
-		start_db($locale);
-
-		print time_str(), "running make contrib installcheck ($locale)...\n"
-		  if $verbose;
-
-		make_contrib_install_check($locale);
-	}
-
-	if (step_wanted('testmodules-install-check')
-		&& ($branch eq 'HEAD' || $branch ge 'REL9_5'))
-	{
-		print time_str(), "restarting db ($locale)...\n" if $verbose;
-
-		stop_db($locale);
-		start_db($locale);
-
-		print time_str(),
-		  "running make test-modules installcheck ($locale)...\n"
-		  if $verbose;
-
-		make_testmodules_install_check($locale);
-	}
-
-	print time_str(), "stopping db ($locale)...\n" if $verbose;
-
-	stop_db($locale);
-
-	%ENV = %saveenv;
+	};    # end of do block with local %ENV
 
 	process_module_hooks('locale-end', $locale);
 
