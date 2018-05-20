@@ -20,7 +20,7 @@ use Cwd qw(getcwd);
 
 BEGIN
 {
-	unshift(@INC,$ENV{BFLIB}) if $ENV{BFLIB};
+	unshift(@INC, $ENV{BFLIB}) if $ENV{BFLIB};
 	use lib File::Spec->rel2abs(dirname(__FILE__));
 }
 

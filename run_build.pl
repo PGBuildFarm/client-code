@@ -52,7 +52,7 @@ use File::Find ();
 
 BEGIN
 {
-	unshift(@INC,$ENV{BFLIB}) if $ENV{BFLIB};
+	unshift(@INC, $ENV{BFLIB}) if $ENV{BFLIB};
 	use lib File::Spec->rel2abs(dirname(__FILE__));
 }
 
@@ -270,7 +270,7 @@ if ($from_source || $from_source_clean)
 	if (!$from_source_clean && $use_vpath)
 	{
 		my $ofiles = 0;
-		File::Find::find(sub {/\.o$/ && $ofiles++;}, "$from_source/src");
+		File::Find::find(sub { /\.o$/ && $ofiles++; }, "$from_source/src");
 		if ($ofiles)
 		{
 			die "from source directory has object files. vpath build will fail";
@@ -637,7 +637,7 @@ $ENV{PGUSER} = 'buildfarm';
 
 if ($from_source_clean)
 {
-	cleanlogs(); # do this here so we capture the "make dist" log
+	cleanlogs();    # do this here so we capture the "make dist" log
 	print time_str(), "cleaning source in $pgsql ...\n";
 	clean_from_source();
 }
@@ -738,7 +738,7 @@ elsif (!$from_source)
 
 }    # end of unless ($from_source)
 
-cleanlogs() unless $from_source_clean; # we did this already in this case
+cleanlogs() unless $from_source_clean;    # we did this already in this case
 
 writelog('SCM-checkout', $savescmlog) unless $from_source;
 $scm->log_id() unless $from_source;

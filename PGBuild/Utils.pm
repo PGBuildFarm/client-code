@@ -273,15 +273,15 @@ sub step_wanted
 sub find_in_path
 {
 	my $what = shift;
-	my $sep = $Config{path_sep};
+	my $sep  = $Config{path_sep};
 	my @elements;
 	if ($sep eq ';')
 	{
-		@elements = split(/;/,$ENV{PATH});
+		@elements = split(/;/, $ENV{PATH});
 	}
 	else
 	{
-		@elements = split(/:/,$ENV{PATH});
+		@elements = split(/:/, $ENV{PATH});
 	}
 	foreach my $pathelem (@elements)
 	{
