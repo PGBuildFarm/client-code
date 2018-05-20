@@ -935,7 +935,8 @@ if (step_wanted('ecpg-check'))
 	make_ecpg_check();
 }
 
-if (check_optional_step('find_typedefs') || $find_typedefs)
+if ((check_optional_step('find_typedefs') || $find_typedefs)
+	&& step_wanted('find-typedefs'))
 {
 	print time_str(), "running find_typedefs ...\n" if $verbose;
 
