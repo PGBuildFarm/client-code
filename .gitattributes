@@ -1,6 +1,6 @@
 .gitattributes export-ignore
 .gitignore export-ignore
-.dir-local.el export-ignore
+.dir-locals.el export-ignore
 .perltidyrc export-ignore
 .perlcriticrc export-ignore
 copyright.template export-ignore
