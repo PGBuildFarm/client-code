@@ -20,7 +20,7 @@ use Fcntl qw(:seek);
 use File::Path;
 
 
-use vars qw($VERSION); $VERSION = 'REL_7';
+use vars qw($VERSION); $VERSION = 'REL_8';
 
 use Exporter ();
 ## no critic (ProhibitAutomaticExportation)

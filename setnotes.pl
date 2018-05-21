@@ -14,7 +14,7 @@ use warnings;
 # suppress spurious warning about conf structure
 no warnings qw(once);
 
-use vars qw($VERSION); $VERSION = 'REL_7';
+use vars qw($VERSION); $VERSION = 'REL_8';
 
 use LWP;
 use HTTP::Request::Common;

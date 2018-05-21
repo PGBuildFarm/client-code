@@ -17,7 +17,7 @@ use warnings FATAL => 'qw';
 
 use vars qw(%conf);
 
-# use vars qw($VERSION); $VERSION = 'REL_7';
+# use vars qw($VERSION); $VERSION = 'REL_8';
 
 my $branch;
 {
