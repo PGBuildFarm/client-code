@@ -783,7 +783,7 @@ configure();
 
 make();
 
-make_check();
+make_check() unless $delay_check;
 
 # contrib is built under the standard build step for msvc
 make_contrib() unless ($using_msvc);
@@ -801,13 +801,17 @@ make_contrib_install() unless ($using_msvc);
 make_testmodules_install()
   if (!$using_msvc && ($branch eq 'HEAD' || $branch ge 'REL9_5'));
 
+make_check() if $delay_check;
+
 process_module_hooks('configure');
 
 process_module_hooks('build');
 
-process_module_hooks("check");
+process_module_hooks("check") unless $delay_check;
 
 process_module_hooks('install');
+
+process_module_hooks("check") if $delay_check;
 
 run_bin_tests();
 
@@ -981,10 +985,14 @@ usage: $0 [options] [branch]
   --config=/path/to/file    = alternative location for config file
   --keepall                 = keep directories if an error occurs
   --verbose[=n]             = verbosity (default 1) 2 or more = huge output.
-  --quiet                   = suppress normal error message
+  --quiet                   = suppress normal error messages
   --test                    = short for --nosend --nostatus --verbose --force
   --skip-steps=list         = skip certain steps
   --only-steps=list         = only do certain steps, not allowed with skip-steps
+  --schedule=name           = use different schedule in check and installcheck
+  --tests=list              = just run these tests in chak and installcheck
+  --check-warnings          = turn compiler warnings into errors
+  --delay-check             = defer check step until after install steps
 
 Default branch is HEAD. Usually only the --config option should be necessary.
 
