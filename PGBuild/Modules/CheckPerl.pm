@@ -68,7 +68,8 @@ sub find_perl_files
 		{
 			$files{$File::Find::name} = 1;
 		}
-		elsif (($mode & 0100) == 0100)
+		elsif (($mode & 0100) == 0100) ## no critic (ProhibitLeadingZeros)
+
 		{
 			my $fileout = `file $File::Find::name`;
 		    $files{$File::Find::name} = 1
@@ -84,7 +85,7 @@ sub find_perl_files
 
 	chdir $here;
 
-	return sort keys %files;
+	return (sort keys %files);
 }
 
   
