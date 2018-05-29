@@ -557,7 +557,7 @@ END
 		else
 		{
 			rmtree("inst") unless $keepall;
-			rmtree("$pgsql") unless ($from_source || $keepall);
+			rmtree("$pgsql") unless (($from_source && !$use_vpath) || $keepall);
 		}
 
 		# only keep the cache in cases of success, if config flag is set
@@ -958,7 +958,7 @@ foreach my $vglog (glob("$installdir/valgrind-*.log"))
 }
 
 rmtree("inst") unless $keepall;                       # only keep failures
-rmtree("$pgsql") unless ($keepall || $from_source);
+rmtree("$pgsql") unless ($keepall || ($from_source && !$use_vpath));
 
 print(time_str(), "OK\n") if $verbose;
 
