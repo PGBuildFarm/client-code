@@ -101,7 +101,7 @@ sub build
 
 	print time_str(), "building $MODULE\n" if $verbose;
 
-	my $cmd = "PATH=../inst:$ENV{PATH} make USE_PGXS=1";
+	my $cmd = "PATH=../inst:$ENV{PATH} make USE_PGXS=1 all";
 
 	my @makeout = `cd $self->{where} && $cmd 2>&1`;
 
