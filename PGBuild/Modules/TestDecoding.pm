@@ -101,7 +101,8 @@ sub check
 
 	writelog("test-decoding-check", \@checklog);
 	print "======== test-decoding check log ===========\n", @checklog
-	  if ($verbose > 1);
+	  if ($verbose > 1)
+	  or ($status && $show_error_log);
 	send_result("test-decoding-check", $status, \@checklog) if $status;
 	{
 		no warnings 'once';
