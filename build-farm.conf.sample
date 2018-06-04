@@ -27,7 +27,7 @@ my $branch;
 
 # useful for making settings relative to the config file location
 # all the clients should have used these two standard packages
-my $confdir = File::Spec->rel2abs(File::Basename->dirname(__FILE__));
+my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 
 # to force from-source in the directory where this config file is located,
 # uncomment the line below. See also buildroot below
