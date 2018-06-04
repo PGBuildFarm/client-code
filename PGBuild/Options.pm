@@ -28,7 +28,7 @@ BEGIN
 	  $quiet $from_source $from_source_clean $testmode
 	  $test_mode $skip_steps $only_steps $find_typedefs
 	  $nosend $nostatus $verbose @config_set $schedule $tests
-	  $check_warnings $delay_check
+	  $check_warnings $delay_check $show_error_log
 	);
 }
 
@@ -47,7 +47,8 @@ our (
 	$quiet,     $from_source, $from_source_clean, $testmode,
 	$test_mode, $skip_steps,  $only_steps,        $find_typedefs,
 	$nosend,    $nostatus,    $verbose,           @config_set,
-	$schedule,  $tests,       $check_warnings,    $delay_check
+	$schedule,  $tests,       $check_warnings,    $delay_check,
+	$show_error_log,
 );
 
 my (%standard_options);
@@ -72,6 +73,7 @@ my (%standard_options);
 	'tests=s'             => \$tests,
 	'check-warnings!'     => \$check_warnings,      # allow --nocheck-warnings
 	'delay-check'         => \$delay_check,
+	'show-error-log'      => \$show_error_log,
 );
 
 $buildconf = "build-farm.conf";                     # default value
