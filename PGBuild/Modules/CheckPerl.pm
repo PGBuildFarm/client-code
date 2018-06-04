@@ -23,9 +23,7 @@ use warnings;
 
 use vars qw($VERSION); $VERSION = 'REL_8';
 
-my $hooks = {
-	'build'        => \&build,
-};
+my $hooks = { 'build' => \&build, };
 
 sub setup
 {
@@ -58,43 +56,42 @@ sub find_perl_files
 
 	my %files;
 
-	my $wanted = sub
-	{
-		my ($dev,$ino,$mode,$nlink,$uid,$gid);
+	my $wanted = sub {
+		my ($dev, $ino, $mode, $nlink, $uid, $gid);
 
-		($dev,$ino,$mode,$nlink,$uid,$gid) = lstat($_);
+		($dev, $ino, $mode, $nlink, $uid, $gid) = lstat($_);
 		-f _ || return;
 		if (/\.p[lm]\z/)
 		{
 			$files{$File::Find::name} = 1;
 		}
-		elsif (($mode & 0100) == 0100) ## no critic (ProhibitLeadingZeros)
+		elsif (($mode & 0100) == 0100)    ## no critic (ProhibitLeadingZeros)
 
 		{
 			my $fileout = `file $File::Find::name`;
-		    $files{$File::Find::name} = 1
+			$files{$File::Find::name} = 1
 			  if ($fileout =~ /:.*perl[0-9]*\b/i);
 		}
 	};
 
 	my $here = getcwd;
-	
+
 	chdir $pgsql;
-	
-	File::Find::find({wanted => $wanted}, ".");
+
+	File::Find::find({ wanted => $wanted }, ".");
 
 	chdir $here;
 
 	return (sort keys %files);
 }
 
-  
+
 
 sub build
 {
 	# note - we run this in the source directory, not the build directory
 	# even if it's a vpath build
-	
+
 	my $self = shift;
 
 	return unless step_wanted('perl-check');
@@ -104,13 +101,14 @@ sub build
 	my $perlcritic = $ENV{PERLCRITIC} || 'perlcritic';
 
 	my @files = find_perl_files('pgsql');
-	my $files = join(' ',@files);
+	my $files = join(' ', @files);
 
-	my @criticlog = run_log("cd pgsql && $perlcritic " .
-							"--program-extensions .pl " .
-							"--profile=src/tools/pgperlcritic/perlcriticrc " .
-							$files);
-    my $status = $? >> 8;
+	my @criticlog =
+	  run_log("cd pgsql && $perlcritic "
+		  . "--program-extensions .pl "
+		  . "--profile=src/tools/pgperlcritic/perlcriticrc "
+		  . $files);
+	my $status = $? >> 8;
 
 =comment
 
@@ -138,11 +136,11 @@ sub build
 	}
 
 =cut
-	
-    writelog("perl-check", \@criticlog);
-    print "======== perl-check log ===========\n", @criticlog if ($verbose > 1);
-    send_result("perl-check", $status, \@criticlog) if $status;
-    return;
+
+	writelog("perl-check", \@criticlog);
+	print "======== perl-check log ===========\n", @criticlog if ($verbose > 1);
+	send_result("perl-check", $status, \@criticlog) if $status;
+	return;
 }
 
 
