@@ -1127,7 +1127,7 @@ sub make_doc
 
 sub make_install
 {
-	return unless step_wanted('make') && step_wanted('install');
+	return unless step_wanted('install');
 	print time_str(), "running make install ...\n" if $verbose;
 
 	my @makeout;
@@ -1237,8 +1237,7 @@ sub make_testmodules
 sub make_contrib_install
 {
 	return
-	  unless (step_wanted('make')
-		and step_wanted('make-contrib')
+	  unless (step_wanted('make-contrib')
 		and step_wanted('install'));
 	print time_str(), "running make contrib install ...\n"
 	  if $verbose;
