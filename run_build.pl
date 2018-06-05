@@ -637,6 +637,8 @@ $ENV{PGUSER} = 'buildfarm';
 
 if ($from_source_clean)
 {
+	die "configure step needed for --from-source-clean"
+	  unless step_wanted('configure');
 	cleanlogs();    # do this here so we capture the "make dist" log
 	print time_str(), "cleaning source in $pgsql ...\n";
 	clean_from_source();
@@ -738,7 +740,7 @@ elsif (!$from_source)
 
 }    # end of unless ($from_source)
 
-cleanlogs() unless $from_source_clean;    # we did this already in this case
+cleanlogs() unless ($from_source_clean || ! step_wanted('configure'));
 
 writelog('SCM-checkout', $savescmlog) unless $from_source;
 $scm->log_id() unless $from_source;
@@ -774,9 +776,12 @@ $temp_installs = 0;
 # on any error, so each step depends on success in the previous
 # steps.
 
-print time_str(), "running configure ...\n" if $verbose;
+if (step_wanted('configure'))
+{
+	print time_str(), "running configure ...\n" if $verbose;
 
-configure();
+	configure();
+}
 
 # module configure has to wait until we have built and installed the base
 # so see below
