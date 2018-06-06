@@ -740,7 +740,7 @@ elsif (!$from_source)
 
 }    # end of unless ($from_source)
 
-cleanlogs() unless ($from_source_clean || ! step_wanted('configure'));
+cleanlogs() unless ($from_source_clean || !step_wanted('configure'));
 
 writelog('SCM-checkout', $savescmlog) unless $from_source;
 $scm->log_id() unless $from_source;
@@ -959,12 +959,7 @@ my $saved_config = get_config_summary();
 # error out if there are non-empty valgrind logs
 foreach my $vglog (glob("$installdir/valgrind-*.log"))
 {
-	if (-s $vglog)
-	{
-		my @lines = file_lines($vglog);
-		print @lines if $show_error_log;
-		send_result('Valgrind', 1, \@lines);
-	}
+	send_result('Valgrind', 1, [ file_lines($vglog) ]) if -s $vglog;
 }
 
 rmtree("inst") unless $keepall;    # only keep failures
@@ -1054,9 +1049,7 @@ sub clean_from_source
 	my @makeout = run_log($command);
 	my $status  = $? >> 8;
 	writelog('distclean', \@makeout);
-	print "======== distclean log ===========\n", @makeout
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
+	print "======== distclean log ===========\n", @makeout if ($verbose > 1);
 	send_result('distclean', $status, \@makeout) if $status;
 	return;
 }
@@ -1096,10 +1089,8 @@ sub make
 	}
 	my $status = $? >> 8;
 	writelog('make', \@makeout);
+	print "======== make log ===========\n", @makeout if ($verbose > 1);
 	$status ||= check_make_log_warnings('make', $verbose) if $check_warnings;
-	print "======== make log ===========\n", @makeout
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
 	send_result('Make', $status, \@makeout) if $status;
 	$steps_completed .= " Make";
 	return;
@@ -1123,8 +1114,7 @@ sub make_doc
 	}
 	my $status = $? >> 8;
 	writelog('make-doc', \@makeout);
-	print "======== make doc log ===========\n", @makeout
-	  if (($verbose > 1) or ($status && $show_error_log));
+	print "======== make doc log ===========\n", @makeout if ($verbose > 1);
 	send_result('Doc', $status, \@makeout) if $status;
 	$steps_completed .= " Doc";
 	return;
@@ -1148,9 +1138,7 @@ sub make_install
 	}
 	my $status = $? >> 8;
 	writelog('make-install', \@makeout);
-	print "======== make install log ===========\n", @makeout
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
+	print "======== make install log ===========\n", @makeout if ($verbose > 1);
 	send_result('Install', $status, \@makeout) if $status;
 
 	# On Windows and Cygwin avoid path problems associated with DLLs
@@ -1208,11 +1196,9 @@ sub make_contrib
 	my @makeout = run_log("cd $pgsql/contrib && $make_cmd");
 	my $status  = $? >> 8;
 	writelog('make-contrib', \@makeout);
+	print "======== make contrib log ===========\n", @makeout if ($verbose > 1);
 	$status ||= check_make_log_warnings('make-contrib', $verbose)
 	  if $check_warnings;
-	print "======== make contrib log ===========\n", @makeout
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
 	send_result('Contrib', $status, \@makeout) if $status;
 	$steps_completed .= " Contrib";
 	return;
@@ -1229,11 +1215,10 @@ sub make_testmodules
 	my @makeout = run_log("cd $pgsql/src/test/modules && $make_cmd");
 	my $status  = $? >> 8;
 	writelog('make-testmodules', \@makeout);
+	print "======== make testmodules log ===========\n", @makeout
+	  if ($verbose > 1);
 	$status ||= check_make_log_warnings('make-testmodules', $verbose)
 	  if $check_warnings;
-	print "======== make testmodules log ===========\n", @makeout
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
 	send_result('TestModules', $status, \@makeout) if $status;
 	$steps_completed .= " TestModules";
 	return;
@@ -1255,8 +1240,7 @@ sub make_contrib_install
 	my $status  = $? >> 8;
 	writelog('install-contrib', \@makeout);
 	print "======== make contrib install log ===========\n", @makeout
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
+	  if ($verbose > 1);
 	send_result('ContribInstall', $status, \@makeout) if $status;
 	$temp_installs++;
 	$steps_completed .= " ContribInstall";
@@ -1278,8 +1262,7 @@ sub make_testmodules_install
 	my $status  = $? >> 8;
 	writelog('install-testmodules', \@makeout);
 	print "======== make testmodules install log ===========\n", @makeout
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
+	  if ($verbose > 1);
 	send_result('TestModulesInstall', $status, \@makeout) if $status;
 	$temp_installs++;
 	$steps_completed .= " TestModulesInstall";
@@ -1356,8 +1339,7 @@ sub initdb
 
 	writelog("initdb-$locale", \@initout);
 	print "======== initdb log ($locale) ===========\n", @initout
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
+	  if ($verbose > 1);
 	send_result("Initdb-$locale", $status, \@initout) if $status;
 	$steps_completed .= " Initdb-$locale";
 	return;
@@ -1460,10 +1442,8 @@ sub start_db
 		push(@ctlout, "=========== db log file ==========\n", @loglines);
 	}
 	writelog("startdb-$locale-$started_times", \@ctlout);
-	print "======== start db ($locale) : $started_times log ========\n",
-	  @ctlout
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
+	print "======== start db ($locale) : $started_times log ========\n", @ctlout
+	  if ($verbose > 1);
 	if ($status)
 	{
 		chdir($installdir);
@@ -1493,10 +1473,8 @@ sub stop_db
 		push(@ctlout, "=========== db log file ==========\n", @loglines);
 	}
 	writelog("stopdb-$locale-$started_times", \@ctlout);
-	print "======== stop db ($locale): $started_times log ==========\n",
-	  @ctlout
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
+	print "======== stop db ($locale): $started_times log ==========\n", @ctlout
+	  if ($verbose > 1);
 	send_result("StopDb-$locale:$started_times", $status, \@ctlout) if $status;
 	$dbstarted = undef;
 	return;
@@ -1549,8 +1527,7 @@ sub make_install_check
 	}
 	writelog("install-check-$locale", \@checklog);
 	print "======== make installcheck log ===========\n", @checklog
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
+	  if ($verbose > 1);
 	send_result("InstallCheck-$locale", $status, \@checklog) if $status;
 	$steps_completed .= " InstallCheck-$locale";
 	return;
@@ -1589,8 +1566,7 @@ sub make_contrib_install_check
 	}
 	writelog("contrib-install-check-$locale", \@checklog);
 	print "======== make contrib installcheck log ===========\n", @checklog
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
+	  if ($verbose > 1);
 	send_result("ContribCheck-$locale", $status, \@checklog) if $status;
 	$steps_completed .= " ContribCheck-$locale";
 	return;
@@ -1629,8 +1605,7 @@ sub make_testmodules_install_check
 	}
 	writelog("testmodules-install-check-$locale", \@checklog);
 	print "======== make testmodules installcheck log ===========\n", @checklog
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
+	  if ($verbose > 1);
 	send_result("TestModulesCheck-$locale", $status, \@checklog) if $status;
 	$steps_completed .= " TestModulesCheck-$locale";
 	return;
@@ -1671,8 +1646,7 @@ sub make_pl_install_check
 	}
 	writelog("pl-install-check-$locale", \@checklog);
 	print "======== make pl installcheck log ===========\n", @checklog
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
+	  if ($verbose > 1);
 	send_result("PLCheck-$locale", $status, \@checklog) if $status;
 
 	# only report PLCheck as a step if it actually tried to do anything
@@ -1721,8 +1695,7 @@ sub make_isolation_check
 	}
 	writelog('isolation-check', \@makeout);
 	print "======== make isolation check logs ===========\n", @makeout
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
+	  if ($verbose > 1);
 
 	send_result('IsolationCheck', $status, \@makeout) if $status;
 	$steps_completed .= " IsolationCheck";
@@ -1785,8 +1758,7 @@ sub run_tap_test
 
 	writelog("$testname-$taptarget", \@makeout);
 	print "======== make $testname-$taptarget log ===========\n", @makeout
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
+	  if ($verbose > 1);
 
 	# restore path
 	$ENV{PATH} = $save_path;
@@ -1911,8 +1883,7 @@ sub make_check
 	}
 	writelog('check', \@makeout);
 	print "======== make check logs ===========\n", @makeout
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
+	  if ($verbose > 1);
 
 	send_result('Check', $status, \@makeout) if $status;
 	$temp_installs++;
@@ -1962,8 +1933,7 @@ sub make_ecpg_check
 	}
 	writelog('ecpg-check', \@makeout);
 	print "======== make ecpg check logs ===========\n", @makeout
-	  if ($verbose > 1)
-	  or ($status && $show_error_log);
+	  if ($verbose > 1);
 
 	send_result('ECPG-Check', $status, \@makeout) if $status;
 	$steps_completed .= " ECPG-Check";
@@ -2284,7 +2254,8 @@ sub send_res
 	my $status = shift || 0;
 	my $log    = shift || [];
 	print "======== log passed to send_result ===========\n", @$log
-	  if ($verbose > 1);
+	  if ($verbose > 1)
+	  or ($status && $show_error_log);
 
 	unshift(@$log,
 		"Last file mtime in snapshot: ",
