@@ -504,7 +504,8 @@ my $waiter_pid;
 # cleanup handler for all exits
 END
 {
-	return if (defined($waiter_pid) && $waiter_pid == $$);
+	# only do this block in the main process
+	return unless ($main_pid == $$);
 
 	kill('TERM', $waiter_pid) if $waiter_pid;
 
