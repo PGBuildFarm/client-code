@@ -106,7 +106,7 @@ sub build
 	my @criticlog =
 	  run_log("cd pgsql && $perlcritic "
 		  . "--program-extensions .pl "
-		  . "--profile=src/tools/pgperlcritic/perlcriticrc "
+		  . "--profile=src/tools/perlcheck/perlcriticrc "
 		  . $files);
 	my $status = $? >> 8;
 
