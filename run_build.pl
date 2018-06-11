@@ -2491,6 +2491,7 @@ sub silent_terminate
 sub wait_timeout
 {
 	my $wait_time = shift;
+	$waiter_pid = $$;
 	foreach my $sig (qw(INT HUP QUIT))
 	{
 		$SIG{$sig} = 'DEFAULT';
