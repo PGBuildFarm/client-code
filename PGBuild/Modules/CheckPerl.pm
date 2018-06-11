@@ -107,38 +107,37 @@ sub build
 	  run_log("cd pgsql && $perlcritic "
 		  . "--program-extensions .pl "
 		  . "--profile=src/tools/perlcheck/perlcriticrc "
-		  . $files);
+			  . $files);
+	unshift(@criticlog,
+			"================== perlcritic output =============\n");
 	my $status = $? >> 8;
-
-=comment
-
-# not quite ready for this piece yet	
 
 	unless ($status)
 	{
 
-		my $p5lib = "PERL5LIB=" . join(':',
-									   qw(src/test/perl
-										  src/tools/msvc
-										  src/backend/catalog
-										  src/backend/utils/mb/Unicode
-										  src/bin/pg_rewind
-										  src/test/ssl
-										  src/tools/msvc/dummylib));
+		my @includes =  qw(src/test/perl
+					       src/tools/msvc
+						   src/backend/catalog
+						   src/backend/utils/mb/Unicode
+						   src/bin/pg_rewind
+						   src/test/ssl
+						   src/tools/msvc/dummylib);
+        do { s/^/-I/; } foreach @includes;
+		my $incl = join(' ',@includes);
 	
 		my @cwlog = run_log("cd pgsql && " .
-                            "$p5lib foreach f $files; do perl -cw \$f; done");
+                            "for f in $files; do perl $incl -cw \$f; done");
 		
 		
 		$status = $? >> 8;
 
-        push @criticlog,@cwlog;
+        push @criticlog,
+		  "================== perl -cw output =============\n",
+		  @cwlog;
 	}
 
-=cut
-
 	writelog("perl-check", \@criticlog);
-	print "======== perl-check log ===========\n", @criticlog if ($verbose > 1);
+	print @criticlog if ($verbose > 1);
 	send_result("perl-check", $status, \@criticlog) if $status;
 	return;
 }
