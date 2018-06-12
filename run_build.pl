@@ -958,10 +958,16 @@ if ((check_optional_step('find_typedefs') || $find_typedefs)
 my $saved_config = get_config_summary();
 
 # error out if there are non-empty valgrind logs
+my @vglines;
 foreach my $vglog (glob("$installdir/valgrind-*.log"))
 {
-	send_result('Valgrind', 1, [ file_lines($vglog) ]) if -s $vglog;
+	if (-s $vglog)
+	{
+		push @vglines, "================== $vglog ======================\n",
+		  file_lines($vglog);
+	}
 }
+send_result('Valgrind', 1, \@vglines ) if @vglines;
 
 rmtree("inst") unless $keepall;    # only keep failures
 rmtree("$pgsql") unless ($keepall || ($from_source && !$use_vpath));
