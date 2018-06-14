@@ -1371,7 +1371,7 @@ sub start_valgrind_db
 	my $vglog = "--log-file=$vglogfile";
 	my $pgcmd = "bin/postgres -D data-$locale";
 	system("valgrind $valgrind_options $supp $vglog $pgcmd");
-	return;
+	return $? >>8 ;
 }
 
 sub start_db
