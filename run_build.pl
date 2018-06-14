@@ -505,7 +505,7 @@ my $waiter_pid;
 END
 {
 	# only do this block in the main process
-	return unless ($main_pid == $$);
+	return unless (defined($main_pid) && $main_pid == $$);
 
 	kill('TERM', $waiter_pid) if $waiter_pid;
 
