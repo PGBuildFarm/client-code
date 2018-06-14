@@ -958,16 +958,14 @@ if ((check_optional_step('find_typedefs') || $find_typedefs)
 my $saved_config = get_config_summary();
 
 # error out if there are non-empty valgrind logs
-my @vglines;
-foreach my $vglog (glob("$installdir/valgrind-*.log"))
+my @vglines = run_log("grep -l VALGRINDERROR- ${st_prefix}$logdirname/*.log");
+do { $_ = basename $_; $_ =~ s/\.log$//; } foreach @vglines;
+if (@vglines)
 {
-	if (-s $vglog)
-	{
-		push @vglines, "================== $vglog ======================\n",
-		  file_lines($vglog);
-	}
+	unshift(@vglines,
+			"=== Valgrind errors were found at the following stage(s):\n");
+	send_result('Valgrind', 1, \@vglines );
 }
-send_result('Valgrind', 1, \@vglines ) if @vglines;
 
 rmtree("inst") unless $keepall;    # only keep failures
 rmtree("$pgsql") unless ($keepall || ($from_source && !$use_vpath));
@@ -1357,20 +1355,19 @@ sub start_valgrind_db
 	# run the postmaster under valgrind.
 	# subroutine is run in a child process.
 
+	print "starting under valgrind\n";
+
 	my $locale          = shift;
 	my $vgstarted_times = shift;
-	my $vglogfile       = "valgrind-$locale-$vgstarted_times.log";
 	chdir 'inst';
 	my $source = $from_source || '../pgsql';
 	open(STDOUT, ">", "logfile") || die "opening valgrind log";
 	open(STDERR, ">&STDOUT")    # allowed by perlcritic
 	  || die "duping STDOUT for valgrind";
-	unlink $vglogfile;
-	print "starting under valgrind\n";
 	my $supp  = "--suppressions=$source/src/tools/valgrind.supp";
-	my $vglog = "--log-file=$vglogfile";
+	my $markers = "--error-markers=VALGRINDERROR-BEGIN,VALGRINDERROR-END";
 	my $pgcmd = "bin/postgres -D data-$locale";
-	system("valgrind $valgrind_options $supp $vglog $pgcmd");
+	system("valgrind $valgrind_options $supp $markers $pgcmd");
 	return $? >>8 ;
 }
 
@@ -1471,6 +1468,24 @@ sub stop_db
 	system($cmd);
 	my $status = $? >> 8;
 	chdir($branch_root);
+	if ($use_valgrind)
+	{
+        # Valgrind might take a while to stop
+        # We need to wait for it. We need to see the absences of the
+		# pid and socket files before continuing.
+
+        my $pidfile = "$installdir/data-$locale/postmaster.pid";
+        my $socketfile = "$tmpdir/.s.PGSQL.$buildport";
+
+        foreach (1..600)
+        {
+            last unless ( -e $pidfile || -e $socketfile);
+            sleep 1;
+        }
+        die "still have $pidfile or $socketfile"
+          if -e $pidfile
+          || -e $socketfile;
+	}
 	my @ctlout = file_lines("$installdir/stoplog");
 
 	if (-s "$installdir/logfile")
@@ -2290,11 +2305,6 @@ sub send_res
 	else
 	{
 		$confsum = get_script_config_dump();
-	}
-
-	foreach my $vglog (glob("$installdir/valgrind-*.log"))
-	{
-		writelog(basename($vglog, ".log"), [ file_lines($vglog) ]) if -s $vglog;
 	}
 
 	my $savedata = Data::Dumper->Dump(
