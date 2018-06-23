@@ -32,7 +32,7 @@ our (@EXPORT, @ISA, @EXPORT_OK, %EXPORT_TAGS);
   get_stack_trace cleanlogs writelog
   set_last find_last step_wanted send_result
   file_lines file_contents check_make_log_warnings
-  find_in_path
+  find_in_path $log_file_marker
 );
 %EXPORT_TAGS = qw();
 @EXPORT_OK   = qw($st_prefix $logdirname $branch_root $steps_completed
@@ -43,8 +43,10 @@ our (@EXPORT, @ISA, @EXPORT_OK, %EXPORT_TAGS);
 my %module_hooks;
 use vars qw($core_file_glob $st_prefix $logdirname $branch_root
   $steps_completed %skip_steps %only_steps $tmpdir $temp_installs
-  $send_result_routine $devnull
+  $send_result_routine $devnull $log_file_marker
 );
+
+$log_file_marker = "======-=-======";
 
 # wrap the main program's send_res routine (formerly send_result)
 sub send_result
@@ -161,14 +163,14 @@ sub get_stack_trace
 	print $handle "bt\n";
 	close($handle);
 
-	my @trace;
+	my @trace = ("\n\n");
 
 	foreach my $core (@cores)
 	{
 		my @onetrace =
 		  run_log("gdb -x $cmdfile --batch $bindir/postgres $core");
 		push(@trace,
-			"\n\n================== stack trace: $core ==================\n",
+			"$log_file_marker stack trace: $core $log_file_marker\n",
 			@onetrace);
 	}
 
