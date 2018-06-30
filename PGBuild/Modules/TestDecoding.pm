@@ -84,6 +84,8 @@ sub check
          $self->{pgsql}/contrib/test_decoding/regression_output/*.diffs
          $self->{pgsql}/contrib/test_decoding/isolation_output/log/*.log
          $self->{pgsql}/contrib/test_decoding/isolation_output/*.diffs
+         $self->{pgsql}/contrib/test_decoding/output_iso/log/*.log
+         $self->{pgsql}/contrib/test_decoding/output_iso/*.diffs
          $self->{pgsql}/contrib/test_decoding/log/*.log
          $self->{pgsql}/contrib/test_decoding/*.diffs"
 	);
