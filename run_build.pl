@@ -1839,7 +1839,11 @@ sub run_misc_tests
 
 	print time_str(), "running make misc checks ...\n" if $verbose;
 
-	foreach my $test (qw(recovery subscription authentication))
+	my @extra_tap = ();
+	@extra_tap = split(/\s+/, $ENV{PG_TEST_EXTRA})
+	  if exists $ENV{PG_TEST_EXTRA};
+
+	foreach my $test (qw(recovery subscription authentication), @extra_tap)
 	{
 		next unless -d "$pgsql/src/test/$test/t";
 		run_tap_test("$pgsql/src/test/$test", $test, undef);

@@ -194,6 +194,9 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		# default is 120
 		# PGCTLTIMEOUT => '120',
 
+	    # run extra TAP tests if listed here
+	    # These are the ones omitted without the setting
+		# PG_TEST_EXTRA => "ssl ldap kerberos",
 	},
 
 	# env settings to pass to configure. These settings will only be seen by
