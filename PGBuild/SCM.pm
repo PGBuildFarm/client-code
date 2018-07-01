@@ -736,6 +736,9 @@ sub checkout
 			system(qq{ln -s "$head/$target/.git/$link" ".git/$link"});
 		}
 		copy("$head/$target/.git/HEAD", ".git/HEAD");
+		# run git fetch in case there are new branches the local repo
+		# doesn't yet know about
+		my @fetchlog = run_log('git fetch');
 
 		my @branches = `git branch`;
 		chomp @branches;
@@ -755,7 +758,7 @@ sub checkout
 
 		# Make sure the branch we just checked out is up to date.
 		my @pull_log = run_log("git pull");
-		push(@gitlog, @colog, @pull_log);
+		push(@gitlog, @fetchlog, @colog, @pull_log);
 
 		chdir "..";
 	}
