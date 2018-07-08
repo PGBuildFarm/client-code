@@ -959,12 +959,13 @@ my $saved_config = get_config_summary();
 
 # error out if there are non-empty valgrind logs
 my @vglines = run_log("grep -l VALGRINDERROR- ${st_prefix}$logdirname/*.log");
-do { $_ = basename $_; $_ =~ s/\.log$//; } foreach @vglines;
+do { $_ = basename $_; $_ =~ s/\.log$//; }
+  foreach @vglines;
 if (@vglines)
 {
 	unshift(@vglines,
-			"=== Valgrind errors were found at the following stage(s):\n");
-	send_result('Valgrind', 1, \@vglines );
+		"=== Valgrind errors were found at the following stage(s):\n");
+	send_result('Valgrind', 1, \@vglines);
 }
 
 rmtree("inst") unless $keepall;    # only keep failures
@@ -1364,11 +1365,11 @@ sub start_valgrind_db
 	open(STDOUT, ">", "logfile") || die "opening valgrind log";
 	open(STDERR, ">&STDOUT")    # allowed by perlcritic
 	  || die "duping STDOUT for valgrind";
-	my $supp  = "--suppressions=$source/src/tools/valgrind.supp";
+	my $supp    = "--suppressions=$source/src/tools/valgrind.supp";
 	my $markers = "--error-markers=VALGRINDERROR-BEGIN,VALGRINDERROR-END";
-	my $pgcmd = "bin/postgres -D data-$locale";
+	my $pgcmd   = "bin/postgres -D data-$locale";
 	system("valgrind $valgrind_options $supp $markers $pgcmd");
-	return $? >>8 ;
+	return $? >> 8;
 }
 
 sub start_db
@@ -1470,21 +1471,21 @@ sub stop_db
 	chdir($branch_root);
 	if ($use_valgrind)
 	{
-        # Valgrind might take a while to stop
-        # We need to wait for it. We need to see the absences of the
+		# Valgrind might take a while to stop
+		# We need to wait for it. We need to see the absences of the
 		# pid and socket files before continuing.
 
-        my $pidfile = "$installdir/data-$locale/postmaster.pid";
-        my $socketfile = "$tmpdir/.s.PGSQL.$buildport";
+		my $pidfile    = "$installdir/data-$locale/postmaster.pid";
+		my $socketfile = "$tmpdir/.s.PGSQL.$buildport";
 
-        foreach (1..600)
-        {
-            last unless ( -e $pidfile || -e $socketfile);
-            sleep 1;
-        }
-        die "still have $pidfile or $socketfile"
-          if -e $pidfile
-          || -e $socketfile;
+		foreach (1 .. 600)
+		{
+			last unless (-e $pidfile || -e $socketfile);
+			sleep 1;
+		}
+		die "still have $pidfile or $socketfile"
+		  if -e $pidfile
+		  || -e $socketfile;
 	}
 	my @ctlout = file_lines("$installdir/stoplog");
 

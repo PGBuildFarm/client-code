@@ -194,8 +194,8 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		# default is 120
 		# PGCTLTIMEOUT => '120',
 
-	    # run extra TAP tests if listed here
-	    # These are the ones omitted without the setting
+		# run extra TAP tests if listed here
+		# These are the ones omitted without the setting
 		# PG_TEST_EXTRA => "ssl ldap kerberos",
 	},
 
@@ -249,7 +249,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 			"log_statement = 'all'",
 			"fsync = off"
 		],
-		HEAD => [ 'force_parallel_mode = regress' ],
+		HEAD => ['force_parallel_mode = regress'],
 	},
 
 	optional_steps => {
