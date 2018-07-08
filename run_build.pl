@@ -79,6 +79,7 @@ BEGIN
 			(
 				     $k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|CXX|LD|LD_LIBRARY_PATH/
 				  || $k =~ /^(HOME|LOGNAME|USER|PATH|SHELL|LIBRAR|INCLUDE)$/
+				  || $k =~ /^BF_CONF_BRANCHES$/
 			)
 			? $v
 			: 'xxxxxx'

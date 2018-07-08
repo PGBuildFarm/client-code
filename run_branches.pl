@@ -94,11 +94,13 @@ my @branches;
 if (ref $PGBuild::conf{branches_to_build})
 {
 	@branches = @{ $PGBuild::conf{branches_to_build} };
+	$ENV{BF_CONF_BRANCHES} = join(',', @branches);
 }
 elsif ($PGBuild::conf{branches_to_build} =~
 	/^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
 {
 
+	$ENV{BF_CONF_BRANCHES} = $PGBuild::conf{branches_to_build};
 	my $latest = $2;
 
 	# Need to set the path here so we make sure we pick up the right perl.
