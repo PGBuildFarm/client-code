@@ -32,7 +32,7 @@ our (@EXPORT, @ISA, @EXPORT_OK, %EXPORT_TAGS);
   get_stack_trace cleanlogs writelog
   set_last find_last step_wanted send_result
   file_lines file_contents check_make_log_warnings
-  find_in_path $log_file_marker
+  find_in_path $log_file_marker set_last_stage get_last_stage
 );
 %EXPORT_TAGS = qw();
 @EXPORT_OK   = qw($st_prefix $logdirname $branch_root $steps_completed
@@ -263,6 +263,30 @@ sub set_last
 	close($handle);
 	return;
 }
+
+sub set_last_stage
+{
+	my $stage  = shift;
+	my $stname = $st_prefix . "last.stage";
+	my $handle;
+	open($handle, '>', $stname) or die "opening $stname: $!";
+	print $handle "$stage\n";
+	close($handle);
+	return;
+}
+
+sub get_last_stage
+{
+	my $stname = $st_prefix . "last.stage";
+	return unless -e $stname;
+	my $handle;
+	open($handle, '<', $stname) or die "opening $stname: $!";
+	my $stage = <$handle>;
+	close($handle);
+	chomp $stage;
+	return $stage;
+}
+
 
 sub step_wanted
 {

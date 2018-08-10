@@ -684,7 +684,13 @@ elsif (!$from_source)
 	$last_status       = find_last('status') || 0;
 	$last_run_snap     = find_last('run.snap');
 	$last_success_snap = find_last('success.snap');
-	$forcerun          = 1 unless (defined($last_run_snap));
+	my $last_stage = get_last_stage() || "";
+	if ($last_stage =~ /-Git|/ && $last_status < (time - (3 * 3600)))
+	{
+		# force a rerun 3 hours after a git failure
+		$forcerun = 1;
+	}
+	$forcerun = 1 unless (defined($last_run_snap));
 
 	# updated by find_changed to last mtime of any file in the repo
 	$current_snap = 0;
@@ -2275,8 +2281,9 @@ sub configure
 
 sub send_res
 {
-
 	my $stage = shift;
+
+	set_last_stage($stage);
 
 	my $ts     = $now  || time;
 	my $status = shift || 0;
