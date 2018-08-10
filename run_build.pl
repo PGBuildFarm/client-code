@@ -2269,7 +2269,7 @@ sub configure
 		# have already checked that the directory was git-clean. This stuff
 		# is not harmful but it can be confusing.
 		my $bfdir = basename $buildroot;
-		rmtree("$pgsql/$bfdir") if -d "$pgsql/bfdir";
+		rmtree("$pgsql/$bfdir") if -d "$pgsql/$bfdir";
 	}
 
 	$steps_completed .= " Configure";
