@@ -199,13 +199,21 @@ sub run_branch
 	my $branch = shift;
 	my @args = ($run_build, PGBuild::Options::standard_option_list(), $branch);
 
-	# Explicitly use perl from the path (and not this perl, so don't use $^X)
+	# On cygwin, explicitly use perl from the path (and not this perl,
+	# so don't use $^X)
 	# This script needs to run on Cygwin with non-cygwin perl if it's running
 	# in tandem with AS/MinGW perl, since Cygwin perl doesn't honor locks
-	# the samne way, and the global lock fails. But the build script needs
+	# the same way, and the global lock fails. But the build script needs
 	# to run with the native perl, even on Cygwin, which it picks up from
 	# the path. (Head exploding yet?).
-	system("perl", @args);
+	#
+	# So if the perl in the path is cygwin perl, we use that, otherwise we use
+	# this perl.
+
+	my $pathperlinfo = qx(perl -v 2>&1);
+	my $runperl = $pathperlinfo =~ /cygwin/ ? "perl" : $^X;
+
+	system($runperl, @args);
 	return;
 }
 
