@@ -11,7 +11,7 @@ See accompanying License file for license details
 
 use PGBuild::Options;
 use PGBuild::SCM;
-use PGBuild::Utils qw(:DEFAULT $steps_completed $temp_installs);
+use PGBuild::Utils qw(:DEFAULT $steps_completed);
 
 use File::Basename;
 
@@ -57,23 +57,24 @@ sub check
 
 	print time_str(), "checking test-decoding\n" if $verbose;
 
+	my $installdir = "$self->{buildroot}/$self->{branch}/inst";
+
+	my $temp_inst_ok = check_install_is_complete($self->{pgsql}, $installdir);
+
 	my $make = $self->{bfconf}->{make};
 
 	my @checklog;
 
 	if ($self->{bfconf}->{using_msvc})
 	{
-
+		#        $ENV{NO_TEMP_INSTALL} = $temp_inst_ok ? "1" : "0";
 		#        chdir "$self->{pgsql}/src/tools/msvc";
 		#        @checklog = `perl vcregress.pl upgradecheck 2>&1`;
 		#        chdir "$self->{buildroot}/$self->{pgbranch}";
 	}
 	else
 	{
-		my $instflags =
-		  $temp_installs >= 3
-		  ? "NO_TEMP_INSTALL=$temp_installs"
-		  : "";
+		my $instflags = $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
 		my $cmd =
 		  "cd $self->{pgsql}/contrib/test_decoding && $make $instflags check";
 		@checklog = run_log($cmd);

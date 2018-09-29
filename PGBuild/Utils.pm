@@ -19,7 +19,6 @@ use Config;
 use Fcntl qw(:seek);
 use File::Path;
 
-
 use vars qw($VERSION); $VERSION = 'REL_8';
 
 use Exporter ();
@@ -33,16 +32,16 @@ our (@EXPORT, @ISA, @EXPORT_OK, %EXPORT_TAGS);
   set_last find_last step_wanted send_result
   file_lines file_contents check_make_log_warnings
   find_in_path $log_file_marker set_last_stage get_last_stage
+  check_install_is_complete
 );
 %EXPORT_TAGS = qw();
 @EXPORT_OK   = qw($st_prefix $logdirname $branch_root $steps_completed
-  %skip_steps %only_steps $tmpdir $temp_installs $devnull
-  $send_result_routine
+  %skip_steps %only_steps $tmpdir $devnull $send_result_routine
 );
 
 my %module_hooks;
 use vars qw($core_file_glob $st_prefix $logdirname $branch_root
-  $steps_completed %skip_steps %only_steps $tmpdir $temp_installs
+  $steps_completed %skip_steps %only_steps $tmpdir
   $send_result_routine $devnull $log_file_marker
 );
 
@@ -314,6 +313,22 @@ sub find_in_path
 		return File::Spec->rel2abs($pathelem) if -f "$pathelem/$what";
 	}
 	return;
+}
+
+sub check_install_is_complete
+{
+	my $build_dir = shift;
+	my $install_dir = shift;
+	my $tmp_loc = "$build_dir/tmp_install/$install_dir";
+	my $bindir = "$tmp_loc/bin";
+	my $libdir = "$tmp_loc/lib/postgresql";
+
+	# these files should be present if we've temp_installed everything,
+	# and not if we haven't. The represent core, contrib and test_modules.
+	return ( (-d $tmp_loc) &&
+			 (-f "$bindir/postgres" || -f "$bindir/postgres.exe") &&
+			 (-f "$libdir/hstore.so" || -f "$libdir/hstore.dll") &&
+			 (-f "$libdir/test_parser.so" || -f "$libdir/test_parser.dll"));
 }
 
 1;

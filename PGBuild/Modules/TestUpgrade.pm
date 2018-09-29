@@ -14,7 +14,7 @@ package PGBuild::Modules::TestUpgrade;
 
 use PGBuild::Options;
 use PGBuild::SCM;
-use PGBuild::Utils qw(:DEFAULT $steps_completed $temp_installs);
+use PGBuild::Utils qw(:DEFAULT $steps_completed);
 
 use File::Basename;
 
@@ -79,6 +79,10 @@ sub check
 
 	print time_str(), "checking pg_upgrade\n" if $verbose;
 
+	my $installdir = "$self->{buildroot}/$self->{branch}/inst";
+
+	my $temp_inst_ok = check_install_is_complete($self->{pgsql}, $installdir);
+
 	my $make = $self->{bfconf}->{make};
 
 	local %ENV = %ENV;
@@ -91,6 +95,7 @@ sub check
 
 	if ($self->{bfconf}->{using_msvc})
 	{
+		$ENV{NO_TEMP_INSTALL} = $temp_inst_ok ? "1" : "0";
 		chdir "$self->{pgsql}/src/tools/msvc";
 		@checklog = run_log("perl vcregress.pl upgradecheck");
 		chdir "$self->{buildroot}/$self->{pgbranch}";
@@ -98,11 +103,8 @@ sub check
 	else
 	{
 		my $cmd;
-		my $instflags;
-		{
-			no warnings qw(once);
-			$instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
-		}
+		my $instflags = $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
+
 		if ($self->{pgbranch} eq 'HEAD' || $self->{pgbranch} ge 'REL9_5')
 		{
 			$cmd =

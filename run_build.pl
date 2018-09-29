@@ -92,7 +92,7 @@ use PGBuild::Options;
 use PGBuild::WebTxn;
 use PGBuild::Utils qw(:DEFAULT $st_prefix $logdirname $branch_root
   $steps_completed %skip_steps %only_steps $tmpdir
-  $temp_installs $devnull $send_result_routine);
+  $devnull $send_result_routine);
 
 $send_result_routine = \&send_res;
 
@@ -776,10 +776,6 @@ set_last('run.snap', $current_snap) unless $nostatus;
 
 my $started_times = 0;
 
-# counter for temp installs. if it gets high enough
-# (currently 3) we can set NO_TEMP_INSTALL.
-$temp_installs = 0;
-
 # each of these routines will call send_result, which calls exit,
 # on any error, so each step depends on success in the previous
 # steps.
@@ -1255,7 +1251,6 @@ sub make_contrib_install
 	print "======== make contrib install log ===========\n", @makeout
 	  if ($verbose > 1);
 	send_result('ContribInstall', $status, \@makeout) if $status;
-	$temp_installs++;
 	$steps_completed .= " ContribInstall";
 	return;
 }
@@ -1277,7 +1272,6 @@ sub make_testmodules_install
 	print "======== make testmodules install log ===========\n", @makeout
 	  if ($verbose > 1);
 	send_result('TestModulesInstall', $status, \@makeout) if $status;
-	$temp_installs++;
 	$steps_completed .= " TestModulesInstall";
 	return;
 }
@@ -1750,6 +1744,7 @@ sub run_tap_test
 		$ENV{PATH} = "$perlpathdir:$ENV{PATH}";
 	}
 
+	my $temp_inst_ok = check_install_is_complete($pgsql, $installdir);
 	my @makeout;
 
 	my $pflags = "PROVE_FLAGS=--timer";
@@ -1763,6 +1758,7 @@ sub run_tap_test
 
 	if ($using_msvc)
 	{
+		local $ENV{NO_TEMP_INSTALL} = $temp_inst_ok ? "1" : "0";
 		my $test = substr($dir, length("$pgsql/"));
 		chdir "$pgsql/src/tools/msvc";
 		@makeout = run_log("perl vcregress.pl taptest $pflags $test");
@@ -1770,7 +1766,7 @@ sub run_tap_test
 	}
 	else
 	{
-		my $instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
+		my $instflags = $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
 
 		@makeout =
 		  run_log("cd $dir && $make NO_LOCALE=1 $pflags $instflags $taptarget");
@@ -1920,12 +1916,6 @@ sub make_check
 	  if ($verbose > 1);
 
 	send_result('Check', $status, \@makeout) if $status;
-	$temp_installs++;
-	if ($using_msvc)
-	{
-		# MSVC installs everything, so we now have a complete temp install
-		$ENV{NO_TEMP_INSTALL} = "yes";
-	}
 	$steps_completed .= " Check";
 	return;
 }
@@ -1935,15 +1925,18 @@ sub make_ecpg_check
 	return unless step_wanted('ecpg-check');
 	my @makeout;
 	my $ecpg_dir = "$pgsql/src/interfaces/ecpg";
+	my $temp_inst_ok = check_install_is_complete($pgsql, $installdir);
 	if ($using_msvc)
 	{
+		local $ENV{NO_TEMP_INSTALL} = $temp_inst_ok ? "1" : "0";
 		chdir "$pgsql/src/tools/msvc";
 		@makeout = run_log("perl vcregress.pl ecpgcheck");
 		chdir $branch_root;
 	}
 	else
 	{
-		my $instflags = $temp_installs >= 3 ? "NO_TEMP_INSTALL=yes" : "";
+		my $instflags =  $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
+
 		@makeout =
 		  run_log("cd  $ecpg_dir && $make NO_LOCALE=1 $instflags check");
 	}
