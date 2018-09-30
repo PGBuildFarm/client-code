@@ -661,9 +661,11 @@ sub checkout
 			}
 		}
 
-		# do a checkout in case the work tree has been removed
-		# this is harmless if it hasn't
-		my @colog   = run_log("git checkout . ");
+		# do a checkout if the work tree has apparently been removed
+		# If not, don't overwrite anything the user has left there
+		my @colog = ();
+		@colog   = run_log("git checkout . ")
+		  unless (-d "src" && -d "doc" && -f "configure");
 		my @gitstat = `git status --porcelain`;    # too trivial for run_log
 		# make sure it's clean before we try to update it
 		if (@gitstat)
