@@ -570,6 +570,9 @@ sub checkout
 
 	my $lockfile;
 
+	# name of the remote branch corresponding to this branch
+	my $rbranch = $branch eq 'HEAD' ? 'master' : $branch;
+
 	if (   $self->{use_workdirs}
 		&& !defined($self->{reference})
 		&& $^O ne "MSWin32"
@@ -661,7 +664,19 @@ sub checkout
 		# do a checkout in case the work tree has been removed
 		# this is harmless if it hasn't
 		my @colog   = run_log("git checkout . ");
-		my @pulllog = run_log("git pull");
+		my @gitstat = `git status --porcelain`;    # too trivial for run_log
+		# make sure it's clean before we try to update it
+		if (@gitstat)
+		{
+			print "Repo is not clean:\n", @gitstat
+			  if ($verbose);
+			chdir '..';
+			push(@gitlog, "===========", @gitstat);
+			send_result("$target-Git-Dirty", 99, \@gitlog)
+		}
+		# we do this instead of 'git pull' in case the upstream repo
+		# has been rebased
+		my @pulllog = run_log("git fetch && git reset --hard origin/$rbranch");
 		push(@gitlog, @colog, @pulllog);
 		chdir '..';
 
@@ -781,9 +796,6 @@ sub checkout
 		{
 			chdir $target;
 
-			# make sure we don't name the new branch HEAD
-			# also, safer to checkout origin/master than origin/HEAD, I think
-			my $rbranch = $branch eq 'HEAD' ? 'master' : $branch;
 			my @colog =
 			  run_log("git checkout -b bf_$branch --track origin/$rbranch");
 			push(@gitlog, @colog);
