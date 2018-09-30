@@ -48,7 +48,7 @@ sub setup
 	my $conf      = shift;    # ref to the whole config object
 	my $pgsql     = shift;    # postgres build dir
 
-	return unless step_wanted("$MODULE-build");
+	# return unless step_wanted("$MODULE-build");
 
 	# could even set up several of these (e.g. for different branches)
 	my $self = {
