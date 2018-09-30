@@ -852,7 +852,8 @@ foreach my $locale (@locales)
 
 		make_install_check($locale);
 
-		process_module_hooks('installcheck', $locale);
+		process_module_hooks('installcheck', $locale)
+		  if step_wanted('install-check');
 
 		if (   -d "$pgsql/src/test/isolation"
 			&& $locale eq 'C'
