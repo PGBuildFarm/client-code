@@ -57,7 +57,7 @@ sub check
 
 	print time_str(), "checking test-decoding\n" if $verbose;
 
-	my $installdir = "$self->{buildroot}/$self->{branch}/inst";
+	my $installdir = "$self->{buildroot}/$self->{pgbranch}/inst";
 
 	my $temp_inst_ok = check_install_is_complete($self->{pgsql}, $installdir);
 
