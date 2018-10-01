@@ -665,7 +665,7 @@ sub checkout
 		# If not, don't overwrite anything the user has left there
 		my @colog = ();
 		@colog   = run_log("git checkout . ")
-		  unless (grep {$_ ne ".git"} glob(".[a-z]* "));
+		  unless (grep {$_ ne ".git"} glob(".[a-z]* *"));
 		my @gitstat = `git status --porcelain`;    # too trivial for run_log
 		# make sure it's clean before we try to update it
 		if (@gitstat)
