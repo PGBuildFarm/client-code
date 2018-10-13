@@ -28,7 +28,8 @@ ALLFILES = $(ALLPERLFILES) $(OTHERFILES)
 
 CREL := $(if $(REL),$(strip $(subst .,_, $(REL))),YOU_NEED_A_RELEASE)
 
-.PHONY: tag
+.PHONY: tag release copyright syncheck tidy critic clean show perlcheck
+
 tag:
 	@test -n "$(REL)" || (echo Missing REL && exit 1)
 	sed -i -e "s/VERSION = '[^']*';/VERSION = 'REL_$(REL)';/" $(ALLFILES)
@@ -36,23 +37,25 @@ tag:
 	git tag -m 'Release $(REL)' REL_$(CREL)
 	@echo Now do: git push --tags origin master
 
-.PHONY: release
 release:
 	@test -n "$(REL)" || (echo Missing REL && exit 1)
 	@echo REL = $(CREL)
 	tar -z --xform="s,^,build-farm-$(REL)/,S" $(RELEASE_FILES) -cf releases/build-farm-$(CREL).tgz
 
+
 copyright:
 	./make_copyright.sh
-
-syncheck:
-	for f in $(ALLPERLFILES) ; do perl -cw $${f}; done;
 
 tidy:
 	perltidy $(ALLPERLFILES)
 
+syncheck:
+	for f in $(ALLPERLFILES) ; do perl -cw $${f}; done;
+
 critic:
 	perlcritic -3 --theme core $(ALLPERLFILES)
+
+perlcheck: syncheck critic
 
 clean:
 	find . "(" -name '*.bak' -o -name '*.orig' -o -name '*~' ")" -type f -exec rm -f {} \;
