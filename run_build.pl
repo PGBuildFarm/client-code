@@ -177,15 +177,35 @@ my (
 	$core_file_glob,  $ccache_failure_remove,
 	$wait_timeout,    $use_accache,
 	$use_valgrind,    $valgrind_options,
-	$use_installcheck_parallel
+	$use_installcheck_parallel,
+	$max_load_avg
   )
   = @PGBuild::conf{
 	qw(build_root target animal aux_path trigger_exclude
 	  trigger_include secret keep_error_builds force_every make optional_steps
 	  use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob
 	  ccache_failure_remove wait_timeout use_accache
-	  use_valgrind valgrind_options use_installcheck_parallel)
-  };
+	  use_valgrind valgrind_options use_installcheck_parallel max_load_avg)
+};
+
+if ($max_load_avg)
+{
+	eval { require Unix::Uptime; };
+	if (!$@)
+	{
+		my ($load1, $load5, $load15) = Unix::Uptime->load();
+		if ($load1 > $max_load_avg || $load5 > $max_load_avg)
+		{
+			print "Load average is too high ($load1, $load5, $load15) ... exiting\n";
+			exit 0;
+		}
+	}
+	else
+	{
+		print STDERR "could not determine load average - module not available ... exiting\n";
+		exit 1;
+	}
+}
 
 # default use_accache to on
 $use_accache = 1 unless exists $PGBuild::conf{use_accache};
