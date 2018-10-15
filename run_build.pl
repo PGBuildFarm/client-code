@@ -178,14 +178,15 @@ my (
 	$wait_timeout,    $use_accache,
 	$use_valgrind,    $valgrind_options,
 	$use_installcheck_parallel,
-	$max_load_avg
+	$max_load_avg,    $archive_report
   )
   = @PGBuild::conf{
 	qw(build_root target animal aux_path trigger_exclude
 	  trigger_include secret keep_error_builds force_every make optional_steps
 	  use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob
 	  ccache_failure_remove wait_timeout use_accache
-	  use_valgrind valgrind_options use_installcheck_parallel max_load_avg)
+	  use_valgrind valgrind_options use_installcheck_parallel max_load_avg
+	  archive_report)
 };
 
 if ($max_load_avg)
@@ -2290,6 +2291,23 @@ sub configure
 	return;
 }
 
+sub archive_report
+{
+	return unless $archive_report > 0;
+	my $report = shift;
+	my $dest= "$buildroot/archive/$animal/$branch";
+	mkpath $dest;
+	my $fname = basename $report;
+	my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) =
+	  localtime(time);
+	my $newname = sprintf("%s.%.4d%.2d%.2d:%.2d%.2d%.2d",
+						  $fname, $year+1900, $mon + 1, $mday,
+						  $hour, $min, $sec);
+	copy $report, "$dest/$newname";
+	# XXX TODO compress, limit generations.
+	return;
+}
+
 # a reference to this subroutine is stored in the Utils module and it is called
 # everywhere as send_result(...)
 
@@ -2355,6 +2373,8 @@ sub send_res
 	open($txdhandle, ">", "$txfname") || die "opening $txfname: $!";
 	print $txdhandle $savedata;
 	close($txdhandle);
+
+	archive_report($txfname);
 
 	if ($nosend || $stage eq 'CVS' || $stage eq 'CVS-status')
 	{
