@@ -547,6 +547,49 @@ sub log_id
 	return;
 }
 
+# exclude Windows for now - need to make sure how to do symlinks
+# portably there
+# early versions don't have mklink
+
+# memo: test if symlinks are available:
+# msys: `cmd //c "mklink 2>&1"`  produces 'Creates a symbolic link'
+# native windows: just use `mklink 2>&1` for same test
+# use "mklink /d newname oldname", omit /d if it's not a directory
+# need to use full paths - mklink isn't very smart
+
+sub have_symlink
+{
+	return 1 unless $^O eq 'msys' || $^O eq 'MSWin32';
+	## no critic (ProhibitUnreachableCode)
+	return 0;  # until we get windows symlinks working
+	my $cmd = $^O eq 'msys' ? 'cmd //c "mklink 2>&1"' : 'mklink 2>&1';
+	my $out = `$cmd`;
+	return 1 if $out =~ /Creates a symbolic link/;
+	return 0;
+}
+
+sub make_symlink
+{
+	# note: unix and windows do link/target in the opposite order
+	my $target = shift;
+	my $link = shift;
+	my $dirswitch = -d $target ? "/d" : "";
+	if ($^O eq 'msys')
+	{
+		system("cmd //c 'mklink $dirswitch $link $target'")
+	}
+	elsif ($0 eq 'MSWin32')
+	{
+		system("mklink $dirswitch $link $target")
+	}
+	else
+	{
+		system(qq{ln -s $target $link});
+	}
+	return;
+
+}
+
 sub checkout
 {
 
@@ -697,14 +740,8 @@ sub checkout
 	elsif ($branch ne 'HEAD'
 		&& $self->{use_workdirs}
 		&& !defined($self->{reference})
-		&& $^O ne "MSWin32"
-		&& $^O ne "msys")
+		&& have_symlink())
 	{
-
-		# exclude Windows for now - need to make sure how to do symlinks
-		# portably there
-		# early versions don't have mklink
-
 		# not sure how this plays with --reference, so for now I'm excluding
 		# that, too
 		# currently the following 4 members use --reference:
@@ -750,7 +787,7 @@ sub checkout
 		  packed-refs remotes rr-cache svn);
 		foreach my $link (@links)
 		{
-			system(qq{ln -s "$head/$target/.git/$link" ".git/$link"});
+			make_symlink("$head/$target/.git/$link",".git/$link");
 		}
 		copy("$head/$target/.git/HEAD", ".git/HEAD");
 
