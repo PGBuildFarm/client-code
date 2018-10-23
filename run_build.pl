@@ -2293,7 +2293,7 @@ sub configure
 
 sub archive_report
 {
-	return unless $archive_report > 0;
+	return unless defined($archive_report) && $archive_report > 0;
 	my $report = shift;
 	my $dest= "$buildroot/archive/$animal/$branch";
 	mkpath $dest;
@@ -2304,7 +2304,12 @@ sub archive_report
 						  $fname, $year+1900, $mon + 1, $mday,
 						  $hour, $min, $sec);
 	copy $report, "$dest/$newname";
-	# XXX TODO compress, limit generations.
+	my @reports = sort glob("$dest/web-txn.data.*");
+	if (@reports > $archive_report)
+	{
+		splice @reports, -$archive_report;
+		unlink @reports;
+	}
 	return;
 }
 
