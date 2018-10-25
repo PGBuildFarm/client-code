@@ -61,6 +61,11 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	tar_log_cmd => undef, # default is "tar -z -cf runlogs.tgz *.log"
 	                      # replacement must have the same effect
 
+	# Only works if the Unix::Uptime module is available
+	# inhibits a run if > 0 and the load average in last 1 minute or 5 minutes
+	# has been greater than this
+	max_load_avg = undef,
+
 	# max time in seconds allowed for a single branch run
 	# undef/0 means unlimited
 	wait_timeout => undef,
