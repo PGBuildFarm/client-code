@@ -706,7 +706,7 @@ elsif (!$from_source)
 	$last_run_snap     = find_last('run.snap');
 	$last_success_snap = find_last('success.snap');
 	my $last_stage = get_last_stage() || "";
-	if ($last_stage =~ /-Git|/ && $last_status < (time - (3 * 3600)))
+	if ($last_stage =~ /-Git|Git-mirror/ && $last_status < (time - (3 * 3600)))
 	{
 		# force a rerun 3 hours after a git failure
 		$forcerun = 1;
