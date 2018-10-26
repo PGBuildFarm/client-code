@@ -53,11 +53,13 @@ usage()
   if $help;
 
 usage("must specify notes")
-  unless (defined($sys_notes));
+  unless ($del || defined($sys_notes));
 
 #
 # process config file
 #
+
+our ($branch) = 'HEAD'; # needed for config file, irrelevant for this purpose
 require $buildconf;
 
 my ($target, $animal, $secret) = @PGBuild::conf{qw(target animal secret)};
