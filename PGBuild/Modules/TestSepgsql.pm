@@ -250,7 +250,7 @@ sub cleanup
 
 	print time_str(), "cleaning up ", __PACKAGE__, "\n" if $verbose > 1;
 
-	system("sudo semodule -r sepgsql-regtest");
+	system("sudo semodule -r sepgsql-regtest >/dev/null ");
 	return;
 }
 
