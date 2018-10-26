@@ -7,6 +7,7 @@ use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils;
 
+use File::Path;
 use Fcntl qw(:seek);
 
 use strict;
@@ -137,7 +138,7 @@ sub cleanup
 
 	print time_str(), "cleaning up $MODULE\n" if $verbose > 1;
 
-	system("rm -rf $self->{where}");
+	rmtree($self->{where});
 	return;
 }
 
