@@ -21,9 +21,10 @@ use vars qw(%conf);
 
 my $branch;
 {
-	no warnings qw(once);
+	no warnings 'once';
 	$branch = $main::branch;
 }
+
 
 # useful for making settings relative to the config file location
 # all the clients should have used these two standard packages

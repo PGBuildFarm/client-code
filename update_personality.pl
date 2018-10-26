@@ -11,9 +11,6 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
-# suppress spurious warning about conf structure
-no warnings qw(once);
-
 use vars qw($VERSION); $VERSION = 'REL_8';
 
 use LWP;

@@ -92,10 +92,8 @@ sub build
 	  if ($verbose > 1);
 	send_result("sepgsql-policy-build", $status, \@log)
 	  if $status;
-	{
-		no warnings 'once';
-		$steps_completed .= " sepgsql-policy-build";
-	}
+	$steps_completed .= " sepgsql-policy-build";
+
 	return;
 }
 
@@ -127,10 +125,8 @@ sub install
 	  if ($verbose > 1);
 	send_result("sepgsql-policy-install", $status, \@log)
 	  if $status;
-	{
-		no warnings 'once';
-		$steps_completed .= " sepgsql-policy-install";
-	}
+	$steps_completed .= " sepgsql-policy-install";
+
 	return;
 }
 
@@ -235,10 +231,8 @@ sub locale_end
 		send_result("test-sepgsql", $status, \@log);
 	}
 
-	{
-		no warnings 'once';
-		$steps_completed .= " sepgsql-test";
-	}
+	$steps_completed .= " sepgsql-test";
+
 	return;
 }
 

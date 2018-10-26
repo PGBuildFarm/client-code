@@ -114,10 +114,8 @@ sub installcheck
 	  if ($verbose > 1);
 	send_result("InstallCheck-ICU-$locale", $status, \@checklog)
 	  if $status;
-	{
-		no warnings 'once';
-		$steps_completed .= " InstallCheck-ICU-$locale";
-	}
+	$steps_completed .= " InstallCheck-ICU-$locale";
+
 	return;
 }
 

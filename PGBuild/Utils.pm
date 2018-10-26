@@ -59,8 +59,6 @@ sub send_result
 
 sub run_log
 {
-	no warnings qw(once);
-
 	my $command = shift;
 	my $filedir = "$branch_root/$st_prefix$logdirname";
 	mkpath($filedir);
