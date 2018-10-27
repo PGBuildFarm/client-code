@@ -28,6 +28,7 @@ my $orig_dir = getcwd();
 unshift @INC, $orig_dir;
 
 use PGBuild::Options;
+use PGBuild::Utils;
 
 # older msys is ging to use a different perl to run LWP, so we can't absolutely
 # require this module there
@@ -45,10 +46,11 @@ sub branch_last_sort;
 my $run_build;
 ($run_build = $0) =~ s/run_branches/run_build/;
 
-my ($run_all, $run_one);
+my ($run_all, $run_one, $run_parallel);
 my %extra_options = (
-	'run-all' => \$run_all,
-	'run-one' => \$run_one,
+	'run-all'      => \$run_all,
+	'run-one'      => \$run_one,
+	'run-parallel' => \$run_parallel,
 );
 
 # process the command line
@@ -58,11 +60,13 @@ PGBuild::Options::fetch_options(%extra_options);
 die("$0: non-option arguments not permitted")
   if @ARGV;
 
-die "only one of --run-all and --run-one permitted"
-  if ($run_all && $run_one);
+die "only one of --run-all, --run-one and --run_parallel permitted"
+  if ( ($run_all && $run_one)
+	|| ($run_all && $run_parallel)
+	|| ($run_one && $run_parallel));
 
-die "need one of --run-all and --run-one"
-  unless ($run_all || $run_one);
+die "need one of --run-all, --run-one, --run_parallel "
+  unless ($run_all || $run_one || $run_parallel);
 
 # set up a "branch" variable for processing the config file
 use vars qw($branch);
@@ -75,6 +79,8 @@ require $buildconf;
 
 die "from-source cannot be used with run_branches,pl"
   if ($from_source || $from_source_clean);
+
+my $animal = $PGBuild::conf{animal};
 
 PGBuild::Options::fixup_conf(\%PGBuild::conf, \@config_set);
 
@@ -160,7 +166,11 @@ if (!flock($lockfile, LOCK_EX | LOCK_NB))
 	exit(0);
 }
 
-if ($run_all)
+if ($run_parallel)
+{
+	run_parallel(@branches);
+}
+elsif ($run_all)
 {
 	foreach my $brnch (@branches)
 	{
@@ -190,6 +200,102 @@ exit 0;
 
 ##########################################################
 
+sub check_max
+{
+	my $plockdir = shift;
+	my $max      = shift;
+	my $running  = 0;
+
+	# grab the global parallel lock. Wait if necessary
+	# only keep this for a very short time, just enough
+	# to prevent a race condition
+	open(my $glock, ">", "$plockdir/parallel_global_lock.LCK") || die "$!";
+	if (!flock($glock, LOCK_EX))
+	{
+		print STDERR "Unable to get global parallel lock. Exiting.\n";
+		exit(1);
+	}
+
+	# get a list of the running lock files, and check if they are
+	# still locked. remove any that aren't.
+	my @running_locks = glob("$plockdir/*.running.LCK");
+	foreach my $rlock (@running_locks)
+	{
+		open(my $frlock, ">", $rlock) || die "$!";
+		if (!flock($frlock, LOCK_EX | LOCK_NB))
+		{
+			# getting the lock failed, so it's still running
+			$running++;
+			close($frlock);
+		}
+		else
+		{
+			# we got the lock, so the process must have exited.
+			close($frlock);
+			unlink($rlock);
+		}
+	}
+
+	# release the global lock
+	close($glock);
+
+	return $running < $max;
+}
+
+sub parallel_child
+{
+	my $plockdir = shift;
+	my $branch   = shift;
+
+	# grab the global parallel lock. Wait if necessary
+	# only keep this for a very short time, just enough
+	# to prevent a race condition
+	open(my $glock, ">", "$plockdir/parallel_global_lock.LCK") || die "$!";
+	if (!flock($glock, LOCK_EX))
+	{
+		print STDERR "Unable to get global parallel lock. Exiting.\n";
+		exit(1);
+	}
+
+	# the running lock will be released when the child exits;
+	open(my $plock, ">", "$plockdir/$animal.$branch.running.LCK")
+	  || die "opening parallel running lock for $animal:$branch";
+	if (!flock($plock, LOCK_EX | LOCK_NB))
+	{
+		print STDERR "Unable to get parallel running lock. Exiting.\n";
+		exit(1);
+	}
+
+	# release the global lock
+	close($glock);
+	return run_branch($branch);
+}
+
+
+sub run_parallel
+{
+	my @pbranches = @_;
+	my $plockdir  = $PGBuild::conf{global}->{parallel_lock_dir}
+	  || $global_lock_dir;
+	my $stagger_time = $PGBuild::conf{global}->{parallel_stagger};
+	$stagger_time ||= 60;
+
+	# things could look weird unless the animals all agree on this number
+	my $max_parallel = $PGBuild::conf{global}->{max_parallel};
+	$max_parallel ||= 10;
+	while (@pbranches)
+	{
+		if (check_max($plockdir, $max_parallel))
+		{
+			my $branch = shift @pbranches;
+			spawn(\&parallel_child, $plockdir, $branch);
+		}
+		sleep $stagger_time if @pbranches;
+	}
+	sleep 1 while (wait != -1);
+	return;
+}
+
 sub run_branch
 {
 	my $branch = shift;
@@ -210,7 +316,7 @@ sub run_branch
 	my $runperl = $pathperlinfo =~ /cygwin/ ? "perl" : $^X;
 
 	system($runperl, @args);
-	return;
+	return $?;
 }
 
 sub branch_last_sort
