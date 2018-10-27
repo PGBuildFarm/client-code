@@ -278,23 +278,20 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 
 	modules => [qw(TestUpgrade TestDecoding)],
 
-	#
+	# settings used by run_branches.pl
+	global => {
+		branches_to_build => 'ALL',
+
+		# or 'HEAD_PLUS_LATEST' or 'HEAD_PLUS_LATEST2'
+		# or [qw( HEAD RELx_y_STABLE etc )]
+
+		# set this if running multiple animals to have them coordinated
+		# default is this animal's buildroot.
+		global_lock_dir => undef,
+	},
+
 );
 
-# settings used by run_branches.pl
-if ($branch eq 'global')
-{
-
-	$conf{branches_to_build} = 'ALL';
-
-	# or 'HEAD_PLUS_LATEST' or 'HEAD_PLUS_LATEST2'
-	# or [qw( HEAD RELx_y_STABLE etc )]
-
-	# set this if you are running multiple animals and want them coordinated
-
-	# $conf{global_lock_dir} = '/path/to/lockdir';
-
-}
 
 # MSVC setup
 

@@ -78,29 +78,25 @@ die "from-source cannot be used with run_branches,pl"
 
 PGBuild::Options::fixup_conf(\%PGBuild::conf, \@config_set);
 
-unless (
-	(
-		ref $PGBuild::conf{branches_to_build} eq 'ARRAY'
-		&& @{ $PGBuild::conf{branches_to_build} }
-	)
-	|| $PGBuild::conf{branches_to_build} =~
-	/^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST\d)$/
-  )
+my $branches_to_build = $PGBuild::conf{global}->{branches_to_build}
+  || $PGBuild::conf{branches_to_build};    # legacy support
+
+unless ((ref $branches_to_build eq 'ARRAY' && @{$branches_to_build})
+	|| $branches_to_build =~ /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST\d)$/)
 {
 	die "no branches_to_build specified in $buildconf";
 }
 
 my @branches;
-if (ref $PGBuild::conf{branches_to_build})
+if (ref $branches_to_build)
 {
-	@branches = @{ $PGBuild::conf{branches_to_build} };
+	@branches = @{$branches_to_build};
 	$ENV{BF_CONF_BRANCHES} = join(',', @branches);
 }
-elsif ($PGBuild::conf{branches_to_build} =~
-	/^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
+elsif ($branches_to_build =~ /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
 {
 
-	$ENV{BF_CONF_BRANCHES} = $PGBuild::conf{branches_to_build};
+	$ENV{BF_CONF_BRANCHES} = $branches_to_build;
 	my $latest = $2;
 
 	# Need to set the path here so we make sure we pick up the right perl.
@@ -139,9 +135,9 @@ elsif ($PGBuild::conf{branches_to_build} =~
 
 @branches = apply_throttle(@branches);
 
-my $global_lock_dir =
-     $PGBuild::conf{global_lock_dir}
-  || $PGBuild::conf{build_root}
+my $global_lock_dir = $PGBuild::conf{global}->{global_lock_dir}
+  || $PGBuild::conf{global_lock_dir}    # legacy support
+  || $PGBuild::conf{build_root}         # default
   || '';
 
 unless ($global_lock_dir && -d $global_lock_dir)
