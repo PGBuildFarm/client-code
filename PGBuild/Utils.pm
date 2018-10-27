@@ -36,16 +36,20 @@ our (@EXPORT, @ISA, @EXPORT_OK, %EXPORT_TAGS);
 );
 %EXPORT_TAGS = qw();
 @EXPORT_OK   = qw($st_prefix $logdirname $branch_root $steps_completed
-  %skip_steps %only_steps $tmpdir $devnull $send_result_routine
+  %skip_steps %only_steps $tmpdir $devnull $send_result_routine $ts_prefix
 );
 
 my %module_hooks;
 use vars qw($core_file_glob $st_prefix $logdirname $branch_root
   $steps_completed %skip_steps %only_steps $tmpdir
-  $send_result_routine $devnull $log_file_marker
+  $send_result_routine $devnull $log_file_marker $ts_prefix
 );
 
-$log_file_marker = "======-=-======";
+BEGIN
+{
+	$log_file_marker = "======-=-======";
+	$ts_prefix = "";
+}
 
 # wrap the main program's send_res routine (formerly send_result)
 sub send_result
@@ -112,7 +116,7 @@ sub time_str
 {
 	my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) =
 	  localtime(time);
-	return sprintf("[%.2d:%.2d:%.2d] ", $hour, $min, $sec);
+	return sprintf("%s[%.2d:%.2d:%.2d] ", $ts_prefix, $hour, $min, $sec);
 }
 
 sub register_module_hooks

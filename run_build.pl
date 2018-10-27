@@ -92,7 +92,7 @@ use PGBuild::Options;
 use PGBuild::WebTxn;
 use PGBuild::Utils qw(:DEFAULT $st_prefix $logdirname $branch_root
   $steps_completed %skip_steps %only_steps $tmpdir
-  $devnull $send_result_routine);
+  $devnull $send_result_routine $ts_prefix);
 
 $send_result_routine = \&send_res;
 
@@ -189,6 +189,8 @@ my (
 	  archive_report)
 };
 
+$ts_prefix = "$animal:$branch";
+
 if ($max_load_avg)
 {
 	eval { require Unix::Uptime; };
@@ -197,13 +199,15 @@ if ($max_load_avg)
 		my ($load1, $load5, $load15) = Unix::Uptime->load();
 		if ($load1 > $max_load_avg || $load5 > $max_load_avg)
 		{
-			print "Load average is too high ($load1, $load5, $load15) ... exiting\n";
+			print time_str(),
+			  "Load average is too high ($load1, $load5, $load15)... exiting\n";
 			exit 0;
 		}
 	}
 	else
 	{
-		print STDERR "could not determine load average - module not available ... exiting\n";
+		print STDERR time_str(),
+		  "could not determine load average - not available ... exiting\n";
 		exit 1;
 	}
 }
