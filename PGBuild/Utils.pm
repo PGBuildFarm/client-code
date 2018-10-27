@@ -32,7 +32,7 @@ our (@EXPORT, @ISA, @EXPORT_OK, %EXPORT_TAGS);
   set_last find_last step_wanted send_result
   file_lines file_contents check_make_log_warnings
   find_in_path $log_file_marker set_last_stage get_last_stage
-  check_install_is_complete
+  check_install_is_complete spawn
 );
 %EXPORT_TAGS = qw();
 @EXPORT_OK   = qw($st_prefix $logdirname $branch_root $steps_completed
@@ -327,6 +327,19 @@ sub check_install_is_complete
 			 (-f "$bindir/postgres" || -f "$bindir/postgres.exe") &&
 			 (-f "$libdir/hstore.so" || -f "$libdir/hstore.dll") &&
 			 (-f "$libdir/test_parser.so" || -f "$libdir/test_parser.dll"));
+}
+
+sub spawn
+{
+	my $coderef = shift;
+	my $pid     = fork;
+	if (defined($pid) && $pid == 0)
+	{
+		# call this rather than plain exit so we don't run the
+		# END handler. see `perldoc -f exit`
+		POSIX::_exit(&$coderef(@_));
+	}
+	return $pid;
 }
 
 1;

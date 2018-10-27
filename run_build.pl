@@ -2570,16 +2570,3 @@ sub wait_timeout
 	kill 'TERM', $main_pid;
 	return;
 }
-
-sub spawn
-{
-	my $coderef = shift;
-	my $pid     = fork;
-	if (defined($pid) && $pid == 0)
-	{
-		# call this rather than plain exit so we don't run the
-		# END handler. see `perldoc -f exit`
-		POSIX::_exit(&$coderef(@_));
-	}
-	return $pid;
-}
