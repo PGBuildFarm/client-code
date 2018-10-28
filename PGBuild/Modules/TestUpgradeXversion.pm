@@ -22,6 +22,7 @@ use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils qw(:DEFAULT $tmpdir $steps_completed);
 
+use Fcntl qw(:flock :seek);
 use File::Copy;
 use File::Path;
 use File::Basename;
@@ -63,6 +64,33 @@ sub setup
 	bless($self, $class);
 
 	register_module_hooks($self, $hooks);
+	return;
+}
+
+sub get_lock
+{
+	my $self = shift;
+	my $branch = shift;
+	my $exclusive = shift;
+	my $lockdir = $self->{upgrade_install_root};
+	my $lockfile = "$lockdir/$branch.upgrade.LCK";
+	open(my $ulock, ">", $lockfile)
+	  || die "opening upgrade lock file";
+	# wait if necessary for the lock
+	if (!flock($ulock, $exclusive ? LOCK_EX : LOCK_SH))
+	{
+		print STDERR "Unable to get upgrade lock. Exiting.\n";
+		exit(1);
+	}
+	$self->{lockfile} = $ulock;
+	return;
+}
+
+sub release_lock
+{
+	my $self = shift;
+	close($self->{lockfile});
+	delete $self->{lockfile};
 	return;
 }
 
@@ -435,7 +463,6 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	{
 		return;
 	}
-
 }
 
 sub installcheck
@@ -470,10 +497,15 @@ sub installcheck
 	my $upgrade_loc          = "$upgrade_install_root/$this_branch";
 	my $installdir           = "$upgrade_loc/inst";
 
+	# for saving we need an exclusive lock.
+	get_lock($self, $this_branch, 1);
+
 	my $status =
 	  save_for_testing($self, $save_env, $this_branch, $upgrade_install_root)
 	  ? 0
 	  : 1;
+
+	release_lock($self);
 
 	my @saveout;
 
@@ -504,15 +536,23 @@ sub installcheck
 	{
 		my $oversion = basename $other_branch;
 
-		next unless -d $other_branch;
+		next unless -d $other_branch; # will skip lockfiles
 
 		next
 		  unless (($this_branch eq 'HEAD')
 			|| ($oversion ne 'HEAD' && $oversion le $this_branch));
 
+		# for testing a shared lock should do, it just needs to be enough to
+		# prevent the save phase from happening under us.
+		# however we need to fix the upgrade tests to remove shared data dir
+		# before we can do that. So get an exclusive lock for now.
+		get_lock($self, $oversion, 1);
+
 		$status =
 		  test_upgrade($self, $save_env, $this_branch, $upgrade_install_root,
 			$dport, $install_loc, $other_branch) ? 0 : 1;
+
+		release_lock($self);
 
 		rmtree("$installdir/$oversion-upgrade");
 
