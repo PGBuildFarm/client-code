@@ -133,6 +133,34 @@ sub install
 	return;
 }
 
+sub get_lock
+{
+	my $self = shift;
+	my $exclusive = shift;
+	my $lockdir = $self->{buildroot};
+	# note no branch involved here. we want all the branches to use
+	# the same lock.
+	my $lockfile = "$lockdir/redis-installcheck.LCK";
+	open(my $rlock, ">", $lockfile)
+	  || die "opening redis installcheck lock file";
+	# wait if necessary for the lock
+	if (!flock($rlock, $exclusive ? LOCK_EX : LOCK_SH))
+	{
+		print STDERR "Unable to get redis installcheck lock. Exiting.\n";
+		exit(1);
+	}
+	$self->{lockfile} = $ulock;
+	return;
+}
+
+sub release_lock
+{
+	my $self = shift;
+	close($self->{lockfile});
+	delete $self->{lockfile};
+	return;
+}
+
 sub installcheck
 {
 	my $self   = shift;
@@ -149,7 +177,11 @@ sub installcheck
 	my $installdir = "$self->{buildroot}/$self->{pgbranch}/inst";
 	my $logpos = -s "$installdir/logfile" || 0;
 
+	get_lock($self, 1);
+
 	my @log = `cd $self->{where} && $cmd 2>&1`;
+
+	release_lock($self);
 
 	my $status = $? >> 8;
 	my @logfiles =
