@@ -96,9 +96,6 @@ use PGBuild::Utils qw(:DEFAULT $st_prefix $logdirname $branch_root
 
 $send_result_routine = \&send_res;
 
-my $orig_dir = getcwd();
-unshift @INC, $orig_dir;
-
 # make sure we exit nicely on any normal interrupt
 # so the cleanup handler gets called.
 # that lets us stop the db if it's running and
