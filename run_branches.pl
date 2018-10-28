@@ -77,12 +77,12 @@ $branch = 'global';
 #
 require $buildconf;
 
-die "from-source cannot be used with run_branches,pl"
-  if ($from_source || $from_source_clean);
+PGBuild::Options::fixup_conf(\%PGBuild::conf, \@config_set);
 
 my $animal = $PGBuild::conf{animal};
 
-PGBuild::Options::fixup_conf(\%PGBuild::conf, \@config_set);
+die "from-source cannot be used with run_branches,pl"
+  if ($from_source || $from_source_clean);
 
 my $branches_to_build = $PGBuild::conf{global}->{branches_to_build}
   || $PGBuild::conf{branches_to_build};    # legacy support
