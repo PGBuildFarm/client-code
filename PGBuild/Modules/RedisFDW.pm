@@ -8,7 +8,8 @@ use PGBuild::SCM;
 use PGBuild::Utils;
 
 use File::Path;
-use Fcntl qw(:seek);
+use Fcntl qw(:flock :seek);
+
 
 use strict;
 use warnings;
@@ -149,7 +150,7 @@ sub get_lock
 		print STDERR "Unable to get redis installcheck lock. Exiting.\n";
 		exit(1);
 	}
-	$self->{lockfile} = $ulock;
+	$self->{lockfile} = $rlock;
 	return;
 }
 
