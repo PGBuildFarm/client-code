@@ -288,6 +288,12 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		# set this if running multiple animals to have them coordinated
 		# default is this animal's buildroot.
 		global_lock_dir => undef,
+
+		# settings for parallel runs
+		parallel_lockdir => undef,    # default is global_lock_dir
+		parallel_stagger => undef,    # default 60
+		max_parallel     => undef,    # default 10
+
 	},
 
 );
