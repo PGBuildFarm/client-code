@@ -17,6 +17,7 @@ use Fcntl qw(:flock :seek);
 use File::Spec;
 use File::Basename;
 use Cwd qw(getcwd);
+use POSIX 'sys_wait_h';
 
 BEGIN
 {
@@ -290,8 +291,18 @@ sub run_parallel
 			my $branch = shift @pbranches;
 			spawn(\&parallel_child, $plockdir, $branch);
 		}
-		sleep $stagger_time if @pbranches;
+		# no need to do more if there are no more branches
+		# needing to be launched.
+		last unless @pbranches;
+		# sleep $stagger_time secs unless a child exits
+		# in the meantime.
+		foreach (1 .. $stagger_time)
+		{
+			last unless waitpid(-1, WNOHANG) == 0;
+			sleep 1;
+		}
 	}
+	# reap remaining children
 	sleep 1 while (wait != -1);
 	return;
 }
