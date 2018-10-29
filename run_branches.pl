@@ -17,7 +17,7 @@ use Fcntl qw(:flock :seek);
 use File::Spec;
 use File::Basename;
 use Cwd qw(getcwd);
-use POSIX 'sys_wait_h';
+use POSIX ':sys_wait_h';
 
 BEGIN
 {
