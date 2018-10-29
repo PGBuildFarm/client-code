@@ -186,7 +186,7 @@ my (
 	  archive_report)
 };
 
-$ts_prefix = "$animal:$branch";
+$ts_prefix = sprintf('%s:%-13s ', $animal,$branch);
 
 if ($max_load_avg)
 {
