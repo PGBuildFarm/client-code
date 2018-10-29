@@ -303,14 +303,15 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	my $upgrade_loc = "$upgrade_install_root/$this_branch";
 	my $installdir  = "$upgrade_loc/inst";
 	my $oversion    = basename $other_branch;
+	my $upgrade_test = "upgrade_test-$this_branch";
 
 	print time_str(), "checking upgrade from $oversion to $this_branch ...\n"
 	  if $verbose;
 
-	rmtree "$other_branch/inst/upgrade_test";
+	rmtree "$other_branch/inst/$upgrade_test";
 	my $testcmd = qq{
           cp -r "$other_branch/inst/data-C"
-                "$other_branch/inst/upgrade_test"
+                "$other_branch/inst/$upgrade_test"
           > '$upgrade_loc/$oversion-copy.log' 2>&1
     };
 	$testcmd =~ s/\n//g;
@@ -322,8 +323,8 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	# run in which it was set up, which will be gone by now, so we repoint
 	# it to the current run's tmpdir.
 	# listen_addresses will be set correctly and requires no adjustment.
-	open(my $opgconf, ">>", "$other_branch/inst/upgrade_test/postgresql.conf")
-	  || die "opening $other_branch/inst/upgrade_test/postgresql.conf: $!";
+	open(my $opgconf, ">>", "$other_branch/inst/$upgrade_test/postgresql.conf")
+	  || die "opening $other_branch/inst/$upgrade_test/postgresql.conf: $!";
 	my $param = "unix_socket_directories";
 	print $opgconf "$param = '$tmpdir'\n";
 	close($opgconf);
@@ -334,7 +335,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	my $sport = $sconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
 
 	system( "$other_branch/inst/bin/pg_ctl -D "
-		  . "$other_branch/inst/upgrade_test -o '-F' -l "
+		  . "$other_branch/inst/$upgrade_test -o '-F' -l "
 		  . "$other_branch/inst/dump-$this_branch.log -w start "
 		  . ">> '$upgrade_loc/$oversion-ctl.log' 2>&1");
 
@@ -364,7 +365,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	setinstenv($self, "$other_branch/inst", $save_env);
 
 	system( "$other_branch/inst/bin/pg_ctl -D "
-		  . "$other_branch/inst/upgrade_test -w stop "
+		  . "$other_branch/inst/$upgrade_test -w stop "
 		  . ">> '$upgrade_loc/$oversion-ctl.log' 2>&1");
 	return if $?;
 	setinstenv($self, $installdir, $save_env);
@@ -393,7 +394,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	system( "cd $installdir && pg_upgrade "
 		  . "--old-port=$sport "
 		  . "--new-port=$dport "
-		  . "--old-datadir=$other_branch/inst/upgrade_test "
+		  . "--old-datadir=$other_branch/inst/$upgrade_test "
 		  . "--new-datadir=$installdir/$oversion-upgrade "
 		  . "--old-bindir=$other_branch/inst/bin "
 		  . "--new-bindir=$installdir/bin "
@@ -542,11 +543,11 @@ sub installcheck
 		  unless (($this_branch eq 'HEAD')
 			|| ($oversion ne 'HEAD' && $oversion le $this_branch));
 
-		# for testing a shared lock should do, it just needs to be enough to
-		# prevent the save phase from happening under us.
-		# however we need to fix the upgrade tests to remove shared data dir
-		# before we can do that. So get an exclusive lock for now.
-		get_lock($self, $oversion, 1);
+		# for testing a shared lock should do, since each each upgrade will
+		# be sourced in a directory named with this branch, so it's no
+		# longer shared with other branch tests. This lock will prevent the
+		# other branch from being removed or changed under us.
+		get_lock($self, $oversion, 0);
 
 		$status =
 		  test_upgrade($self, $save_env, $this_branch, $upgrade_install_root,
