@@ -618,9 +618,8 @@ sub checkout
 
 	if (   $self->{use_workdirs}
 		&& !defined($self->{reference})
-		&& $^O ne "MSWin32"
-		&& $^O ne "msys"
-		&& -d '../HEAD/')
+		&& -d '../HEAD/'
+	    && have_symlink())
 	{
 		open($lockfile, ">", "../HEAD/checkout.LCK")
 		  || die "opening checkout lockfile: $!";
