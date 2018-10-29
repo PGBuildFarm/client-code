@@ -306,6 +306,8 @@ sub run_parallel
 		# in the meantime.
 		foreach (1 .. $stagger_time)
 		{
+			# 0 == there are children and none have exited
+			# per perldoc -f waitpid
 			last unless waitpid(-1, WNOHANG) == 0;
 			sleep 1;
 		}
