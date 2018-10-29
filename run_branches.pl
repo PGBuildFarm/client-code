@@ -169,6 +169,14 @@ if (!flock($lockfile, LOCK_EX | LOCK_NB))
 
 if ($run_parallel)
 {
+	# TestSepgsql uses shared resources in multiple phases, so making it
+	# parallel-safe is hard. For now just disallow it.
+	my $has_sepgsql = grep { $_ eq 'TestSepgsql' } @{$PGBuild::conf{modules}};
+	if ($has_sepgsql)
+	{
+		print STDERR "cannot run in parallel mode with TestSepgsql module.";
+		exit 1;
+	}
 	run_parallel(@branches);
 }
 elsif ($run_all)
