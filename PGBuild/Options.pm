@@ -125,6 +125,11 @@ sub fixup_conf
 {
 	my $conf = shift;
 	my $list = shift;
+	foreach my $tkey (qw(target upgrade_terget))
+	{
+		next unless exists $conf->{$tkey};
+		$conf->{$tkey} =~ s/www\.pgbuildfarm/buildfarm.postgresql/;
+	}
 	foreach my $confset (@$list)
 	{
 		if ($confset =~ /^([A-Za-z_]+)(\.([A-Za-z_]+))?(\+?=)(.*)/)
