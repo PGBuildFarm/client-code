@@ -135,9 +135,9 @@ elsif ($branches_to_build =~ /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
 	$ENV{PATH} = $save_path;
 	push(@branches, $_) foreach (split(/\s+/, $branches_of_interest));
 	splice(@branches, 0, -2)
-	  if $PGBuild::conf{branches_to_build} eq 'HEAD_PLUS_LATEST';
+	  if $branches_to_build eq 'HEAD_PLUS_LATEST';
 	splice(@branches, 0, 0 - ($latest + 1))
-	  if $PGBuild::conf{branches_to_build} =~ /^HEAD_PLUS_LATEST\d$/;
+	  if $branches_to_build =~ /^HEAD_PLUS_LATEST\d$/;
 }
 
 @branches = apply_throttle(@branches);
