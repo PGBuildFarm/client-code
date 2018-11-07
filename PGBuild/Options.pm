@@ -91,6 +91,9 @@ sub fetch_options
 	$orig_verbose = $verbose;
 	$verbose = 1 if (defined($verbose) && $verbose == 0);
 	$verbose ||= 0;  # stop complaints about undefined var in numeric comparison
+	# work around fact that modern perl doesn't put .
+	# in the search path any more
+	$buildconf = "./$buildconf" if (-f $buildconf && $buildconf !~ m!/!);
 	return;
 }
 
