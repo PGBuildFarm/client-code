@@ -561,7 +561,7 @@ sub have_symlink
 {
 	return 1 unless $^O eq 'msys' || $^O eq 'MSWin32';
 	## no critic (ProhibitUnreachableCode)
-	return 0;  # until we get windows symlinks working
+	return 0;    # until we get windows symlinks working
 	my $cmd = $^O eq 'msys' ? 'cmd //c "mklink 2>&1"' : 'mklink 2>&1';
 	my $out = `$cmd`;
 	return 1 if $out =~ /Creates a symbolic link/;
@@ -571,16 +571,16 @@ sub have_symlink
 sub make_symlink
 {
 	# note: unix and windows do link/target in the opposite order
-	my $target = shift;
-	my $link = shift;
+	my $target    = shift;
+	my $link      = shift;
 	my $dirswitch = -d $target ? "/d" : "";
 	if ($^O eq 'msys')
 	{
-		system("cmd //c 'mklink $dirswitch $link $target'")
+		system("cmd //c 'mklink $dirswitch $link $target'");
 	}
 	elsif ($0 eq 'MSWin32')
 	{
-		system("mklink $dirswitch $link $target")
+		system("mklink $dirswitch $link $target");
 	}
 	else
 	{
@@ -619,7 +619,7 @@ sub checkout
 	if (   $self->{use_workdirs}
 		&& !defined($self->{reference})
 		&& -d '../HEAD/'
-	    && have_symlink())
+		&& have_symlink())
 	{
 		open($lockfile, ">", "../HEAD/checkout.LCK")
 		  || die "opening checkout lockfile: $!";
@@ -706,18 +706,19 @@ sub checkout
 		# do a checkout if the work tree has apparently been removed
 		# If not, don't overwrite anything the user has left there
 		my @colog = ();
-		@colog   = run_log("git checkout . ")
-		  unless (grep {$_ ne ".git"} glob(".[a-z]* *"));
+		@colog = run_log("git checkout . ")
+		  unless (grep { $_ ne ".git" } glob(".[a-z]* *"));
 		my @gitstat = `git status --porcelain`;    # too trivial for run_log
-		# make sure it's clean before we try to update it
+		     # make sure it's clean before we try to update it
 		if (@gitstat)
 		{
 			print "Repo is not clean:\n", @gitstat
 			  if ($verbose);
 			chdir '..';
 			push(@gitlog, "===========", @gitstat);
-			send_result("$target-Git-Dirty", 99, \@gitlog)
+			send_result("$target-Git-Dirty", 99, \@gitlog);
 		}
+
 		# we do this instead of 'git pull' in case the upstream repo
 		# has been rebased
 		my @pulllog = run_log("git fetch && git reset --hard origin/$rbranch");
@@ -786,7 +787,7 @@ sub checkout
 		  packed-refs remotes rr-cache svn);
 		foreach my $link (@links)
 		{
-			make_symlink("$head/$target/.git/$link",".git/$link");
+			make_symlink("$head/$target/.git/$link", ".git/$link");
 		}
 		copy("$head/$target/.git/HEAD", ".git/HEAD");
 

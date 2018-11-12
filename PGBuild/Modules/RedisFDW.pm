@@ -136,14 +136,16 @@ sub install
 
 sub get_lock
 {
-	my $self = shift;
+	my $self      = shift;
 	my $exclusive = shift;
-	my $lockdir = $self->{buildroot};
+	my $lockdir   = $self->{buildroot};
+
 	# note no branch involved here. we want all the branches to use
 	# the same lock.
 	my $lockfile = "$lockdir/redis-installcheck.LCK";
 	open(my $rlock, ">", $lockfile)
 	  || die "opening redis installcheck lock file";
+
 	# wait if necessary for the lock
 	if (!flock($rlock, $exclusive ? LOCK_EX : LOCK_SH))
 	{

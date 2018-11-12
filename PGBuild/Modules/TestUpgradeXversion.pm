@@ -69,13 +69,14 @@ sub setup
 
 sub get_lock
 {
-	my $self = shift;
-	my $branch = shift;
+	my $self      = shift;
+	my $branch    = shift;
 	my $exclusive = shift;
-	my $lockdir = $self->{upgrade_install_root};
-	my $lockfile = "$lockdir/$branch.upgrade.LCK";
+	my $lockdir   = $self->{upgrade_install_root};
+	my $lockfile  = "$lockdir/$branch.upgrade.LCK";
 	open(my $ulock, ">", $lockfile)
 	  || die "opening upgrade lock file";
+
 	# wait if necessary for the lock
 	if (!flock($ulock, $exclusive ? LOCK_EX : LOCK_SH))
 	{
@@ -300,9 +301,9 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	my $install_loc          = shift;
 	my $other_branch         = shift;
 
-	my $upgrade_loc = "$upgrade_install_root/$this_branch";
-	my $installdir  = "$upgrade_loc/inst";
-	my $oversion    = basename $other_branch;
+	my $upgrade_loc  = "$upgrade_install_root/$this_branch";
+	my $installdir   = "$upgrade_loc/inst";
+	my $oversion     = basename $other_branch;
 	my $upgrade_test = "upgrade_test-$this_branch";
 
 	print time_str(), "checking upgrade from $oversion to $this_branch ...\n"
@@ -537,7 +538,7 @@ sub installcheck
 	{
 		my $oversion = basename $other_branch;
 
-		next unless -d $other_branch; # will skip lockfiles
+		next unless -d $other_branch;    # will skip lockfiles
 
 		next
 		  unless (($this_branch eq 'HEAD')

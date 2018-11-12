@@ -171,7 +171,7 @@ if ($run_parallel)
 {
 	# TestSepgsql uses shared resources in multiple phases, so making it
 	# parallel-safe is hard. For now just disallow it.
-	my $has_sepgsql = grep { $_ eq 'TestSepgsql' } @{$PGBuild::conf{modules}};
+	my $has_sepgsql = grep { $_ eq 'TestSepgsql' } @{ $PGBuild::conf{modules} };
 	if ($has_sepgsql)
 	{
 		print STDERR "cannot run in parallel mode with TestSepgsql module.";
@@ -299,9 +299,11 @@ sub run_parallel
 			my $branch = shift @pbranches;
 			spawn(\&parallel_child, $plockdir, $branch);
 		}
+
 		# no need to do more if there are no more branches
 		# needing to be launched.
 		last unless @pbranches;
+
 		# sleep $stagger_time secs unless a child exits
 		# in the meantime.
 		foreach (1 .. $stagger_time)
@@ -312,6 +314,7 @@ sub run_parallel
 			sleep 1;
 		}
 	}
+
 	# reap remaining children
 	sleep 1 while (wait != -1);
 	return;

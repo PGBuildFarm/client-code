@@ -48,7 +48,7 @@ use vars qw($core_file_glob $st_prefix $logdirname $branch_root
 BEGIN
 {
 	$log_file_marker = "======-=-======";
-	$ts_prefix = "";
+	$ts_prefix       = "";
 }
 
 # wrap the main program's send_res routine (formerly send_result)
@@ -319,18 +319,18 @@ sub find_in_path
 
 sub check_install_is_complete
 {
-	my $build_dir = shift;
+	my $build_dir   = shift;
 	my $install_dir = shift;
-	my $tmp_loc = "$build_dir/tmp_install/$install_dir";
-	my $bindir = "$tmp_loc/bin";
-	my $libdir = "$tmp_loc/lib/postgresql";
+	my $tmp_loc     = "$build_dir/tmp_install/$install_dir";
+	my $bindir      = "$tmp_loc/bin";
+	my $libdir      = "$tmp_loc/lib/postgresql";
 
 	# these files should be present if we've temp_installed everything,
 	# and not if we haven't. The represent core, contrib and test_modules.
-	return ( (-d $tmp_loc) &&
-			 (-f "$bindir/postgres" || -f "$bindir/postgres.exe") &&
-			 (-f "$libdir/hstore.so" || -f "$libdir/hstore.dll") &&
-			 (-f "$libdir/test_parser.so" || -f "$libdir/test_parser.dll"));
+	return ( (-d $tmp_loc)
+		  && (-f "$bindir/postgres"       || -f "$bindir/postgres.exe")
+		  && (-f "$libdir/hstore.so"      || -f "$libdir/hstore.dll")
+		  && (-f "$libdir/test_parser.so" || -f "$libdir/test_parser.dll"));
 }
 
 sub spawn

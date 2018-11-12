@@ -59,7 +59,7 @@ usage("must specify notes")
 # process config file
 #
 
-our ($branch) = 'HEAD'; # needed for config file, irrelevant for this purpose
+our ($branch) = 'HEAD';    # needed for config file, irrelevant for this purpose
 require $buildconf;
 
 my ($target, $animal, $secret) = @PGBuild::conf{qw(target animal secret)};

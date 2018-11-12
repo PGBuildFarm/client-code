@@ -127,7 +127,7 @@ sub installcheck
 	  if ($verbose > 1);
 	send_result("InstallCheck-collate-$locale", $status, \@checklog)
 	  if $status;
-		$steps_completed .= " InstallCheck-collate-$locale";
+	$steps_completed .= " InstallCheck-collate-$locale";
 
 	return;
 }

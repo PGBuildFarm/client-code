@@ -163,19 +163,19 @@ $PGBuild::conf{build_root} ||= abs_path(dirname(__FILE__)) . "/buildroot";
 
 # get the config data into some local variables
 my (
-	$buildroot,       $target,
-	$animal,          $aux_path,
-	$trigger_exclude, $trigger_include,
-	$secret,          $keep_errs,
-	$force_every,     $make,
-	$optional_steps,  $use_vpath,
-	$tar_log_cmd,     $using_msvc,
-	$extra_config,    $make_jobs,
-	$core_file_glob,  $ccache_failure_remove,
-	$wait_timeout,    $use_accache,
-	$use_valgrind,    $valgrind_options,
-	$use_installcheck_parallel,
-	$max_load_avg,    $archive_reports
+	$buildroot,                 $target,
+	$animal,                    $aux_path,
+	$trigger_exclude,           $trigger_include,
+	$secret,                    $keep_errs,
+	$force_every,               $make,
+	$optional_steps,            $use_vpath,
+	$tar_log_cmd,               $using_msvc,
+	$extra_config,              $make_jobs,
+	$core_file_glob,            $ccache_failure_remove,
+	$wait_timeout,              $use_accache,
+	$use_valgrind,              $valgrind_options,
+	$use_installcheck_parallel, $max_load_avg,
+	$archive_reports
   )
   = @PGBuild::conf{
 	qw(build_root target animal aux_path trigger_exclude
@@ -184,9 +184,9 @@ my (
 	  ccache_failure_remove wait_timeout use_accache
 	  use_valgrind valgrind_options use_installcheck_parallel max_load_avg
 	  archive_reports)
-};
+  };
 
-$ts_prefix = sprintf('%s:%-13s ', $animal,$branch);
+$ts_prefix = sprintf('%s:%-13s ', $animal, $branch);
 
 if ($max_load_avg)
 {
@@ -1958,7 +1958,7 @@ sub make_ecpg_check
 	}
 	else
 	{
-		my $instflags =  $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
+		my $instflags = $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
 
 		@makeout =
 		  run_log("cd  $ecpg_dir && $make NO_LOCALE=1 $instflags check");
@@ -2296,16 +2296,19 @@ sub archive_report
 {
 	return unless defined($archive_reports) && $archive_reports > 0;
 	my $report = shift;
-	my $dest= "$buildroot/archive/$animal/$branch";
+	my $dest   = "$buildroot/archive/$animal/$branch";
 	mkpath $dest;
 	my $fname = basename $report;
 	my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) =
 	  localtime(time);
-	my $newname = sprintf("%s.%.4d%.2d%.2d:%.2d%.2d%.2d",
-						  $fname, $year+1900, $mon + 1, $mday,
-						  $hour, $min, $sec);
+	my $newname = sprintf(
+		"%s.%.4d%.2d%.2d:%.2d%.2d%.2d",
+		$fname, $year + 1900,
+		$mon + 1, $mday, $hour, $min, $sec
+	);
 	copy $report, "$dest/$newname";
 	my @reports = sort glob("$dest/web-txn.data.*");
+
 	if (@reports > $archive_reports)
 	{
 		splice @reports, -$archive_reports;
