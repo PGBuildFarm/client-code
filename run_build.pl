@@ -175,7 +175,7 @@ my (
 	$wait_timeout,    $use_accache,
 	$use_valgrind,    $valgrind_options,
 	$use_installcheck_parallel,
-	$max_load_avg,    $archive_report
+	$max_load_avg,    $archive_reports
   )
   = @PGBuild::conf{
 	qw(build_root target animal aux_path trigger_exclude
@@ -183,7 +183,7 @@ my (
 	  use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob
 	  ccache_failure_remove wait_timeout use_accache
 	  use_valgrind valgrind_options use_installcheck_parallel max_load_avg
-	  archive_report)
+	  archive_reports)
 };
 
 $ts_prefix = sprintf('%s:%-13s ', $animal,$branch);
@@ -2294,7 +2294,7 @@ sub configure
 
 sub archive_report
 {
-	return unless defined($archive_report) && $archive_report > 0;
+	return unless defined($archive_reports) && $archive_reports > 0;
 	my $report = shift;
 	my $dest= "$buildroot/archive/$animal/$branch";
 	mkpath $dest;
@@ -2306,9 +2306,9 @@ sub archive_report
 						  $hour, $min, $sec);
 	copy $report, "$dest/$newname";
 	my @reports = sort glob("$dest/web-txn.data.*");
-	if (@reports > $archive_report)
+	if (@reports > $archive_reports)
 	{
-		splice @reports, -$archive_report;
+		splice @reports, -$archive_reports;
 		unlink @reports;
 	}
 	return;
