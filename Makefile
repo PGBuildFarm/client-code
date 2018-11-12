@@ -50,7 +50,7 @@ tidy:
 	perltidy $(ALLPERLFILES)
 
 syncheck:
-	for f in $(ALLPERLFILES) ; do perl -cw $${f}; done;
+	for f in $(ALLPERLFILES) ; do perl -I. -cw $${f}; done;
 
 critic:
 	perlcritic -3 --theme core $(ALLPERLFILES)
