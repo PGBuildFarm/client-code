@@ -1380,8 +1380,6 @@ sub start_valgrind_db
 	# run the postmaster under valgrind.
 	# subroutine is run in a child process.
 
-	print "starting under valgrind\n";
-
 	my $locale          = shift;
 	my $vgstarted_times = shift;
 	chdir 'inst';
