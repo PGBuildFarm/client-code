@@ -119,9 +119,17 @@ elsif ($branches_to_build =~ /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
 	## no critic (ValuesAndExpressions::ProhibitMismatchedOperators)
 	# perlcritic gets confused by version comparisons - this usage is
 	# sanctioned by perldoc perlvar
-	if ($^O eq 'msys' && $^V lt v5.8.0)
+
+	my $have_msys_https = $url !~ /^https:/; # if not needed, assume it's there
+
+	if ($^O eq 'msys' && !$have_msys_https)
 	{
-		# msys: use perl in PATH
+		eval { require LWP::Protocol::https; };
+		$have_msys_https = 1 unless $@;
+	}
+	if ($^O eq 'msys' && ($^V lt v5.8.0 || !$have_msys_https))
+	{
+		# msys: use perl in PATH if necessary
 		$branches_of_interest = `perl -MLWP::Simple -e "getprint(q{$url})"`;
 	}
 	else
