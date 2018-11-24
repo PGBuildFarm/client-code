@@ -334,6 +334,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	open(my $opgconf, ">>", "$other_branch/inst/$upgrade_test/postgresql.conf")
 	  || die "opening $other_branch/inst/$upgrade_test/postgresql.conf: $!";
 	my $param = "unix_socket_directories";
+	$param = "unix_socket_directory" if $oversion ne 'HEAD' && $oversion lt 'REL9_3_STABLE';
 	print $opgconf "$param = '$tmpdir'\n";
 	close($opgconf);
 
@@ -386,6 +387,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	open(my $pgconf, ">>", "$installdir/$oversion-upgrade/postgresql.conf")
 	  || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
 	my $tmp_param = "unix_socket_directories";
+	$tmp_param = "unix_socket_directory" if $this_branch ne 'HEAD' && $this_branch lt 'REL9_3_STABLE';
 	print $pgconf "listen_addresses = ''\n";
 	print $pgconf "$tmp_param = '$tmpdir'\n";
 	close($pgconf);
