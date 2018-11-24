@@ -51,8 +51,15 @@ sub setup
 	return if $from_source;
 	return if $conf->{using_msvc};    # disable on MSVC for now
 
+	my $animal = $conf->{animal};
 	my $upgrade_install_root =
-	  $conf->{upgrade_install_root} || "$buildroot/upgrade";
+	  $conf->{upgrade_install_root} || "$buildroot/upgrade.$animal";
+	if (! defined($conf->{upgrade_install_root})
+		&& ! -d $upgrade_install_root && -d "$buildroot/upgrade/HEAD")
+	{
+		# support legacy use without animal name
+		$upgrade_install_root = "$buildroot/upgrade";
+	}
 
 	my $self = {
 		buildroot            => $buildroot,
