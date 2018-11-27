@@ -402,7 +402,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
               END LOOP;
            END; $stmt$;
         };
-		open(my $nooid,">",'nooid.sql');
+		open(my $nooid,">",'nooid.sql') || die "opening nooid.sql: $!";
         print $nooid $nooid_stmt;
 		close($nooid);
 		foreach my $oiddb ("regression","contrib_regression_btree_gist")
