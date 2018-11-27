@@ -983,15 +983,19 @@ if ((check_optional_step('find_typedefs') || $find_typedefs)
 
 my $saved_config = get_config_summary();
 
-# error out if there are non-empty valgrind logs
-my @vglines = run_log("grep -l VALGRINDERROR- ${st_prefix}$logdirname/*.log");
-do { $_ = basename $_; $_ =~ s/\.log$//; }
-  foreach @vglines;
-if (@vglines)
+if ($use_valgrind)
 {
-	unshift(@vglines,
-		"=== Valgrind errors were found at the following stage(s):\n");
-	send_result('Valgrind', 1, \@vglines);
+	# error out if there are non-empty valgrind logs
+	my @vglines =
+	  run_log("grep -l VALGRINDERROR- ${st_prefix}$logdirname/*.log");
+	do { $_ = basename $_; $_ =~ s/\.log$//; }
+	  foreach @vglines;
+	if (@vglines)
+	{
+		unshift(@vglines,
+				"=== Valgrind errors were found at the following stage(s):\n");
+		send_result('Valgrind', 1, \@vglines);
+	}
 }
 
 rmtree("inst") unless $keepall;    # only keep failures
