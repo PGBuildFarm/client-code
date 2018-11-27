@@ -365,6 +365,65 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		return if $?;
 	}
 
+	# some regression functions gone from release 11 on
+	if (($this_branch ge 'REL_11_STABLE' || $this_branch eq 'HEAD') &&
+	   ($oversion lt 'REL_11_STABLE' && $oversion ne 'HEAD'))
+	{
+		my $missing_funcs = q{drop function if exists public.boxarea(box);
+                              drop function if exists public.funny_dup17();
+                            };
+		$missing_funcs =~ s/\n//g;
+
+		system( "$other_branch/inst/bin/psql -X -e "
+			  . " -c '$missing_funcs' "
+			  . "regression "
+			  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+		return if $?;
+	}
+
+	# user table OIDS are gone from release 12 on
+	if (($this_branch gt 'REL_11_STABLE' || $this_branch eq 'HEAD') &&
+	   ($oversion le 'REL_11_STABLE' && $oversion ne 'HEAD'))
+	{
+		my $nooid_stmt = q{
+           DO $stmt$
+           DECLARE
+              rec text;
+           BEGIN
+              FOR rec in
+                 select oid::regclass::text
+                 from pg_class
+                 where relname !~ '^pg_'
+                    and relhasoids
+                    and relkind in ('r','m')
+              LOOP
+                 execute 'ALTER TABLE ' || rec || ' SET WITHOUT OIDS';
+                 RAISE NOTICE 'removing oids from table %', rec;
+              END LOOP;
+           END; $stmt$;
+        };
+		open(my $nooid,">",'nooid.sql');
+        print $nooid $nooid_stmt;
+		close($nooid);
+		foreach my $oiddb ("regression","contrib_regression_btree_gist")
+		{
+			system( "$other_branch/inst/bin/psql -X -e "
+					. " -f nooid.sql "
+					. "$oiddb "
+					. ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+			return if $?;
+		}
+
+		if ($oversion ge 'REL_10_STABLE')
+		{
+			system( "$other_branch/inst/bin/psql -X -e "
+					. " -c 'drop foreign table if exists ft_pg_type' "
+					. "contrib_regression_postgres_fdw "
+					. ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+			return if $?;
+		}
+	}
+
 	# use the NEW pg_dumpall so we're comparing apples with apples.
 	setinstenv($self, "$installdir", $save_env);
 	system( "$installdir/bin/pg_dumpall -p $sport -f "
@@ -461,12 +520,12 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	my $difflines = `wc -l < $upgrade_loc/dumpdiff-$oversion`;
 	chomp($difflines);
 
-	# If the versions match we expect 0 diffs;
-	# if not we heuristically allow up to 2000 lines
-	# of diff
+	# If the versions match we expect a possible handful of diffs,
+	# generally from reordering of larg object output.
+	# If not we heuristically allow up to 2000 lines of diffs
 
 	if (   ($oversion ne $this_branch && $difflines < 2000)
-		|| ($oversion eq $this_branch) && $difflines == 0)
+		|| ($oversion eq $this_branch) && $difflines < 50)
 	{
 		return 1;
 	}
