@@ -381,7 +381,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		return if $?;
 	}
 
-	# user table OIDS are gone from release 12 on
+	# user table OIDS and abstime+friends are gone from release 12 on
 	if (($this_branch gt 'REL_11_STABLE' || $this_branch eq 'HEAD') &&
 	   ($oversion le 'REL_11_STABLE' && $oversion ne 'HEAD'))
 	{
@@ -419,6 +419,16 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 			system( "$other_branch/inst/bin/psql -X -e "
 					. " -c 'drop foreign table if exists ft_pg_type' "
 					. "contrib_regression_postgres_fdw "
+					. ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+			return if $?;
+		}
+
+		if ($oversion lt 'REL9_3_STABLE')
+		{
+			system( "$other_branch/inst/bin/psql -X -e "
+					. " -c 'drop table if exists abstime_tbl, "
+					. "  reltime_tbl, tinterval_tbl' "
+					. "regression "
 					. ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
 			return if $?;
 		}
