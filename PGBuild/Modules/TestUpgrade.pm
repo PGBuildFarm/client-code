@@ -118,11 +118,15 @@ sub check
 		@checklog = run_log($cmd);
 	}
 
+	# This list tries to cover all the places that upgrade regression diffs
+	# and logs have been placed in various releases. If they don't exist
+	# no harm will be done.
 	my @logfiles = glob(
 		"$self->{pgsql}/contrib/pg_upgrade/*.log
          $self->{pgsql}/contrib/pg_upgrade/log/*
          $self->{pgsql}/src/bin/pg_upgrade/*.log
          $self->{pgsql}/src/bin/pg_upgrade/log/*
+         $self->{pgsql}/src/bin/pg_upgrade/tmp_check/*/*.diffs
          $self->{pgsql}/src/test/regress/*.diffs"
 	);
 	foreach my $log (@logfiles)
