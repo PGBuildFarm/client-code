@@ -16,6 +16,7 @@ use vars qw($VERSION); $VERSION = 'REL_9';
 use Fcntl qw(:flock :seek);
 use File::Spec;
 use File::Basename;
+use File::Path;
 use Cwd qw(getcwd);
 use POSIX ':sys_wait_h';
 
@@ -29,7 +30,9 @@ my $orig_dir = getcwd();
 unshift @INC, $orig_dir;
 
 use PGBuild::Options;
-use PGBuild::Utils;
+use PGBuild::Utils qw(:DEFAULT $send_result_routine 
+					  $st_prefix $logdirname $branch_root);
+use PGBuild::SCM;
 
 # older msys is ging to use a different perl to run LWP, so we can't absolutely
 # require this module there
@@ -40,6 +43,8 @@ BEGIN
 	# sanctioned by perldoc perlvar
 	require LWP::Simple if $^O ne 'msys' || $^V ge v5.8.0;
 }
+
+$send_result_routine = \&send_res;
 
 my %branch_last;
 sub branch_last_sort;
@@ -85,20 +90,54 @@ my $animal = $PGBuild::conf{animal};
 die "from-source cannot be used with run_branches,pl"
   if ($from_source || $from_source_clean);
 
+
+my $buildroot = $PGBuild::conf{build_root};
+my $using_msvc = $PGBuild::conf{using_msvc};
+
+die "no buildroot" unless $buildroot;
+
+unless ($buildroot =~ m!^/!
+	or ($using_msvc and $buildroot =~ m![a-z]:[/\\]!i))
+{
+	die "buildroot $buildroot not absolute";
+}
+
+my $here = getcwd();
+
+mkpath $buildroot unless -d $buildroot;
+
+die "$buildroot does not exist or is not a directory" unless -d $buildroot;
+
 my $branches_to_build = $PGBuild::conf{global}->{branches_to_build}
   || $PGBuild::conf{branches_to_build};    # legacy support
 
-unless ((ref $branches_to_build eq 'ARRAY' && @{$branches_to_build})
-	|| $branches_to_build =~ /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST\d)$/)
+unless (((ref $branches_to_build) eq 'ARRAY' && @{$branches_to_build})
+		|| (ref $branches_to_build) =~ /Regexp/i
+		|| $branches_to_build =~ /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST\d)$/)
 {
 	die "no branches_to_build specified in $buildconf";
 }
 
 my @branches;
-if (ref $branches_to_build)
+if ((ref $branches_to_build) eq 'ARRAY')
 {
 	@branches = @{$branches_to_build};
 	$ENV{BF_CONF_BRANCHES} = join(',', @branches);
+}
+elsif ((ref $branches_to_build) =~ /Regexp/i)
+{
+	chdir $buildroot || die "chdir to $buildroot: $!";
+	mkdir 'HEAD' unless -d 'HEAD';
+	chdir 'HEAD' || die "chdir to HEAD: $!";
+	$branch_root = getcwd();
+	$st_prefix = "$animal.";
+	$logdirname = "lastrun-logs";
+	my $scm= PGBuild::SCM->new(\%PGBuild::conf);
+	my $savescmlog      = $scm->checkout('HEAD');
+	$scm->rm_worktree(); # don't need the worktree here
+	my @cbranches = $scm->get_branches('remotes/origin/');
+	@branches = grep { $_ =~ /$branches_to_build/ } @cbranches;
+	chdir $here;
 }
 elsif ($branches_to_build =~ /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
 {
@@ -432,4 +471,17 @@ sub apply_throttle
 	}
 
 	return @result;
+}
+
+
+sub send_res
+{
+	# error routine catch - we don't actually send anything here
+	my $stage = shift;
+	my $status = shift || 0;
+	my $log    = shift || [];
+	print "======== log passed to send_result ===========\n", @$log
+	  if ($verbose > 1);
+	print "Buildfarm member $animal failed in run_branches.pl at stage $stage\n";
+	exit(1);
 }
