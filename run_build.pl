@@ -407,7 +407,7 @@ if (!$from_source)
 	$scm->check_access($using_msvc);
 }
 
-mkdir $branch unless -d $branch;
+mkpath $branch unless -d $branch;
 
 chdir $branch || die "chdir to $buildroot/$branch";
 
