@@ -76,6 +76,7 @@ sub copy_source
 # get_versions()
 # log_id()
 # rm_worktree()
+# get_branches()
 
 ##################################
 #
@@ -393,6 +394,12 @@ sub find_changed    ## no critic (Subroutines::ProhibitManyArgs)
 	return;
 }
 
+sub get_branches
+{
+	# noop for cvs
+	return ();
+}
+
 sub get_versions
 {
 	my $self = shift;
@@ -635,7 +642,7 @@ sub checkout
 
 		if (-d $self->{mirror})
 		{
-			@gitlog = run_log(qq{git --git-dir="$self->{mirror}" fetch});
+			@gitlog = run_log(qq{git --git-dir="$self->{mirror}" fetch --prune});
 			$status = $self->{ignore_mirror_failure} ? 0 : $? >> 8;
 
 			my $last_gc = find_last("$target.mirror.gc") || 0;
@@ -721,7 +728,7 @@ sub checkout
 
 		# we do this instead of 'git pull' in case the upstream repo
 		# has been rebased
-		my @pulllog = run_log("git fetch && git reset --hard origin/$rbranch");
+		my @pulllog = run_log("git fetch --prune && git reset --hard origin/$rbranch");
 		push(@gitlog, @colog, @pulllog);
 		chdir '..';
 
@@ -793,7 +800,7 @@ sub checkout
 
 		# run git fetch in case there are new branches the local repo
 		# doesn't yet know about
-		my @fetchlog = run_log('git fetch');
+		my @fetchlog = run_log('git fetch --prune');
 
 		my @branches = `git branch`;
 		chomp @branches;
@@ -905,6 +912,25 @@ sub rm_worktree
 	}
 	chdir "..";
 	return;
+}
+
+sub get_branches
+{
+	my $self   = shift;
+	my $prefix = shift;
+	my $target = $self->{target};
+	chdir $target;
+	my @allbranches = `git branch -a`;
+	my @branches;
+	foreach (@allbranches)
+	{
+		chomp;
+		s/..//; s/ ->.*//;
+		s/^$prefix// || next;
+		push @branches,$_;
+	}
+	chdir "..";
+	return @branches;
 }
 
 # private Class level routine for getting changed file data
