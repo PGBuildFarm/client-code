@@ -396,6 +396,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
                  where relname !~ '^pg_'
                     and relhasoids
                     and relkind in ('r','m')
+                 order by 1
               LOOP
                  execute 'ALTER TABLE ' || rec || ' SET WITHOUT OIDS';
                  RAISE NOTICE 'removing oids from table %', rec;
