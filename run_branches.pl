@@ -351,9 +351,14 @@ sub run_parallel
 		# needing to be launched.
 		last unless @pbranches;
 
-		# sleep $stagger_time secs unless a child exits
+		# sleep at least 2 secs between spawns. This helps ensure each
+		# child has a different snapshot time.
+
+		sleep 2;
+
+		# sleep remaining $stagger_time secs unless a child exits
 		# in the meantime.
-		foreach (1 .. $stagger_time)
+		foreach (3 .. $stagger_time)
 		{
 			# 0 == there are children and none have exited
 			# per perldoc -f waitpid
