@@ -325,12 +325,16 @@ sub check_install_is_complete
 	my $bindir      = "$tmp_loc/bin";
 	my $libdir      = "$tmp_loc/lib/postgresql";
 
+	# find the suffix used on this platform for dynamic libraries
+	my $suffix = `cd $build_dir && make show_dl_suffix`;
+	chomp $suffix;
+
 	# these files should be present if we've temp_installed everything,
 	# and not if we haven't. The represent core, contrib and test_modules.
 	return ( (-d $tmp_loc)
 		  && (-f "$bindir/postgres"       || -f "$bindir/postgres.exe")
-		  && (-f "$libdir/hstore.so"      || -f "$libdir/hstore.dll")
-		  && (-f "$libdir/test_parser.so" || -f "$libdir/test_parser.dll"));
+		  && (-f "$libdir/hstore$suffix")
+		  && (-f "$libdir/test_parser$suffix"));
 }
 
 sub spawn
