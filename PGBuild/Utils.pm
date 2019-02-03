@@ -326,8 +326,12 @@ sub check_install_is_complete
 	my $libdir      = "$tmp_loc/lib/postgresql";
 
 	# find the suffix used on this platform for dynamic libraries
-	my $suffix = `cd $build_dir && make show_dl_suffix`;
-	chomp $suffix;
+	my $suffix = '.dll';
+	if (-e "$build_dir/Makefile.global") # i.e. not msvc
+	{
+		$suffix = `cd $build_dir && make show_dl_suffix`;
+		chomp $suffix;
+	}
 
 	# these files should be present if we've temp_installed everything,
 	# and not if we haven't. The represent core, contrib and test_modules.
