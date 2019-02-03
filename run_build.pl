@@ -513,9 +513,12 @@ unless ($using_msvc)
 	warn "failed to unlimit core size: $@" if $@ && $verbose > 1;
 }
 
-# the time we take the snapshot
+# the time we take the snapshot, sorta, really the start of the run
+# take this value as early as possible to lower the risk of
+# conflicts with other parallel runs
 use vars qw($now);
-$now = time;
+BEGIN { $now = time; }
+
 my $installdir = "$buildroot/$branch/inst";
 my $dbstarted;
 
