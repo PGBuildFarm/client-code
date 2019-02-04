@@ -321,16 +321,21 @@ sub check_install_is_complete
 {
 	my $build_dir   = shift;
 	my $install_dir = shift;
-	my $tmp_loc     = "$build_dir/tmp_install/$install_dir";
-	my $bindir      = "$tmp_loc/bin";
-	my $libdir      = "$tmp_loc/lib/postgresql";
 
-	# find the suffix used on this platform for dynamic libraries
+	# settings that apply for MSVC
+	my $tmp_loc     = "$build_dir/tmp_install";
+	my $bindir      = "$tmp_loc/bin";
+	my $libdir      = "$tmp_loc/lib";
 	my $suffix = '.dll';
-	if (-e "$build_dir/Makefile.global") # i.e. not msvc
+
+	# adjust settings for non-MSVC
+	if (-e "$build_dir/src/Makefile.global") # i.e. not msvc
 	{
 		$suffix = `cd $build_dir && make show_dl_suffix`;
 		chomp $suffix;
+		$tmp_loc = "$tmp_loc/$install_dir";
+		$bindir = "$tmp_loc/bin";
+		$libdir = "$tmp_loc/lib/postgresql";
 	}
 
 	# these files should be present if we've temp_installed everything,
