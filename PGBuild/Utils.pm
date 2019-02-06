@@ -66,7 +66,7 @@ sub run_log
 	my $command = shift;
 	my $filedir = "$branch_root/$st_prefix$logdirname";
 	mkpath($filedir);
-	my $file   = "$filedir/lastcomand.log";
+	my $file   = "$filedir/lastcommand.log";
 	my $stfile = "$filedir/laststatus";
 	unlink $file;
 	unlink $stfile;
