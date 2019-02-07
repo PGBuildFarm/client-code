@@ -50,10 +50,12 @@ use Data::Dumper;
 use Cwd qw(abs_path getcwd);
 use File::Find ();
 
+use FindBin;
+use lib $FindBin::RealBin;
+
 BEGIN
 {
 	unshift(@INC, $ENV{BFLIB}) if $ENV{BFLIB};
-	use lib File::Spec->rel2abs(dirname(__FILE__));
 }
 
 # use High Resolution stat times if the module is available

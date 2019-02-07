@@ -20,10 +20,12 @@ use File::Path;
 use Cwd qw(getcwd);
 use POSIX ':sys_wait_h';
 
+use FindBin;
+use lib $FindBin::RealBin;
+
 BEGIN
 {
 	unshift(@INC, $ENV{BFLIB}) if $ENV{BFLIB};
-	use lib File::Spec->rel2abs(dirname(__FILE__));
 }
 
 my $orig_dir = getcwd();

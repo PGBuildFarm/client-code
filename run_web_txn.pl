@@ -42,10 +42,8 @@ use warnings;
 
 use vars qw($VERSION); $VERSION = 'REL_9';
 
-use File::Spec;
-use File::Basename;
-
-BEGIN { use lib File::Spec->rel2abs(dirname(__FILE__)); }
+use FindBin;
+use lib $FindBin::RealBin;
 
 use PGBuild::WebTxn;
 

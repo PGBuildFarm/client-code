@@ -18,13 +18,13 @@ use HTTP::Request::Common;
 use MIME::Base64;
 use Digest::SHA qw(sha1_hex);
 use Getopt::Long;
-use File::Spec;
-use File::Basename;
+
+use FindBin;
+use lib $FindBin::RealBin;
 
 BEGIN
 {
 	unshift(@INC, $ENV{BFLIB}) if $ENV{BFLIB};
-	use lib File::Spec->rel2abs(dirname(__FILE__));
 }
 
 # copy command line before processing - so we can later report it
