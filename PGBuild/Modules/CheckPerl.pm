@@ -126,7 +126,7 @@ sub build
 		my $incl = join(' ', @includes);
 
 		my @cwlog = run_log(
-			"cd pgsql && " . "for f in $files; do perl $incl -cw \$f; done");
+			"cd pgsql && " . " ST=0 && for f in $files; do perl $incl -cw \$f || ST=1; done && test \$ST = 0");
 
 
 		$status = $? >> 8;
