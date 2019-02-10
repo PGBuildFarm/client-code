@@ -109,7 +109,7 @@ sub run_log
 		# in theory there's a small race condition here
 		unlink $file;
 	}
-	return @loglines;
+	return wantarray ? @loglines : "@loglines";
 }
 
 sub time_str
