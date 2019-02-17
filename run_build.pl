@@ -1104,7 +1104,9 @@ sub interrupt_exit
 
 sub check_make
 {
-	my @out = run_log("$make -v");
+	# don't use run_log here - we haven't got the lock yet and we might
+	# well cut the legs off a running command
+	my @out = `$make -v 2>&1`;
 	return unless ($? == 0 && grep { /GNU Make/ } @out);
 	return 'OK';
 }
