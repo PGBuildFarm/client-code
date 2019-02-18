@@ -139,6 +139,7 @@ elsif ((ref $branches_to_build) =~ /Regexp/i)
 	$scm->rm_worktree(); # don't need the worktree here
 	my @cbranches = $scm->get_branches('remotes/origin/');
 	@branches = grep { $_ =~ /$branches_to_build/ } @cbranches;
+	$ENV{BF_CONF_BRANCHES} = join(',', "(found by regexp)", @branches);
 	chdir $here;
 }
 elsif ($branches_to_build =~ /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
