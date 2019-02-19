@@ -32,8 +32,8 @@ my $orig_dir = getcwd();
 unshift @INC, $orig_dir;
 
 use PGBuild::Options;
-use PGBuild::Utils qw(:DEFAULT $send_result_routine 
-					  $st_prefix $logdirname $branch_root);
+use PGBuild::Utils qw(:DEFAULT $send_result_routine
+  $st_prefix $logdirname $branch_root);
 use PGBuild::SCM;
 
 # older msys is ging to use a different perl to run LWP, so we can't absolutely
@@ -93,7 +93,7 @@ die "from-source cannot be used with run_branches,pl"
   if ($from_source || $from_source_clean);
 
 
-my $buildroot = $PGBuild::conf{build_root};
+my $buildroot  = $PGBuild::conf{build_root};
 my $using_msvc = $PGBuild::conf{using_msvc};
 
 die "no buildroot" unless $buildroot;
@@ -114,8 +114,8 @@ my $branches_to_build = $PGBuild::conf{global}->{branches_to_build}
   || $PGBuild::conf{branches_to_build};    # legacy support
 
 unless (((ref $branches_to_build) eq 'ARRAY' && @{$branches_to_build})
-		|| (ref $branches_to_build) =~ /Regexp/i
-		|| $branches_to_build =~ /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST\d)$/)
+	|| (ref $branches_to_build) =~ /Regexp/i
+	|| $branches_to_build =~ /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST\d)$/)
 {
 	die "no branches_to_build specified in $buildconf";
 }
@@ -132,11 +132,11 @@ elsif ((ref $branches_to_build) =~ /Regexp/i)
 	mkdir 'HEAD' unless -d 'HEAD';
 	chdir 'HEAD' || die "chdir to HEAD: $!";
 	$branch_root = getcwd();
-	$st_prefix = "$animal.";
-	$logdirname = "lastrun-logs";
-	my $scm= PGBuild::SCM->new(\%PGBuild::conf);
-	my $savescmlog      = $scm->checkout('HEAD');
-	$scm->rm_worktree(); # don't need the worktree here
+	$st_prefix   = "$animal.";
+	$logdirname  = "lastrun-logs";
+	my $scm        = PGBuild::SCM->new(\%PGBuild::conf);
+	my $savescmlog = $scm->checkout('HEAD');
+	$scm->rm_worktree();    # don't need the worktree here
 	my @cbranches = $scm->get_branches('remotes/origin/');
 	@branches = grep { $_ =~ /$branches_to_build/ } @cbranches;
 	$ENV{BF_CONF_BRANCHES} = join(',', "(found by regexp)", @branches);
@@ -162,7 +162,7 @@ elsif ($branches_to_build =~ /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
 	# perlcritic gets confused by version comparisons - this usage is
 	# sanctioned by perldoc perlvar
 
-	my $have_msys_https = $url !~ /^https:/; # if not needed, assume it's there
+	my $have_msys_https = $url !~ /^https:/;  # if not needed, assume it's there
 
 	if ($^O eq 'msys' && !$have_msys_https)
 	{
@@ -485,11 +485,12 @@ sub apply_throttle
 sub send_res
 {
 	# error routine catch - we don't actually send anything here
-	my $stage = shift;
+	my $stage  = shift;
 	my $status = shift || 0;
 	my $log    = shift || [];
 	print "======== log passed to send_result ===========\n", @$log
 	  if ($verbose > 1);
-	print "Buildfarm member $animal failed in run_branches.pl at stage $stage\n";
+	print
+	  "Buildfarm member $animal failed in run_branches.pl at stage $stage\n";
 	exit(1);
 }

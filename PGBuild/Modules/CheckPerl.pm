@@ -125,8 +125,10 @@ sub build
 		  foreach @includes;
 		my $incl = join(' ', @includes);
 
-		my @cwlog = run_log(
-			"cd pgsql && " . " ST=0 && for f in $files; do perl $incl -cw \$f || ST=1; done && test \$ST = 0");
+		my @cwlog =
+		  run_log("cd pgsql && "
+			  . " ST=0 && for f in $files; do perl $incl -cw \$f || ST=1; done && test \$ST = 0"
+		  );
 
 
 		$status = $? >> 8;

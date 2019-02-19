@@ -54,8 +54,9 @@ sub setup
 	my $animal = $conf->{animal};
 	my $upgrade_install_root =
 	  $conf->{upgrade_install_root} || "$buildroot/upgrade.$animal";
-	if (! defined($conf->{upgrade_install_root})
-		&& ! -d $upgrade_install_root && -d "$buildroot/upgrade/HEAD")
+	if (   !defined($conf->{upgrade_install_root})
+		&& !-d $upgrade_install_root
+		&& -d "$buildroot/upgrade/HEAD")
 	{
 		# support legacy use without animal name
 		$upgrade_install_root = "$buildroot/upgrade";
@@ -334,7 +335,8 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	open(my $opgconf, ">>", "$other_branch/inst/$upgrade_test/postgresql.conf")
 	  || die "opening $other_branch/inst/$upgrade_test/postgresql.conf: $!";
 	my $param = "unix_socket_directories";
-	$param = "unix_socket_directory" if $oversion ne 'HEAD' && $oversion lt 'REL9_3_STABLE';
+	$param = "unix_socket_directory"
+	  if $oversion ne 'HEAD' && $oversion lt 'REL9_3_STABLE';
 	print $opgconf "$param = '$tmpdir'\n";
 	close($opgconf);
 
@@ -366,8 +368,8 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 
 	# some regression functions gone from release 11 on
-	if (($this_branch ge 'REL_11_STABLE' || $this_branch eq 'HEAD') &&
-	   ($oversion lt 'REL_11_STABLE' && $oversion ne 'HEAD'))
+	if (   ($this_branch ge 'REL_11_STABLE' || $this_branch eq 'HEAD')
+		&& ($oversion lt 'REL_11_STABLE' && $oversion ne 'HEAD'))
 	{
 		my $missing_funcs = q{drop function if exists public.boxarea(box);
                               drop function if exists public.funny_dup17();
@@ -382,8 +384,8 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 
 	# user table OIDS and abstime+friends are gone from release 12 on
-	if (($this_branch gt 'REL_11_STABLE' || $this_branch eq 'HEAD') &&
-	   ($oversion le 'REL_11_STABLE' && $oversion ne 'HEAD'))
+	if (   ($this_branch gt 'REL_11_STABLE' || $this_branch eq 'HEAD')
+		&& ($oversion le 'REL_11_STABLE' && $oversion ne 'HEAD'))
 	{
 		my $nooid_stmt = q{
            DO $stmt$
@@ -403,34 +405,34 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
               END LOOP;
            END; $stmt$;
         };
-		open(my $nooid,">",'nooid.sql') || die "opening nooid.sql: $!";
-        print $nooid $nooid_stmt;
+		open(my $nooid, ">", 'nooid.sql') || die "opening nooid.sql: $!";
+		print $nooid $nooid_stmt;
 		close($nooid);
-		foreach my $oiddb ("regression","contrib_regression_btree_gist")
+		foreach my $oiddb ("regression", "contrib_regression_btree_gist")
 		{
 			system( "$other_branch/inst/bin/psql -X -e "
-					. " -f nooid.sql "
-					. "$oiddb "
-					. ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+				  . " -f nooid.sql "
+				  . "$oiddb "
+				  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
 			return if $?;
 		}
 
 		if ($oversion ge 'REL_10_STABLE')
 		{
 			system( "$other_branch/inst/bin/psql -X -e "
-					. " -c 'drop foreign table if exists ft_pg_type' "
-					. "contrib_regression_postgres_fdw "
-					. ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+				  . " -c 'drop foreign table if exists ft_pg_type' "
+				  . "contrib_regression_postgres_fdw "
+				  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
 			return if $?;
 		}
 
 		if ($oversion lt 'REL9_3_STABLE')
 		{
 			system( "$other_branch/inst/bin/psql -X -e "
-					. " -c 'drop table if exists abstime_tbl, "
-					. "  reltime_tbl, tinterval_tbl' "
-					. "regression "
-					. ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+				  . " -c 'drop table if exists abstime_tbl, "
+				  . "  reltime_tbl, tinterval_tbl' "
+				  . "regression "
+				  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
 			return if $?;
 		}
 	}
@@ -457,7 +459,8 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	open(my $pgconf, ">>", "$installdir/$oversion-upgrade/postgresql.conf")
 	  || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
 	my $tmp_param = "unix_socket_directories";
-	$tmp_param = "unix_socket_directory" if $this_branch ne 'HEAD' && $this_branch lt 'REL9_3_STABLE';
+	$tmp_param = "unix_socket_directory"
+	  if $this_branch ne 'HEAD' && $this_branch lt 'REL9_3_STABLE';
 	print $pgconf "listen_addresses = ''\n";
 	print $pgconf "$tmp_param = '$tmpdir'\n";
 	close($pgconf);

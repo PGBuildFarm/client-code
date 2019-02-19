@@ -323,25 +323,25 @@ sub check_install_is_complete
 	my $install_dir = shift;
 
 	# settings that apply for MSVC
-	my $tmp_loc     = "$build_dir/tmp_install";
-	my $bindir      = "$tmp_loc/bin";
-	my $libdir      = "$tmp_loc/lib";
-	my $suffix = '.dll';
+	my $tmp_loc = "$build_dir/tmp_install";
+	my $bindir  = "$tmp_loc/bin";
+	my $libdir  = "$tmp_loc/lib";
+	my $suffix  = '.dll';
 
 	# adjust settings for non-MSVC
-	if (-e "$build_dir/src/Makefile.global") # i.e. not msvc
+	if (-e "$build_dir/src/Makefile.global")    # i.e. not msvc
 	{
 		$suffix = `cd $build_dir && make show_dl_suffix`;
 		chomp $suffix;
 		$tmp_loc = "$tmp_loc/$install_dir";
-		$bindir = "$tmp_loc/bin";
-		$libdir = "$tmp_loc/lib/postgresql";
+		$bindir  = "$tmp_loc/bin";
+		$libdir  = "$tmp_loc/lib/postgresql";
 	}
 
 	# these files should be present if we've temp_installed everything,
 	# and not if we haven't. The represent core, contrib and test_modules.
 	return ( (-d $tmp_loc)
-		  && (-f "$bindir/postgres"       || -f "$bindir/postgres.exe")
+		  && (-f "$bindir/postgres" || -f "$bindir/postgres.exe")
 		  && (-f "$libdir/hstore$suffix")
 		  && (-f "$libdir/test_parser$suffix"));
 }

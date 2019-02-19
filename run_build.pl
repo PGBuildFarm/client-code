@@ -998,7 +998,7 @@ if ($use_valgrind)
 	if (@vglines)
 	{
 		unshift(@vglines,
-				"=== Valgrind errors were found at the following stage(s):\n");
+			"=== Valgrind errors were found at the following stage(s):\n");
 		send_result('Valgrind', 1, \@vglines);
 	}
 }

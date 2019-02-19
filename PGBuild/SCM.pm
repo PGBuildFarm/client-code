@@ -642,7 +642,8 @@ sub checkout
 
 		if (-d $self->{mirror})
 		{
-			@gitlog = run_log(qq{git --git-dir="$self->{mirror}" fetch --prune});
+			@gitlog =
+			  run_log(qq{git --git-dir="$self->{mirror}" fetch --prune});
 			$status = $self->{ignore_mirror_failure} ? 0 : $? >> 8;
 
 			my $last_gc = find_last("$target.mirror.gc") || 0;
@@ -728,7 +729,8 @@ sub checkout
 
 		# we do this instead of 'git pull' in case the upstream repo
 		# has been rebased
-		my @pulllog = run_log("git fetch --prune && git reset --hard origin/$rbranch");
+		my @pulllog =
+		  run_log("git fetch --prune && git reset --hard origin/$rbranch");
 		push(@gitlog, @colog, @pulllog);
 		chdir '..';
 
@@ -925,9 +927,10 @@ sub get_branches
 	foreach (@allbranches)
 	{
 		chomp;
-		s/..//; s/ ->.*//;
+		s/..//;
+		s/ ->.*//;
 		s/^$prefix// || next;
-		push @branches,$_;
+		push @branches, $_;
 	}
 	chdir "..";
 	return @branches;
