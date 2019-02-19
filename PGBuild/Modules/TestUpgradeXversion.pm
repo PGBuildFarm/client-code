@@ -437,9 +437,18 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		}
 	}
 
+	my $extra_digits = "";
+
+	if (   $oversion ne 'HEAD'
+		&& $oversion le 'REL_11_STABLE'
+		&& ($this_branch eq 'HEAD' || $this_branch gt 'REL_11_STABLE'))
+	{
+		$extra_digits = ' --extra-float-digits=0';
+	}
+
 	# use the NEW pg_dumpall so we're comparing apples with apples.
 	setinstenv($self, "$installdir", $save_env);
-	system( "$installdir/bin/pg_dumpall -p $sport -f "
+	system( "$installdir/bin/pg_dumpall $extra_digits -p $sport -f "
 		  . "$upgrade_loc/origin-$oversion.sql "
 		  . ">'$upgrade_loc/$oversion-dump1.log' 2>&1");
 	return if $?;
@@ -510,7 +519,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		return if $?;
 	}
 
-	system( "pg_dumpall -f "
+	system( "pg_dumpall $extra_digits -f "
 		  . "$upgrade_loc/converted-$oversion-to-$this_branch.sql");
 	return if $?;
 
