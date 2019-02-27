@@ -198,12 +198,12 @@ sub installcheck
 		push(@log, "\n\n================== $logfile ==================\n");
 		push(@log, file_lines($logfile, $lpos));
 	}
-    if ($status)
-    {
-        my @trace =
-          get_stack_trace("$installdir/bin", "$installdir/data-$locale");
-        push(@log, @trace);
-    }
+	if ($status)
+	{
+		my @trace =
+		  get_stack_trace("$installdir/bin", "$installdir/data-$locale");
+		push(@log, @trace);
+	}
 
 	writelog("$MODULE-installcheck-$locale", \@log);
 	print "======== installcheck ($locale) log ===========\n", @log
