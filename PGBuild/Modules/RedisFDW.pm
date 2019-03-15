@@ -1,6 +1,15 @@
 # Package Namespace is hardcoded. Modules must live in
 # PGBuild::Modules
 
+
+=comment
+
+Copyright (c) 2003-2019, Andrew Dunstan
+
+See accompanying License file for license details
+
+=cut
+
 package PGBuild::Modules::RedisFDW;
 
 use PGBuild::Options;

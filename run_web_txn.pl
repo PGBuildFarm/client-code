@@ -2,7 +2,7 @@
 
 =comment
 
-Copyright (c) 2003-2017, Andrew Dunstan
+Copyright (c) 2003-2019, Andrew Dunstan
 
 See accompanying License file for license details
 
