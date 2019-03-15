@@ -658,7 +658,8 @@ sub installcheck
 			my $bn = basename $log;
 			next if $bn =~ /^(origin|converted)/;
 			my @lines = file_lines($log);
-			push(@testout, "===================== $bn ==============\n", @lines)
+			push(@testout,
+				"\n===================== $bn ==============\n", @lines)
 			  if (@lines || $bn =~ /dumpdiff/);
 		}
 
