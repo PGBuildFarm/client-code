@@ -83,6 +83,12 @@ sub check
 
 	my $temp_inst_ok = check_install_is_complete($self->{pgsql}, $installdir);
 
+	my $binloc = $temp_inst_ok ?
+	  "tmp_install" :
+	  "src/bin/pg_upgrade/tmp_check/install";
+	my $tmp_bin_dir = "$self->{pgsql}/$binloc/$installdir/bin";
+	my $tmp_data_dir = "$self->{pgsql}/src/bin/pg_upgrade/tmp_check/data.old";
+
 	my $make = $self->{bfconf}->{make};
 
 	local %ENV = %ENV;
@@ -138,6 +144,13 @@ sub check
 	}
 
 	my $status = $? >> 8;
+
+    if ($status && ! $self->{bfconf}->{using_msvc})
+    {
+        my @trace =
+          get_stack_trace("$tmp_bin_dir", "$tmp_data_dir");
+        push(@checklog, @trace);
+    }
 
 	writelog("check-pg_upgrade", \@checklog);
 	print "======== pg_upgrade check log ===========\n", @checklog
