@@ -255,11 +255,6 @@ sub save_for_testing
 
 	return if $?;
 
-	system( "$installdir/bin/psql -A -X -t -c '$sql' contrib_regression "
-		  . ">> '$upgrade_loc/fix.log' 2>&1");
-
-	return if $?;
-
 	if ($this_branch ge 'REL9_5' || $self->{pgbranch} eq 'HEAD')
 	{
 		system(
