@@ -40,7 +40,7 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
-use vars qw($VERSION); $VERSION = 'REL_9';
+use vars qw($VERSION); $VERSION = 'REL_10';
 
 use FindBin;
 use lib $FindBin::RealBin;

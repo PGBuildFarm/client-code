@@ -19,7 +19,7 @@ use PGBuild::Utils;
 use strict;
 use warnings;
 
-use vars qw($VERSION); $VERSION = 'REL_9';
+use vars qw($VERSION); $VERSION = 'REL_10';
 
 my $hooks = {
 	'checkout'     => \&checkout,
