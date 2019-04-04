@@ -1674,7 +1674,8 @@ sub make_pl_install_check
 	my @checklog;
 	unless ($using_msvc)
 	{
-		@checklog = run_log("cd $pgsql/src/pl && $make installcheck");
+		@checklog =
+		  run_log("cd $pgsql/src/pl && $make USE_MODULE_DB=1 installcheck");
 	}
 	else
 	{
