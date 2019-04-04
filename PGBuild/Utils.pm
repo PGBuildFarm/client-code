@@ -340,7 +340,8 @@ sub check_install_is_complete
 
 	# these files should be present if we've temp_installed everything,
 	# and not if we haven't. The represent core, contrib and test_modules.
-	my $res = ( (-d $tmp_loc)
+	my $res =
+	  (      (-d $tmp_loc)
 		  && (-f "$bindir/postgres" || -f "$bindir/postgres.exe")
 		  && (-f "$libdir/hstore$suffix")
 		  && (-f "$libdir/test_parser$suffix"));
