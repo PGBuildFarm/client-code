@@ -331,7 +331,8 @@ sub check_install_is_complete
 	# adjust settings for non-MSVC
 	if (-e "$build_dir/src/Makefile.global")    # i.e. not msvc
 	{
-		$suffix = `cd $build_dir && make show_dl_suffix`;
+		my $make = $PGBuild::conf{make};
+		$suffix = `cd $build_dir && $make show_dl_suffix`;
 		chomp $suffix;
 		$tmp_loc = "$tmp_loc/$install_dir";
 		$bindir  = "$tmp_loc/bin";
