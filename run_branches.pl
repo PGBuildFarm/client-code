@@ -64,9 +64,8 @@ my %extra_options = (
 # process the command line
 PGBuild::Options::fetch_options(%extra_options);
 
-# no non-option args allowed here
-die("$0: non-option arguments not permitted")
-  if @ARGV;
+# any arguments left are explicit branches
+my $explicit_branches = [ @ARGV ];
 
 die "only one of --run-all, --run-one and --run_parallel permitted"
   if ( ($run_all && $run_one)
@@ -112,6 +111,9 @@ die "$buildroot does not exist or is not a directory" unless -d $buildroot;
 
 my $branches_to_build = $PGBuild::conf{global}->{branches_to_build}
   || $PGBuild::conf{branches_to_build};    # legacy support
+
+# override with explicit branches if there are any
+$branches_to_build = $explicit_branches if @{$explicit_branches};
 
 unless (((ref $branches_to_build) eq 'ARRAY' && @{$branches_to_build})
 	|| (ref $branches_to_build) =~ /Regexp/i
