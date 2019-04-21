@@ -863,6 +863,9 @@ foreach my $locale (@locales)
 
 	do
 	{
+		# silence warning about uninitialized value, on e.g. frogmouth.
+		delete $ENV{TMPDIR} unless defined $ENV{TMPDIR};
+
 		local %ENV = %ENV;
 		if (!$using_msvc && $Config{osname} !~ /msys|MSWin/)
 		{
