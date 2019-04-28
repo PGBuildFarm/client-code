@@ -166,14 +166,17 @@ sub run_web_txn
 
 	my $response = $ua->request($request);
 
-	unless ($response->is_success || $verbose > 1)
+	unless ($response->is_success)
 	{
 		print
 		  "Query for: stage=$stage&animal=$animal&ts=$ts\n",
 		  "Target: $target/$sig\n";
 		print "Status Line: ", $response->status_line, "\n";
 		print "Content: \n",   $response->content,     "\n"
-		  if ($verbose && $response->content);
+		  if  $response->content;
+		no warnings qw(once);
+		print "Request: ", $request->as_string, "\n"
+		  if ($verbose > 1 || $PGBuild::conf{show_error_request});
 		return;
 	}
 
