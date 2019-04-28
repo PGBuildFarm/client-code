@@ -43,7 +43,7 @@ BEGIN
 	## no critic (ValuesAndExpressions::ProhibitMismatchedOperators)
 	# perlcritic gets confused by version comparisons - this usage is
 	# sanctioned by perldoc perlvar
-	require LWP::Simple if $^O ne 'msys' || $^V ge v5.8.0;
+	require LWP::UserAgent if $^O ne 'msys' || $^V ge v5.8.0;
 }
 
 $send_result_routine = \&send_res;
@@ -181,7 +181,23 @@ elsif ($branches_to_build =~ /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
 		# everyone else: use this perl
 		# make sure we have https protocol support if it's required
 		require LWP::Protocol::https if $url =~ /^https:/;
-		$branches_of_interest = LWP::Simple::get($url);
+		my $ua = LWP::UserAgent->new;
+		$ua->agent("Postgres Build Farm Reporter");
+		if (my $proxy = $ENV{BF_PROXY})
+		{
+			my $targetURI = URI->new($url);
+			$ua->proxy($targetURI->scheme, $proxy);
+		}
+		my $response = $ua->get($url);
+		if ($response->is_success)
+		{
+			$branches_of_interest = $response->decoded_content;
+		}
+		else
+		{
+			print STDERR "error getting branches of interest: ";
+			die $response->status_line;
+		}
 	}
 	die "getting branches of interest ($url)" unless $branches_of_interest;
 	$ENV{PATH} = $save_path;
