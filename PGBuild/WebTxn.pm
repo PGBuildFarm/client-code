@@ -176,7 +176,7 @@ sub run_web_txn
 		  if  $response->content;
 		no warnings qw(once);
 		print "Request: ", $request->as_string, "\n"
-		  if ($verbose > 1 || $PGBuild::conf{show_error_request});
+		  if $PGBuild::conf{show_error_request};
 		return;
 	}
 
