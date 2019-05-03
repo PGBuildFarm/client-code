@@ -2271,22 +2271,17 @@ sub configure
 	print "======== configure output ===========\n", @confout
 	  if ($verbose > 1);
 
-	writelog('configure', \@confout);
-
-	my (@config);
-
 	if (-s "$pgsql/config.log")
 	{
-		@config = file_lines("$pgsql/config.log");
-		writelog('config', \@config);
+		push(@confout ,
+			 "\n\n================= config.log ================\n\n",
+			 file_lines("$pgsql/config.log"));
 	}
+
+	writelog('configure', \@confout);
 
 	if ($status)
 	{
-
-		push(@confout,
-			"\n\n================= config.log ================\n\n", @config);
-
 		send_result('Configure', $status, \@confout);
 	}
 
