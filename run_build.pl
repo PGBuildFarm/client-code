@@ -802,6 +802,7 @@ set_last('status',   $now)          unless $nostatus;
 set_last('run.snap', $current_snap) unless $nostatus;
 
 my $started_times = 0;
+my $dblaststartstop = 0;
 
 # each of these routines will call send_result, which calls exit,
 # on any error, so each step depends on success in the previous
@@ -1482,6 +1483,7 @@ sub start_db
 		my @loglines = file_lines("$installdir/logfile");
 		push(@ctlout, "=========== db log file ==========\n", @loglines);
 	}
+	sleep 1 while time < $dblaststartstop + 2;
 	writelog("startdb-$locale-$started_times", \@ctlout);
 	print "======== start db ($locale) : $started_times log ========\n", @ctlout
 	  if ($verbose > 1);
@@ -1493,6 +1495,7 @@ sub start_db
 		send_result("StartDb-$locale:$started_times", $status, \@ctlout);
 	}
 	$dbstarted = 1;
+	$dblaststartstop = time;
 	return;
 }
 
@@ -1531,11 +1534,13 @@ sub stop_db
 		my @loglines = file_lines("$installdir/logfile", $logpos);
 		push(@ctlout, "=========== db log file ==========\n", @loglines);
 	}
+	sleep 1 while time < $dblaststartstop + 2;
 	writelog("stopdb-$locale-$started_times", \@ctlout);
 	print "======== stop db ($locale): $started_times log ==========\n", @ctlout
 	  if ($verbose > 1);
 	send_result("StopDb-$locale:$started_times", $status, \@ctlout) if $status;
 	$dbstarted = undef;
+	$dblaststartstop = time;
 	return;
 }
 
