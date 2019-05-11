@@ -162,6 +162,7 @@ sub get_stack_trace
 	my $handle;
 	open($handle, '>', $cmdfile) || die "opening $cmdfile: $!";
 	print $handle "bt\n";
+	print $handle 'p $_siginfo',"\n";
 	close($handle);
 
 	my @trace = ("\n\n");
