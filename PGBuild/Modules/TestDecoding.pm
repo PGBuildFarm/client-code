@@ -34,9 +34,6 @@ sub setup
 	# for now do nothing on MSVC
 	return if $conf->{using_msvc};
 
-	# only for supported branches
-	return unless $branch eq 'HEAD' || $branch ge 'REL9_4_STABLE';
-
 	my $self = {
 		buildroot => $buildroot,
 		pgbranch  => $branch,

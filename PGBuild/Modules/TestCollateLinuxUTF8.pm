@@ -72,7 +72,7 @@ sub installcheck
 	my $branch    = $self->{pgbranch};
 	my $buildroot = "$self->{buildroot}/$branch";
 	my $binswitch =
-	  ($branch eq 'HEAD' || $branch ge 'REL9_5') ? 'bindir' : 'psqldir';
+	  ($branch ne 'HEAD' && $branch lt 'REL9_5') ? 'psqldir' : 'bindir';
 	my $installdir = "$buildroot/inst";
 
 	return unless $locale =~ /utf8$/i;

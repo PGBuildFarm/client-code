@@ -826,7 +826,7 @@ make_check() unless $delay_check;
 make_contrib() unless ($using_msvc);
 
 make_testmodules()
-  if (!$using_msvc && ($branch eq 'HEAD' || $branch ge 'REL9_5'));
+  unless ($using_msvc || ($branch ne 'HEAD' && $branch lt 'REL9_5'));
 
 make_doc() if (check_optional_step('build_docs'));
 
@@ -836,7 +836,7 @@ make_install();
 make_contrib_install() unless ($using_msvc);
 
 make_testmodules_install()
-  if (!$using_msvc && ($branch eq 'HEAD' || $branch ge 'REL9_5'));
+  unless ($using_msvc || ($branch ne 'HEAD' && $branch lt 'REL9_5'));
 
 make_check() if $delay_check;
 
@@ -946,8 +946,8 @@ foreach my $locale (@locales)
 			make_contrib_install_check($locale);
 		}
 
-		if (step_wanted('testmodules-install-check')
-			&& ($branch eq 'HEAD' || $branch ge 'REL9_5'))
+		unless (! step_wanted('testmodules-install-check')
+			|| ($branch ne 'HEAD' && $branch lt 'REL9_5'))
 		{
 			print time_str(), "restarting db ($locale)...\n" if $verbose;
 
@@ -1842,9 +1842,6 @@ sub run_bin_tests
 {
 	return unless step_wanted('bin-check');
 
-	# tests only came in with 9.4
-	return unless ($branch eq 'HEAD' or $branch ge 'REL9_4');
-
 	# don't run unless the tests have been enabled
 	if ($using_msvc)
 	{
@@ -1868,9 +1865,6 @@ sub run_bin_tests
 sub run_misc_tests
 {
 	return unless step_wanted('misc-check');
-
-	# tests only came in with 9.4
-	return unless ($branch eq 'HEAD' or $branch ge 'REL9_4');
 
 	# don't run unless the tests have been enabled
 	if ($using_msvc)
