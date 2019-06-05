@@ -121,7 +121,7 @@ sub run_web_txn
 		delete $Script_Config->{$k}
 		  if ref($Script_Config->{$k}) eq q(Regexp);
 	}
-	if (ref($Script_Config->{global}->{branches_to_build}) eq qr(Regexp) )
+	if (ref($Script_Config->{global}->{branches_to_build}) eq q(Regexp) )
 	{
 		delete $Script_Config->{global}->{branches_to_build}
 	}
