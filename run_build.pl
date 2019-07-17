@@ -850,6 +850,8 @@ process_module_hooks('install');
 
 process_module_hooks("check") if $delay_check;
 
+make_testmodules_check();
+
 run_bin_tests();
 
 run_misc_tests();
@@ -1636,6 +1638,37 @@ sub make_contrib_install_check
 	return;
 }
 
+# run the modules that can't be run with installcheck
+sub make_testmodules_check
+{
+	return if $using_msvc;
+	return unless step_wanted('testmodules-install-check');
+	my @checklog;
+	my $status = 0;
+	my @dirs = glob("$pgsql/src/test/modules/*");
+	return unless @dirs;
+	print time_str(), "running make check for some test modules...\n"
+	  if $verbose;
+	my $temp_inst_ok = check_install_is_complete($pgsql, $installdir);
+	my $instflags = $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
+	foreach my $ dir (@dirs)
+	{
+		next unless -e "$dir/Makefile";
+		my $makefile = file_contents("$dir/Makefile");
+		next unless $makefile =~ /^NO_INSTALLCHECK/m;
+		my $test = basename($dir);
+		my @out = run_log("cd $dir && $make $instflags check");
+		$status ||= $? >> 8;
+		push(@checklog,"=========== Module $test check =============\n",@out);
+	}
+	return unless ($status || @checklog);
+	writelog("modules-check", \@checklog);
+	print @checklog if ($verbose > 1);
+	send_result("ModulesCheck", $status, \@checklog) if $status;
+	$steps_completed .= " ModulesCheck";
+	return;
+}
+
 sub make_testmodules_install_check
 {
 	my $locale = shift;
@@ -1886,6 +1919,12 @@ sub run_misc_tests
 	{
 		next unless -d "$pgsql/src/test/$test/t";
 		run_tap_test("$pgsql/src/test/$test", $test, undef);
+	}
+
+	foreach my $testdir (glob("$pgsql/src/test/modules/*"))
+	{
+		next unless -d "$testdir/t";
+		run_tap_test("$testdir", basename($testdir), undef);
 	}
 	return;
 }

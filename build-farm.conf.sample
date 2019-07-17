@@ -208,6 +208,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 
 		# run extra TAP tests if listed here
 		# These are the ones omitted without the setting
+		# on a secure single user system it makes sense to enable these
 		# PG_TEST_EXTRA => "ssl ldap kerberos",
 	},
 
