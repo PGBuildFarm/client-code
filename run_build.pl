@@ -1926,6 +1926,13 @@ sub run_misc_tests
 		next unless -d "$testdir/t";
 		run_tap_test("$testdir", basename($testdir), undef);
 	}
+
+	foreach my $testdir (glob("$pgsql/contrib/*"))
+	{
+		next unless -d "$testdir/t";
+		run_tap_test("$testdir", "contrib-" . basename($testdir), undef);
+	}
+
 	return;
 }
 
