@@ -1327,7 +1327,7 @@ sub initdb
 	chdir $installdir;
 
 	@initout =
-	  run_log(qq{"bin/initdb" -U buildfarm --locale=$locale data-$locale});
+	  run_log(qq{"bin/initdb" -A trust -U buildfarm --locale=$locale data-$locale});
 
 	my $status = $? >> 8;
 

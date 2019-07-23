@@ -456,7 +456,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	return if $?;
 	setinstenv($self, $installdir, $save_env);
 
-	system( "initdb -U buildfarm --locale=C "
+	system( "initdb -A trust -U buildfarm --locale=C "
 		  . "$installdir/$oversion-upgrade "
 		  . "> '$upgrade_loc/$oversion-initdb.log' 2>&1");
 	return if $?;
