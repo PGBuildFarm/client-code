@@ -2097,7 +2097,7 @@ sub find_typedefs
 		next unless -f $bin;
 		if (@err == 1)    # Linux and sometimes windows
 		{
-			my $cmd = "$objdump -W $bin 2>/dev/null | "
+			my $cmd = "$objdump -Wi $bin 2>/dev/null | "
 			  . "egrep -A3 DW_TAG_typedef 2>/dev/null";
 			@dumpout = `$cmd`;    # no run_log because of redirections
 			foreach (@dumpout)
