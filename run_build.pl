@@ -1917,6 +1917,8 @@ sub run_misc_tests
 
 	foreach my $test (qw(recovery subscription authentication), @extra_tap)
 	{
+		next if $test eq 'authentication' &&
+		  ($using_msvc || $Config{osname} eq 'msys');
 		next unless -d "$pgsql/src/test/$test/t";
 		run_tap_test("$pgsql/src/test/$test", $test, undef);
 	}
