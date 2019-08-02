@@ -1069,7 +1069,7 @@ sub check_optional_step
 	return if (exists $oconf->{max_hour} && $hour > $oconf->{max_hour});
 	return
 	  if (exists $oconf->{dow}
-		&& grep { $_ eq $wday } @{ $oconf->{dow} });
+		  && not grep { $_ == $wday } @{ $oconf->{dow} });
 
 	my $last_step = $last_status = find_last("$step") || 0;
 
