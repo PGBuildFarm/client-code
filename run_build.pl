@@ -1069,7 +1069,7 @@ sub check_optional_step
 	return if (exists $oconf->{max_hour} && $hour > $oconf->{max_hour});
 	return
 	  if (exists $oconf->{dow}
-		  && not grep { $_ == $wday } @{ $oconf->{dow} });
+		  && ! grep { $_ == $wday } @{ $oconf->{dow} });
 
 	my $last_step = $last_status = find_last("$step") || 0;
 
@@ -1651,7 +1651,7 @@ sub make_testmodules_check
 	  if $verbose;
 	my $temp_inst_ok = check_install_is_complete($pgsql, $installdir);
 	my $instflags = $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
-	foreach my $ dir (@dirs)
+	foreach my $dir (@dirs)
 	{
 		next unless -e "$dir/Makefile";
 		my $makefile = file_contents("$dir/Makefile");
