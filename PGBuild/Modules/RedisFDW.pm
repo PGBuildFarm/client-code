@@ -26,7 +26,7 @@ use warnings;
 # strip required namespace from package name
 (my $MODULE = __PACKAGE__) =~ s/PGBuild::Modules:://;
 
-use vars qw($VERSION); $VERSION = 'REL_10';
+use vars qw($VERSION); $VERSION = 'REL_11';
 
 my $hooks = {
 	'checkout'     => \&checkout,
