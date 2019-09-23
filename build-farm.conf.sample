@@ -65,7 +65,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# archive this many copies of the report summary
 	archive_reports => undef,
 
-	# if on, print the while web request obejct if there is a web error
+	# if on, print the whole web request object if there is a web error
 	show_error_request => undef,
 
 	# Only works if the Unix::Uptime module is available
