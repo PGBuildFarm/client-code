@@ -65,7 +65,7 @@ my %extra_options = (
 PGBuild::Options::fetch_options(%extra_options);
 
 # any arguments left are explicit branches
-my $explicit_branches = [ @ARGV ];
+my $explicit_branches = [@ARGV];
 
 die "only one of --run-all, --run-one and --run_parallel permitted"
   if ( ($run_all && $run_one)

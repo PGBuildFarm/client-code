@@ -121,9 +121,9 @@ sub run_web_txn
 		delete $Script_Config->{$k}
 		  if ref($Script_Config->{$k}) eq q(Regexp);
 	}
-	if (ref($Script_Config->{global}->{branches_to_build}) eq q(Regexp) )
+	if (ref($Script_Config->{global}->{branches_to_build}) eq q(Regexp))
 	{
-		delete $Script_Config->{global}->{branches_to_build}
+		delete $Script_Config->{global}->{branches_to_build};
 	}
 
 	# if we have an available json encoder from JSON::PP then use it and
@@ -177,7 +177,7 @@ sub run_web_txn
 		  "Target: $target/$sig\n";
 		print "Status Line: ", $response->status_line, "\n";
 		print "Content: \n",   $response->content,     "\n"
-		  if  $response->content;
+		  if $response->content;
 		no warnings qw(once);
 		print "Request: ", $request->as_string, "\n"
 		  if $PGBuild::conf{show_error_request};

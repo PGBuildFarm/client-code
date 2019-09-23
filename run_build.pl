@@ -801,7 +801,7 @@ process_module_hooks('setup-target');
 set_last('status',   $now)          unless $nostatus;
 set_last('run.snap', $current_snap) unless $nostatus;
 
-my $started_times = 0;
+my $started_times   = 0;
 my $dblaststartstop = 0;
 
 # each of these routines will call send_result, which calls exit,
@@ -948,7 +948,7 @@ foreach my $locale (@locales)
 			make_contrib_install_check($locale);
 		}
 
-		unless (! step_wanted('testmodules-install-check')
+		unless (!step_wanted('testmodules-install-check')
 			|| ($branch ne 'HEAD' && $branch lt 'REL9_5'))
 		{
 			print time_str(), "restarting db ($locale)...\n" if $verbose;
@@ -1069,7 +1069,7 @@ sub check_optional_step
 	return if (exists $oconf->{max_hour} && $hour > $oconf->{max_hour});
 	return
 	  if (exists $oconf->{dow}
-		  && ! grep { $_ == $wday } @{ $oconf->{dow} });
+		&& !grep { $_ == $wday } @{ $oconf->{dow} });
 
 	my $last_step = $last_status = find_last("$step") || 0;
 
@@ -1327,7 +1327,8 @@ sub initdb
 	chdir $installdir;
 
 	@initout =
-	  run_log(qq{"bin/initdb" -A trust -U buildfarm --locale=$locale data-$locale});
+	  run_log(
+		qq{"bin/initdb" -A trust -U buildfarm --locale=$locale data-$locale});
 
 	my $status = $? >> 8;
 
@@ -1496,7 +1497,7 @@ sub start_db
 		chdir($branch_root);
 		send_result("StartDb-$locale:$started_times", $status, \@ctlout);
 	}
-	$dbstarted = 1;
+	$dbstarted       = 1;
 	$dblaststartstop = time;
 	return;
 }
@@ -1541,7 +1542,7 @@ sub stop_db
 	print "======== stop db ($locale): $started_times log ==========\n", @ctlout
 	  if ($verbose > 1);
 	send_result("StopDb-$locale:$started_times", $status, \@ctlout) if $status;
-	$dbstarted = undef;
+	$dbstarted       = undef;
 	$dblaststartstop = time;
 	return;
 }
@@ -1645,21 +1646,22 @@ sub make_testmodules_check
 	return unless step_wanted('testmodules-install-check');
 	my @checklog;
 	my $status = 0;
-	my @dirs = glob("$pgsql/src/test/modules/*");
+	my @dirs   = glob("$pgsql/src/test/modules/*");
 	return unless @dirs;
 	print time_str(), "running make check for some test modules...\n"
 	  if $verbose;
 	my $temp_inst_ok = check_install_is_complete($pgsql, $installdir);
 	my $instflags = $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
+
 	foreach my $dir (@dirs)
 	{
 		next unless -e "$dir/Makefile";
 		my $makefile = file_contents("$dir/Makefile");
 		next unless $makefile =~ /^NO_INSTALLCHECK/m;
 		my $test = basename($dir);
-		my @out = run_log("cd $dir && $make $instflags check");
+		my @out  = run_log("cd $dir && $make $instflags check");
 		$status ||= $? >> 8;
-		push(@checklog,"=========== Module $test check =============\n",@out);
+		push(@checklog, "=========== Module $test check =============\n", @out);
 	}
 	return unless ($status || @checklog);
 	writelog("modules-check", \@checklog);
@@ -1917,8 +1919,9 @@ sub run_misc_tests
 
 	foreach my $test (qw(recovery subscription authentication), @extra_tap)
 	{
-		next if $test eq 'authentication' &&
-		  ($using_msvc || $Config{osname} eq 'msys');
+		next
+		  if $test eq 'authentication'
+		  && ($using_msvc || $Config{osname} eq 'msys');
 		next unless -d "$pgsql/src/test/$test/t";
 		run_tap_test("$pgsql/src/test/$test", $test, undef);
 	}
@@ -2320,9 +2323,9 @@ sub configure
 
 	if (-s "$pgsql/config.log")
 	{
-		push(@confout ,
-			 "\n\n================= config.log ================\n\n",
-			 file_lines("$pgsql/config.log"));
+		push(@confout,
+			"\n\n================= config.log ================\n\n",
+			file_lines("$pgsql/config.log"));
 	}
 
 	writelog('configure', \@confout);

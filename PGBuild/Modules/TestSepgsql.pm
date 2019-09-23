@@ -142,7 +142,8 @@ sub locale_end
 	  if $verbose;
 
 	# set up a different data directory for selinux
-	my @log = run_log("cd inst && bin/initdb -A trust -U buildfarm --no-locale sepgsql");
+	my @log = run_log(
+		"cd inst && bin/initdb -A trust -U buildfarm --no-locale sepgsql");
 
 	my $status = $? >> 8;
 
