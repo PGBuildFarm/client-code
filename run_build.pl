@@ -1659,7 +1659,8 @@ sub make_testmodules_check
 		my $makefile = file_contents("$dir/Makefile");
 		next unless $makefile =~ /^NO_INSTALLCHECK/m;
 		my $test = basename($dir);
-		my @out  = run_log("cd $dir && $make $instflags check");
+		# skip redundant TAP tests which are called elsewhere
+		my @out  = run_log("cd $dir && $make $instflags TAP_TESTS= check");
 		$status ||= $? >> 8;
 		push(@checklog, "=========== Module $test check =============\n", @out);
 	}
@@ -1929,7 +1930,7 @@ sub run_misc_tests
 	foreach my $testdir (glob("$pgsql/src/test/modules/*"))
 	{
 		next unless -d "$testdir/t";
-		run_tap_test("$testdir", basename($testdir), undef);
+		run_tap_test("$testdir", 'module-' . basename($testdir), undef);
 	}
 
 	foreach my $testdir (glob("$pgsql/contrib/*"))
