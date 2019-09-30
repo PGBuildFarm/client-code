@@ -2145,17 +2145,27 @@ sub find_typedefs
 			  `dwarfdump $bin 2>/dev/null | egrep -A2 TAG_typedef 2>/dev/null`;
 			foreach (@dumpout)
 			{
-				@flds = split;
-				next unless (@flds == 3);
-				next unless ($flds[0] eq "AT_name(");
-				next unless ($flds[1] =~ m/^"(.*)"$/);
 				## no critic (RegularExpressions::ProhibitCaptureWithoutTest)
-				$syms{$1} = 1;
+				@flds = split;
+				if (@flds == 3)
+				{
+					# old format
+					next unless ($flds[0] eq "AT_name(");
+					next unless ($flds[1] =~ m/^"(.*)"$/);
+					$syms{$1} = 1;
+				}
+				elsif (@flds == 2)
+				{
+					# new format
+					next unless ($flds[0] eq "DW_AT_name");
+					next unless ($flds[1] =~ m/^\("(.*)"\)$/);
+					$syms{$1} = 1;
+				}
 			}
 		}
 		else
 		{
-			# no run_log doe to redirections.
+			# no run_log due to redirections.
 			@dumpout = `$objdump --stabs $bin 2>/dev/null`;
 			foreach (@dumpout)
 			{
