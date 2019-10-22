@@ -1042,7 +1042,7 @@ usage: $0 [options] [branch]
   --skip-steps=list         = skip certain steps
   --only-steps=list         = only do certain steps, not allowed with skip-steps
   --schedule=name           = use different schedule in check and installcheck
-  --tests=list              = just run these tests in chak and installcheck
+  --tests=list              = just run these tests in check and installcheck
   --check-warnings          = turn compiler warnings into errors
   --delay-check             = defer check step until after install steps
 
