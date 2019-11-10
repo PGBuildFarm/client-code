@@ -2274,6 +2274,7 @@ sub configure
 	my $confstr = join(" ",
 		@quoted_opts, "--prefix=$installdir", "--with-pgport=$buildport");
 
+	my $accachefile;
 	if ($use_accache)
 	{
 		# set up cache directory for autoconf cache
@@ -2284,7 +2285,7 @@ sub configure
 		# remove old cache file if configure script is newer
 		# in the case of from_source, or has been changed for this run
 		# or the run is forced, in the usual build from git case
-		my $accachefile = "$accachedir/config-$branch.cache";
+		$accachefile = "$accachedir/config-$branch.cache";
 		if (-e $accachefile)
 		{
 			my $obsolete;
@@ -2350,6 +2351,9 @@ sub configure
 
 	if ($status)
 	{
+		unlink $accachefile
+		  if $use_accache;
+
 		send_result('Configure', $status, \@confout);
 	}
 
