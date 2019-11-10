@@ -104,7 +104,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# aux_path => "../..",
 
 	keep_error_builds => 0,
-	core_file_glob    => "core*",    # Linux style, use "*.core" for BSD
+	core_file_glob    => "*core*",    # should work for both Linux and *BSD
 
 	# where to report status
 	target => "https://buildfarm.postgresql.org/cgi-bin/pgstatus.pl",
