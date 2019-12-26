@@ -2284,22 +2284,27 @@ sub configure
 
 		# remove old cache file if configure script is newer
 		# in the case of from_source, or has been changed for this run
-		# or the run is forced, in the usual build from git case
+		# or the run is forced, in the usual build from git case.
+		# The same logic also applies to src/template/*
 		$accachefile = "$accachedir/config-$branch.cache";
 		if (-e $accachefile)
 		{
-			my $obsolete;
+			my $obsolete = 0;
 			my @cache_stat = stat $accachefile;
 			my $cache_mod  = $cache_stat[9];
 			if ($from_source)
 			{
-				my $conffile      = "$from_source/configure";
-				my @conffile_stat = stat $conffile;
-				$obsolete = -e $conffile && $conffile_stat[9] > $cache_mod;
+				foreach my $conf (glob("$from_source/configure
+                                        $from_source/src/template/*"))
+				{
+					my @tmpstat = stat $conf;
+					$obsolete ||= -e $conf && $tmpstat[9] > $cache_mod;
+				}
 			}
 			else
 			{
 				$obsolete = grep { /^configure / } @changed_files;
+				$obsolete ||= grep { m!^src/template/! } @changed_files;
 				$obsolete ||= $last_status == 0;
 			}
 
