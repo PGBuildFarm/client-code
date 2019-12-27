@@ -3,7 +3,7 @@
 
 # See accompanying License file for license details
 
-ALLPERLFILES = $(shell find . -path ./sandbox -prune -o \( -name '*.pl' -o -name '*.pm' \) -print | sed 's!\./!!') build-farm.conf.sample
+ALLPERLFILES = $(shell find . -path ./sandbox -prune -o -path ./*root -prune -o \( -name '*.pl' -o -name '*.pm' \) -print | sed 's!\./!!') build-farm.conf.sample
 
 # these are the explicitly selected perl files that will go in a 
 # release tarball
