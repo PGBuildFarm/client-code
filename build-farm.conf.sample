@@ -224,6 +224,10 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		# Msys is one such case.
 		# PROVE => '/bin/prove',
 
+		# CPPFLAGS can be set here and picked up by configure
+		# This example makes the regression tests run with extra
+		# checking of user names created by the tests
+		# CPPFLAGS => '-DENFORCE_REGRESSION_TEST_NAME_RESTRICTIONS',
 	},
 
 	# don't use --prefix or --with-pgport here
