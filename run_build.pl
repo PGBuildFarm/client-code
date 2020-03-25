@@ -1153,7 +1153,9 @@ sub make_doc
 	my (@makeout);
 	unless ($using_msvc)
 	{
-		@makeout = run_log("cd $pgsql/doc && $make");
+		my $extra_targets = $PGBuild::conf{extra_doc_targets} || "";
+		@makeout =
+		  run_log("cd $pgsql/doc/src/sgml && $make html $extra_targets");
 	}
 	else
 	{

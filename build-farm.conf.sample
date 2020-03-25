@@ -278,6 +278,11 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		# build_docs => {min_hours_since => 24},
 	},
 
+	# string list of doc targets to build in addition to html
+	# could be "man postgres-US.pdf postgres-A4.pdf epub"
+	# see doc/src/sgml/Makefile for complete list
+	extra_doc_targets => undef,
+
 	# locales to test
 
 	locales => [qw( C )],
