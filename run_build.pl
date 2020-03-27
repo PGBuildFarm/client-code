@@ -1936,10 +1936,16 @@ sub run_misc_tests
 		run_tap_test("$pgsql/src/test/$test", $test, undef);
 	}
 
+
+	my $using_ssl = $using_msvc ? $config_opts->{openssl} :
+	  (grep { $_ eq '--with-openssl' } @$config_opts);
+
 	foreach my $testdir (glob("$pgsql/src/test/modules/*"))
 	{
+		my $testname = basename($testdir);
+		next if $testname =~ /ssl/ && ! $using_ssl;
 		next unless -d "$testdir/t";
-		run_tap_test("$testdir", 'module-' . basename($testdir), undef);
+		run_tap_test("$testdir", "module-$testname", undef);
 	}
 
 	foreach my $testdir (glob("$pgsql/contrib/*"))
