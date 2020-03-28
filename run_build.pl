@@ -95,6 +95,7 @@ use PGBuild::WebTxn;
 use PGBuild::Utils qw(:DEFAULT $st_prefix $logdirname $branch_root
   $steps_completed %skip_steps %only_steps $tmpdir
   $devnull $send_result_routine $ts_prefix);
+use PGBuild::Log;
 
 $send_result_routine = \&send_res;
 
@@ -1582,18 +1583,15 @@ sub make_install_check
 	my $status = $? >> 8;
 	my @logfiles =
 	  ("$pgsql/src/test/regress/regression.diffs", "$installdir/logfile");
-	foreach my $logfile (@logfiles)
-	{
-		next unless (-e $logfile);
-		push(@checklog, "\n\n================== $logfile ==================\n");
-		push(@checklog, file_lines($logfile));
-	}
+	my $log = PGBuild::Log->new("check");
+	$log->add_log($_) foreach (@logfiles);
 	if ($status)
 	{
 		my @trace =
 		  get_stack_trace("$installdir/bin", "$installdir/data-$locale");
-		push(@checklog, @trace);
+		$log->add_log_lines("stack-trace", \@trace) if @trace;
 	}
+	push(@checklog, $log->log_string);
 	writelog("install-check-$locale", \@checklog);
 	print "======== make installcheck log ===========\n", @checklog
 	  if ($verbose > 1);
@@ -1620,19 +1618,16 @@ sub make_contrib_install_check
 	}
 	my $status = $? >> 8;
 	my @logs   = glob("$pgsql/contrib/*/regression.diffs");
-	push(@logs, "$installdir/logfile");
-	foreach my $logfile (@logs)
-	{
-		next unless (-e $logfile);
-		push(@checklog, "\n\n================= $logfile ===================\n");
-		push(@checklog, file_lines($logfile));
-	}
+	my $log = PGBuild::Log->new("contrib_install_check");
+	$log->add_log("$installdir/logfile");
+	$log->add_log($_) foreach (@logs);
 	if ($status)
 	{
 		my @trace =
 		  get_stack_trace("$installdir/bin", "$installdir/data-$locale");
-		push(@checklog, @trace);
+		$log->add_log_lines("stack-trace",\@trace) if @trace;
 	}
+	push(@checklog, $log->log_string);
 	writelog("contrib-install-check-$locale", \@checklog);
 	print "======== make contrib installcheck log ===========\n", @checklog
 	  if ($verbose > 1);
@@ -1654,7 +1649,7 @@ sub make_testmodules_check
 	  if $verbose;
 	my $temp_inst_ok = check_install_is_complete($pgsql, $installdir);
 	my $instflags = $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
-
+	my $log = PGBuild::Log->new("modules-check");
 	foreach my $dir (@dirs)
 	{
 		next unless -e "$dir/Makefile";
@@ -1666,13 +1661,9 @@ sub make_testmodules_check
 		$status ||= $? >> 8;
 		push(@checklog, "=========== Module $test check =============\n", @out);
 		my @logs   = glob("$dir/regression.diffs $dir/log/*.log");
-		foreach my $logfile (@logs)
-		{
-			next unless (-e $logfile);
-			push(@checklog, "\n\n================= $logfile ===================\n");
-			push(@checklog, file_lines($logfile));
-		}
+		$log->add_log($_) foreach (@logs);
 	}
+	push(@checklog, $log->log_string);
 	return unless ($status || @checklog);
 	writelog("modules-check", \@checklog);
 	print @checklog if ($verbose > 1);
@@ -1699,19 +1690,16 @@ sub make_testmodules_install_check
 		chdir $branch_root;
 	}
 	my $status = $? >> 8;
+	my $log = PGBuild::Log->new("testmodules-install-check-$locale");
 	my @logs   = glob("$pgsql/src/test/modules/*/regression.diffs");
 	push(@logs, "$installdir/logfile");
-	foreach my $logfile (@logs)
-	{
-		next unless (-e $logfile);
-		push(@checklog, "\n\n================= $logfile ===================\n");
-		push(@checklog, file_lines($logfile));
-	}
+	$log->add_log($_) foreach (@logs);
 	if ($status)
 	{
 		my @trace = get_stack_trace("$installdir/bin", "$installdir/data");
-		push(@checklog, @trace);
+		$log->add_log_lines("stack-trace", \@trace) if @trace;
 	}
+	push(@checklog, $log->log_string);
 	writelog("testmodules-install-check-$locale", \@checklog);
 	print "======== make testmodules installcheck log ===========\n", @checklog
 	  if ($verbose > 1);
@@ -1742,18 +1730,15 @@ sub make_pl_install_check
 		glob("$pgsql/src/pl/*/*/regression.diffs")
 	);
 	push(@logs, "$installdir/logfile");
-	foreach my $logfile (@logs)
-	{
-		next unless (-e $logfile);
-		push(@checklog, "\n\n================= $logfile ===================\n");
-		push(@checklog, file_lines($logfile));
-	}
+	my $log = PGBuild::Log->new("pl-installcheck-$locale");
+	$log->add_log($_) foreach (@logs);
 	if ($status)
 	{
 		my @trace =
 		  get_stack_trace("$installdir/bin", "$installdir/data-$locale");
-		push(@checklog, @trace);
+		$log->add_log_lines("stack-trace",\@trace) if @trace;
 	}
+	push(@checklog, $log->log_string);
 	writelog("pl-install-check-$locale", \@checklog);
 	print "======== make pl installcheck log ===========\n", @checklog
 	  if ($verbose > 1);
@@ -1785,6 +1770,7 @@ sub make_isolation_check
 
 	my $status = $? >> 8;
 
+	my $log = PGBuild::Log->new("isolation-check");
 	# get the log files and the regression diffs
 	my @logs = glob("$pgsql/src/test/isolation/log/*.log");
 	push(@logs, "$installdir/logfile");
@@ -1792,17 +1778,14 @@ sub make_isolation_check
 	  if (-e "$pgsql/src/test/isolation/regression.diffs");
 	unshift(@logs, "$pgsql/src/test/isolation/output_iso/regression.diffs")
 	  if (-e "$pgsql/src/test/isolation/output_iso/regression.diffs");
-	foreach my $logfile (@logs)
-	{
-		push(@makeout, "\n\n================== $logfile ===================\n");
-		push(@makeout, file_lines($logfile));
-	}
+	$log->add_log($_) foreach (@logs);
 	if ($status)
 	{
 		my @trace =
 		  get_stack_trace("$installdir/bin", "$installdir/data-$locale");
-		push(@makeout, @trace);
+		$log->add_log_lines("stack-trace",\@trace) if @trace;
 	}
+	push(@makeout, $log->log_string);
 	writelog('isolation-check', \@makeout);
 	print "======== make isolation check logs ===========\n", @makeout
 	  if ($verbose > 1);
@@ -1860,13 +1843,16 @@ sub run_tap_test
 
 	my $status = $? >> 8;
 
+	my $captarget = $is_install_check ? "InstallCheck" : "Check";
+	my $captest = $testname;
+
+	my $log = PGBuild::Log->new("$captest$captarget");
+
 	my @logs = glob("$dir/tmp_check/log/*");
 
-	foreach my $logfile (@logs)
-	{
-		push(@makeout, "\n\n================== $logfile ===================\n");
-		push(@makeout, file_lines($logfile));
-	}
+	$log->add_log($_) foreach (@logs);
+
+	push(@makeout, $log->log_string);
 
 	writelog("$testname-$taptarget", \@makeout);
 	print "======== make $testname-$taptarget log ===========\n", @makeout
@@ -1874,9 +1860,6 @@ sub run_tap_test
 
 	# restore path
 	$ENV{PATH} = $save_path;
-
-	my $captarget = $is_install_check ? "InstallCheck" : "Check";
-	my $captest = $testname;
 
 	send_result("$captest$captarget", $status, \@makeout) if $status;
 	$steps_completed .= " $captest$captarget";
@@ -1988,16 +1971,14 @@ sub make_check
 
 	my $status = $? >> 8;
 
+	my $log = PGBuild::Log->new("check");
+
 	# get the log files and the regression diffs
 	my @logs =
 	  glob("$pgsql/src/test/regress/log/*.log $pgsql/tmp_install/log/*");
 	unshift(@logs, "$pgsql/src/test/regress/regression.diffs")
 	  if (-e "$pgsql/src/test/regress/regression.diffs");
-	foreach my $logfile (@logs)
-	{
-		push(@makeout, "\n\n================== $logfile ===================\n");
-		push(@makeout, file_lines($logfile));
-	}
+	$log->add_log($_) foreach (@logs);
 	my $base = "$pgsql/src/test/regress/tmp_check";
 	if ($status)
 	{
@@ -2006,13 +1987,14 @@ sub make_check
 		  ? "$pgsql/tmp_install"
 		  : "$base/install";
 		my @trace = get_stack_trace("$binloc$installdir/bin", "$base/data");
-		push(@makeout, @trace);
+		$log->add_log_lines("stack-trace", \@trace) if @trace;
 	}
 	else
 	{
 		rmtree($base)
 		  unless $keepall;
 	}
+	push(@makeout, $log->log_string);
 	writelog('check', \@makeout);
 	print "======== make check logs ===========\n", @makeout
 	  if ($verbose > 1);
@@ -2044,22 +2026,21 @@ sub make_ecpg_check
 	}
 	my $status = $? >> 8;
 
+	my $log = PGBuild::Log->new("ecpg-check");
+
 	# get the log files and the regression diffs
 	my @logs = glob("$ecpg_dir/test/log/*.log");
 	unshift(@logs, "$ecpg_dir/test/regression.diffs")
 	  if (-e "$ecpg_dir/test/regression.diffs");
-	foreach my $logfile (@logs)
-	{
-		push(@makeout, "\n\n================== $logfile ===================\n");
-		push(@makeout, file_lines($logfile));
-	}
+	$log->add_log($_) foreach (@logs);
 	if ($status)
 	{
 		my $base = "$ecpg_dir/test/regress/tmp_check";
 		my @trace =
 		  get_stack_trace("$base/install$installdir/bin", "$base/data");
-		push(@makeout, @trace);
+		$log->add_log_lines("stack-trace", \@trace) if @trace;
 	}
+	push(@makeout, $log->log_string);
 	writelog('ecpg-check', \@makeout);
 	print "======== make ecpg check logs ===========\n", @makeout
 	  if ($verbose > 1);

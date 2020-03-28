@@ -12,6 +12,7 @@ See accompanying License file for license details
 
 package PGBuild::Modules::TestICU;
 
+use PGBuild::Log;
 use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils qw(:DEFAULT $steps_completed);
@@ -93,22 +94,24 @@ sub installcheck
 	@checklog = run_log("cd $pgsql/src/test/regress && $cmd");
 
 	my $status = $? >> 8;
+
+	my $log = PGBuild::Log->new("install-check-ICU-$locale");
+
 	my @logfiles =
 	  ("$pgsql/src/test/regress/regression.diffs", "$installdir/logfile");
 	foreach my $logfile (@logfiles)
 	{
-		next unless (-e $logfile);
-		push(@checklog, "\n\n================== $logfile ==================\n");
 		my $lpos = 0;
 		$lpos = $logpos if $logfile eq "$installdir/logfile";
-		push(@checklog, file_lines($logfile, $lpos));
+		$log->add_log($logfile, $lpos);
 	}
 	if ($status)
 	{
 		my @trace =
 		  get_stack_trace("$installdir/bin", "$installdir/data-$locale");
-		push(@checklog, @trace);
+		$log->add_log_lines("stack-trace", \@trace) if @trace;
 	}
+	push(@checklog, $log->log_string);
 	writelog("install-check-ICU-$locale", \@checklog);
 	print "======== make installcheck -ICU-$locale log ========\n", @checklog
 	  if ($verbose > 1);

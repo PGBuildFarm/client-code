@@ -18,6 +18,7 @@ See accompanying License file for license details
 
 package PGBuild::Modules::TestUpgradeXversion;
 
+use PGBuild::Log;
 use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils qw(:DEFAULT $tmpdir $steps_completed);
@@ -598,14 +599,10 @@ sub installcheck
 
 	my @saveout;
 
-	foreach my $log (qw( fix save db ctl ))
-	{
-		next unless -e "$upgrade_loc/$log.log";
-		my @lines = file_lines("$upgrade_loc/$log.log");
-		push(@saveout,
-			"===================== $log.log ==============\n", @lines)
-		  if @lines;
-	}
+	my $savelog = PGBuild::Log->new('xversion-upgrade-save');
+
+	$savelog->add_log("$upgrade_loc/$_.log") foreach (qw( fix save db ctl ));
+	push(@saveout,$savelog->log_string);
 
 	writelog('xversion-upgrade-save', \@saveout);
 	print "======== xversion upgrade save log ===========\n", @saveout
@@ -647,17 +644,17 @@ sub installcheck
 
 		my @testout;
 
+		my $testlog =
+		  PGBuild::Log->new("xversion-upgrade-$oversion-$this_branch");
+
 		foreach my $log (glob("$upgrade_loc/*$oversion*"),
 			glob("$installdir/${oversion}-pg_upgrade*"))
 		{
-			next unless -e "$log";
 			my $bn = basename $log;
 			next if $bn =~ /^(origin|converted)/;
-			my @lines = file_lines($log);
-			push(@testout,
-				"\n===================== $bn ==============\n", @lines)
-			  if (@lines || $bn =~ /dumpdiff/);
+			$testlog->add_log($log) if -s $log || $bn =~ /dumpdiff/;
 		}
+		push(@testout, $testlog->log_string);
 
 		writelog("xversion-upgrade-$oversion-$this_branch", \@testout);
 		print "====== xversion upgrade $oversion to $this_branch =======\n",

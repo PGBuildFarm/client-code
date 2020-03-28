@@ -12,6 +12,7 @@ See accompanying License file for license details
 
 package PGBuild::Modules::RedisFDW;
 
+use PGBuild::Log;
 use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils;
@@ -196,24 +197,25 @@ sub installcheck
 	release_lock($self);
 
 	my $status = $? >> 8;
+
+	my $log = PGBuild::Log->new("$MODULE-installcheck-$locale");
+
 	my @logfiles =
 	  ("$self->{where}/test/regression.diffs", "$installdir/logfile");
 	foreach my $logfile (@logfiles)
 	{
 		last unless $status;
-		next unless (-e $logfile);
 		my $lpos = 0;
 		$lpos = $logpos if $logfile eq "$installdir/logfile";
-		push(@log, "\n\n================== $logfile ==================\n");
-		push(@log, file_lines($logfile, $lpos));
+		$log->add_log($logfile, $lpos);
 	}
 	if ($status)
 	{
 		my @trace =
 		  get_stack_trace("$installdir/bin", "$installdir/data-$locale");
-		push(@log, @trace);
+		$log->add_log_lines("stack-trace", \@trace) if @trace;
 	}
-
+	push(@log, $log->log_string);
 	writelog("$MODULE-installcheck-$locale", \@log);
 	print "======== installcheck ($locale) log ===========\n", @log
 	  if ($verbose > 1);

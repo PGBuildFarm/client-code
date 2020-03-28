@@ -13,6 +13,7 @@ See accompanying License file for license details
 package PGBuild::Modules::FileTextArrayFDW;
 
 use PGBuild::Options;
+use PGBuild::Log;
 use PGBuild::SCM;
 use PGBuild::Utils;
 
@@ -174,17 +175,16 @@ sub installcheck
 
 	my @log = run_log("cd $self->{where} && $cmd");
 
+	my $log = PGBuild::Log->new("$MODULE-installcheck-$locale");
+
 	my $status     = $? >> 8;
 	my $installdir = "$self->{buildroot}/$self->{pgbranch}/inst";
 	my @logfiles   = ("$self->{where}/regression.diffs", "$installdir/logfile");
-	foreach my $logfile (@logfiles)
+	if ($status)
 	{
-		last unless $status;
-		next unless (-e $logfile);
-		push(@log, "\n\n================== $logfile ==================\n");
-		push(@log, file_lines($logfile));
+		$log->add_log($_) foreach  (@logfiles);
 	}
-
+	push(@log, $log->log_string);
 	writelog("$MODULE-installcheck-$locale", \@log);
 	print "======== installcheck ($locale) log ===========\n", @log
 	  if ($verbose > 1);

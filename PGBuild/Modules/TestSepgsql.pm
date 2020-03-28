@@ -12,6 +12,7 @@ See accompanying License file for license details
 
 package PGBuild::Modules::TestSepgsql;
 
+use PGBuild::Log;
 use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils qw(:DEFAULT $steps_completed $tmpdir);
@@ -208,20 +209,15 @@ sub locale_end
 	push(@log, "============= sepgsql tests ============\n", @testlog);
 	$status = $? >> 8;
 
-	if (-e "$pgsql/contrib/sepgsql/regression.diffs")
-	{
-		push(@log, "================== regression.diffs ===============\n");
-		push(@log, file_lines("$pgsql/contrib/sepgsql/regression.diffs"));
-	}
+	my $log = PGBuild::Log->new("sepgsql-test");
+	$log->add_log("$pgsql/contrib/sepgsql/regression.diffs");
+	$log->add_log("inst/sepgsql.log") if $status;
 
-	if ($status)
-	{
-		push(@log, "============== postgresql.log =================\n");
-		push(@log, file_lines("inst/sepgsql.log"));
-	}
 
 	my @stoplog = run_log("cd inst && bin/pg_ctl -D sepgsql stop");
-	push(@log, "============ sepgsql stop log\n", @stoplog);
+	$log->add_log_lines("sepgsql-stop-log", \@stoplog);
+	push(@log, $log->log_string);
+
 	$status ||= $? >> 8;
 	writelog("sepgsql-test", \@log);
 

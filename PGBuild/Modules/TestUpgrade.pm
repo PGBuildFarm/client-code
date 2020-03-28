@@ -12,6 +12,7 @@ See accompanying License file for license details
 
 package PGBuild::Modules::TestUpgrade;
 
+use PGBuild::Log;
 use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils qw(:DEFAULT $steps_completed);
@@ -125,6 +126,8 @@ sub check
 		@checklog = run_log($cmd);
 	}
 
+	my $log = PGBuild::Log->new("check-pg_upgrade");
+
 	# This list tries to cover all the places that upgrade regression diffs
 	# and logs have been placed in various releases. If they don't exist
 	# no harm will be done.
@@ -136,21 +139,17 @@ sub check
          $self->{pgsql}/src/bin/pg_upgrade/tmp_check/*/*.diffs
          $self->{pgsql}/src/test/regress/*.diffs"
 	);
-	foreach my $log (@logfiles)
-	{
-		my $fname    = basename $log;
-		my $contents = file_contents($log);
-		push(@checklog,
-			"=========================== $fname ================\n", $contents);
-	}
+	$log->add_log($_) foreach (@logfiles);
 
 	my $status = $? >> 8;
 
 	if ($status && !$self->{bfconf}->{using_msvc})
 	{
 		my @trace = get_stack_trace("$tmp_bin_dir", "$tmp_data_dir");
-		push(@checklog, @trace);
+		$log->add_log_lines("stack-trace", \@trace) if @trace;
 	}
+
+	push(@checklog, $log->log_string);
 
 	writelog("check-pg_upgrade", \@checklog);
 	print "======== pg_upgrade check log ===========\n", @checklog

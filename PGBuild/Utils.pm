@@ -47,7 +47,7 @@ use vars qw($core_file_glob $st_prefix $logdirname $branch_root
 
 BEGIN
 {
-	$log_file_marker = "======-=-======";
+	$log_file_marker = "==~_~===-=-===~_~==";
 	$ts_prefix       = "";
 }
 
