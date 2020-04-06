@@ -485,8 +485,20 @@ elsif (!flock($lockfile, LOCK_EX | LOCK_NB))
 	exit(0);
 }
 
+my $installdir = "$buildroot/$branch/inst";
+
+# recursively fix any permissions that might stop us removing the directories
+# then remove old run artefacts if any, die if not possible
+my $fix_perms = sub { chmod 0700, $_; };
+File::Find::find( $fix_perms, "inst");
 rmtree("inst");
-rmtree("$pgsql") unless ($from_source && !$use_vpath);
+die "$installdir exists!" if -e "inst";
+unless ($from_source && !$use_vpath)
+{
+	File::Find::find($fix_perms, "$pgsql");
+	rmtree($pgsql);
+	die "$pgsql exists!" if -e $pgsql;
+}
 
 # we are OK to run if we get here
 $have_lock = 1;
@@ -522,7 +534,6 @@ unless ($using_msvc)
 use vars qw($now);
 BEGIN { $now = time; }
 
-my $installdir = "$buildroot/$branch/inst";
 my $dbstarted;
 
 my $extraconf;
