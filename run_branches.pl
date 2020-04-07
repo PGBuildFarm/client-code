@@ -413,7 +413,7 @@ sub run_branch
 	my $runperl = $pathperlinfo =~ /cygwin/ ? "perl" : $^X;
 
 	system($runperl, @args);
-	return $?;
+	return $? >> 8;
 }
 
 sub branch_last_sort

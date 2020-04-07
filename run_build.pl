@@ -2632,13 +2632,14 @@ sub scm_timeout
 		$SIG{$sig} = 'DEFAULT';
 	}
 	sleep($wait_time);
+	print STDERR "SCM timeout reached, cannot continue\n";
 	$SIG{TERM} = 'IGNORE';    # so we don't kill ourself, we're exiting anyway
 	                          # kill the whole process group
 	unless (kill $sig, $who_to_kill)
 	{
 		print "scm timeout kill failed\n";
 	}
-	return;
+	return 0;
 }
 
 sub silent_terminate
@@ -2656,6 +2657,7 @@ sub wait_timeout
 	}
 	$SIG{'TERM'} = \&silent_terminate;
 	sleep($wait_time);
+	print STDERR "Run timed out, aborting.\n";
 	kill 'TERM', $main_pid;
-	return;
+	return 0;
 }
