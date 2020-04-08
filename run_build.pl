@@ -490,12 +490,12 @@ my $installdir = "$buildroot/$branch/inst";
 # recursively fix any permissions that might stop us removing the directories
 # then remove old run artefacts if any, die if not possible
 my $fix_perms = sub { chmod 0700, $_; };
-File::Find::find( $fix_perms, "inst");
+File::Find::find( $fix_perms, "inst") if -d "inst";
 rmtree("inst");
 die "$installdir exists!" if -e "inst";
 unless ($from_source && !$use_vpath)
 {
-	File::Find::find($fix_perms, "$pgsql");
+	File::Find::find($fix_perms, "$pgsql") if -d $pgsql;
 	rmtree($pgsql);
 	die "$pgsql exists!" if -e $pgsql;
 }
