@@ -15,8 +15,9 @@
 
 # this one is silly and horribly named. Even if I have a local copy of the
 # value e.g. %ENV a later assignment of a value in there gets the error
-# so just disable.
-[-Variables::RequireLocalizedPunctuationVars]
+# so just disable for %ENV and %SIG
+[Variables::RequireLocalizedPunctuationVars]
+allow = %ENV %SIG
 
 # allow 'no warnings qw(once)
 [TestingAndDebugging::ProhibitNoWarnings]
@@ -27,7 +28,7 @@ allow = once
 
 # these two are pretty silly and I doubt we'll ever enforce them
 [-InputOutput::RequireBriefOpen]
-[-Subroutines::RequireArgUnpacking]
+# [-Subroutines::RequireArgUnpacking]
 
 # from perl-critic-more - don't require use of exceptions
 [-ErrorHandling::RequireUseOfExceptions ]

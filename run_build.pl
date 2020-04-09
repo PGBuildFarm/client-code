@@ -623,7 +623,7 @@ END
 		unlink("builder.LCK");
 	}
 
-	$? = $exit_status;
+	$? = $exit_status; ## no critic (RequireLocalizedPunctuationVars)
 }
 
 $waiter_pid = spawn(\&wait_timeout, $wait_timeout) if $wait_timeout;

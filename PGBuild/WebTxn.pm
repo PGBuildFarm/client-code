@@ -71,7 +71,7 @@ sub run_web_txn
 
 	my $txfname = "$lrname/web-txn.data";
 	my $txdhandle;
-	$/ = undef;
+	local $/ = undef;
 	open($txdhandle, '<', "$txfname") or die "opening $txfname: $!";
 	my $txdata = <$txdhandle>;
 	close($txdhandle);

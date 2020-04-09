@@ -82,7 +82,7 @@ $buildconf = "build-farm.conf";                     # default value
 # the one that will do the global lock and election, and it will
 # still have acces to what it needs to do to invoke run_build.
 
-sub fetch_options
+sub fetch_options  ## no critic (RequireArgUnpacking)
 {
 	GetOptions(%standard_options, @_)
 	  || die "bad command line";
