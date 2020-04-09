@@ -28,7 +28,7 @@ allow = once
 # we enforce this one now too
 #[-Subroutines::RequireFinalReturn]
 
-# these is pretty silly and I doubt we'll ever enforce it
+# this is pretty silly and I doubt we'll ever enforce it
 [-InputOutput::RequireBriefOpen]
 
 # from perl-critic-more - don't require use of exceptions
