@@ -1,3 +1,5 @@
+# for policy descriptions see
+# https://metacpan.org/release/Perl-Critic
 
 # sev 5
 # tl;dr - return undef returns (undef) instead of () in list context
@@ -26,12 +28,14 @@ allow = once
 # we enforce this one now too
 #[-Subroutines::RequireFinalReturn]
 
-# these two are pretty silly and I doubt we'll ever enforce them
+# these is pretty silly and I doubt we'll ever enforce it
 [-InputOutput::RequireBriefOpen]
-# [-Subroutines::RequireArgUnpacking]
 
 # from perl-critic-more - don't require use of exceptions
 [-ErrorHandling::RequireUseOfExceptions ]
+
+# we enforce this now, or mark it.
+# [-Subroutines::RequireArgUnpacking]
 
 # sev 3
 
