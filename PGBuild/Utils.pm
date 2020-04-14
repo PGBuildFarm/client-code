@@ -52,7 +52,7 @@ BEGIN
 }
 
 # wrap the main program's send_res routine (formerly send_result)
-sub send_result ## no critic (RequireArgUnpacking)
+sub send_result
 {
 	# shouldn't return, but keep perlcritic happy.
 	return &$send_result_routine(@_); }
@@ -130,7 +130,7 @@ sub register_module_hooks
 	return;
 }
 
-sub process_module_hooks ## no critic (RequireArgUnpacking)
+sub process_module_hooks
 {
 	my $hook = shift;
 
@@ -350,7 +350,7 @@ sub check_install_is_complete
 	return $res;
 }
 
-sub spawn  ## no critic (RequireArgUnpacking)
+sub spawn
 {
 	my $coderef = shift;
 	my $pid     = fork;

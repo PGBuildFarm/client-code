@@ -1,3 +1,9 @@
+
+severity = 3
+
+# print the policy name as well as the normal output
+verbose = %f: %m at line %l, column %c.  %e.  ([%p] Severity: %s)\n
+
 # for policy descriptions see
 # https://metacpan.org/release/Perl-Critic
 
@@ -34,8 +40,8 @@ allow = once
 # from perl-critic-more - don't require use of exceptions
 [-ErrorHandling::RequireUseOfExceptions ]
 
-# we enforce this now, or mark it.
-# [-Subroutines::RequireArgUnpacking]
+# don't require unpacking @_ (even though we do in most cases)
+[-Subroutines::RequireArgUnpacking]
 
 # sev 3
 
@@ -80,27 +86,27 @@ only_in_void_context = 1
 ## Our aim is currently to comply down to sev 3.
 ## Below are the policies that we don't comply with at levels 2 and 1.
 ## In most cases we don't care and have no interest in complying.
-## Since we're not checking below 3 they are commented out for now.
 
 ## sev 2
 #
-#[-RegularExpressions::RequireLineBoundaryMatching]
-#[-RegularExpressions::RequireDotMatchAnything]
-#[-ValuesAndExpressions::ProhibitMagicNumbers]
-#[-Documentation::RequirePodSections]
-#[-ValuesAndExpressions::ProhibitNoisyQuotes]
-#[-ValuesAndExpressions::ProhibitEmptyQuotes]
-#[-BuiltinFunctions::ProhibitBooleanGrep]
-#[-ControlStructures::ProhibitPostfixControls]
-#[-Variables::ProhibitPunctuationVars]
-#[-ControlStructures::ProhibitUnlessBlocks]
-#[-References::ProhibitDoubleSigils]
-#[-BuiltinFunctions::ProhibitUselessTopic]
-#[-Subroutines::ProhibitAmpersandSigils]
-#[-RegularExpressions::ProhibitFixedStringMatches]
+[-RegularExpressions::RequireLineBoundaryMatching]
+[-RegularExpressions::RequireDotMatchAnything]
+[-RegularExpressions::ProhibitUselessTopic]
+[-ValuesAndExpressions::ProhibitMagicNumbers]
+[-Documentation::RequirePodSections]
+[-ValuesAndExpressions::ProhibitNoisyQuotes]
+[-ValuesAndExpressions::ProhibitEmptyQuotes]
+[-BuiltinFunctions::ProhibitBooleanGrep]
+[-ControlStructures::ProhibitPostfixControls]
+[-Variables::ProhibitPunctuationVars]
+[-ControlStructures::ProhibitUnlessBlocks]
+[-References::ProhibitDoubleSigils]
+[-BuiltinFunctions::ProhibitUselessTopic]
+[-Subroutines::ProhibitAmpersandSigils]
+[-RegularExpressions::ProhibitFixedStringMatches]
 #
 ## should probably fix these
-#[-InputOutput::RequireCheckedClose]
+[-InputOutput::RequireCheckedClose]
 #
 #
 
@@ -108,26 +114,28 @@ only_in_void_context = 1
 # but perlcritic doesn't provide a way to do that in the config file
 # and I'd rather not put the no critic annotation on line 1 which is
 # where it would have to go.
-#[-Modules::RequireVersionVar]
+[-Modules::RequireVersionVar]
 
 
 ## sev 1
 #
-#[-ValuesAndExpressions::RequireInterpolationOfMetachars]
+[-ValuesAndExpressions::RequireInterpolationOfMetachars]
 #
 ## just might be worth looking at
-#[-ValuesAndExpressions::ProhibitInterpolationOfLiterals]
+[-ValuesAndExpressions::ProhibitInterpolationOfLiterals]
 #
-#[-RegularExpressions::ProhibitUnusualDelimiters]
-#[-Documentation::RequirePodAtEnd]
-#[-RegularExpressions::ProhibitEscapedMetacharacters]
-#[-CodeLayout::ProhibitParensWithBuiltins]
-#[-InputOutput::RequireBracedFileHandleWithPrint]
-#[-CodeLayout::RequireTrailingCommas]
-#[-NamingConventions::Capitalization]
-#[-RegularExpressions::ProhibitEnumeratedClasses]
-#[-RegularExpressions::RequireBracesForMultiline]
+[-RegularExpressions::ProhibitUnusualDelimiters]
+[-Documentation::PodSpelling]
+[-Documentation::RequirePodAtEnd]
+[-RegularExpressions::ProhibitEscapedMetacharacters]
+[-CodeLayout::ProhibitParensWithBuiltins]
+[-InputOutput::RequireBracedFileHandleWithPrint]
+[-CodeLayout::RequireTidyCode]
+[-CodeLayout::RequireTrailingCommas]
+[-NamingConventions::Capitalization]
+[-RegularExpressions::ProhibitEnumeratedClasses]
+[-RegularExpressions::RequireBracesForMultiline]
 #
 ## check these too some time
-#[-InputOutput::RequireCheckedSyscalls]
+[-InputOutput::RequireCheckedSyscalls]
 #
