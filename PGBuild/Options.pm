@@ -33,11 +33,9 @@ BEGIN
 }
 
 ## no critic (ProhibitAutomaticExportation)
-## no critic (ClassHierarchies::ProhibitExplicitISA)
-use Exporter ();
-our (@EXPORT, @ISA, @EXPORT_OK, %EXPORT_TAGS);
+use Exporter qw(import);
+our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 
-@ISA         = qw(Exporter);
 @EXPORT      = @option_list;
 %EXPORT_TAGS = ();
 @EXPORT_OK   = ();

@@ -23,10 +23,8 @@ use vars qw($VERSION); $VERSION = 'REL_11';
 
 use Exporter ();
 ## no critic (ProhibitAutomaticExportation)
-## no critic (ClassHierarchies::ProhibitExplicitISA)
-use Exporter ();
-our (@EXPORT, @ISA, @EXPORT_OK, %EXPORT_TAGS);
-@ISA    = qw(Exporter);
+use Exporter qw(import);
+our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 @EXPORT = qw(run_log time_str process_module_hooks register_module_hooks
   get_stack_trace cleanlogs writelog
   set_last find_last step_wanted send_result
