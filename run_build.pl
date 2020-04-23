@@ -2115,6 +2115,7 @@ sub find_typedefs
 	{
 		next if $bin =~ m!bin/(ipcclean|pltcl_)!;
 		next unless -f $bin;
+		next if -l $bin;  # ignore symlinks to plain files (e.g. postmaster)
 		if (@err == 1)    # Linux and sometimes windows
 		{
 			my $cmd = "$objdump -Wi $bin 2>/dev/null | "
