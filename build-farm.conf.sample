@@ -230,6 +230,13 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		# CPPFLAGS => '-DENFORCE_REGRESSION_TEST_NAME_RESTRICTIONS',
 	},
 
+	# settings added to those in config_env if valgrind is being used
+	valgrind_config_env_extra => {
+
+		CFLAGS => "-fno-omit-frame-pointer -O0 -fPIC",
+		CPPFLAGS => "-DUSE_VALGRIND  -DRELCACHE_FORCE_RELEASE",
+	},
+
 	# don't use --prefix or --with-pgport here
 	# they are set up by the script
 	# per-branch config can be done here or

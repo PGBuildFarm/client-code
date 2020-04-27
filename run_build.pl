@@ -2326,7 +2326,22 @@ sub configure
 		$confstr .= " --cache-file='$accachefile'";
 	}
 
-	my $env = $PGBuild::conf{config_env};
+	my $env = { %$PGBuild::conf{config_env} }; # shallow clone it
+	if ($use_valgrind && exists $PGBuild::conf{valgrind_config_env_extra})
+	{
+		my $vgenv = $PGBuild::conf{valgrind_config_env_extra};
+		while (my ($key,$val) = each %$vgenv)
+		{
+			if (defined $env->{$key})
+			{
+				$env->{$key} .= " $val";
+			}
+			else
+			{
+				$env->{$key} = $val;
+			}
+		}
+	}
 
 	my $envstr = "";
 	while (my ($key, $val) = each %$env)
