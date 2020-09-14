@@ -13,9 +13,27 @@ use warnings;
 
 # Log object for a step
 
-# we do this OO style, so nothing is exported
+# we do this mostly OO style, so almost nothing is exported
+
+## no critic (ProhibitAutomaticExportation)
+use Exporter qw(import);
+our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
+
+@EXPORT      = qw(print_header_line);;
+%EXPORT_TAGS = ();
+@EXPORT_OK   = ();
+
 
 use PGBuild::Utils;
+
+sub print_header_line
+{
+	my $text = shift;
+	my $l1 = int ((70 - length($text)) / 2);
+	my $l2 = 70 - ($l1 + length($text));
+	my $result = repeat('=',$l1) . " $text " . repeat('=',$l2) . "\n";
+	return $result;
+}
 
 sub new
 {
