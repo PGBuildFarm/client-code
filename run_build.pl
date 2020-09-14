@@ -1593,7 +1593,7 @@ sub make_install_check
 	}
 	my $status = $? >> 8;
 	my @logfiles =
-	  ("$pgsql/src/test/regress/regression.diffs", "$installdir/logfile");
+	  ("$pgsql/src/test/regress/regression.diffs", "inst/logfile");
 	my $log = PGBuild::Log->new("check");
 	$log->add_log($_) foreach (@logfiles);
 	if ($status)
@@ -1630,7 +1630,7 @@ sub make_contrib_install_check
 	my $status = $? >> 8;
 	my @logs   = glob("$pgsql/contrib/*/regression.diffs");
 	my $log = PGBuild::Log->new("contrib_install_check");
-	$log->add_log("$installdir/logfile");
+	$log->add_log("inst/logfile");
 	$log->add_log($_) foreach (@logs);
 	if ($status)
 	{
@@ -1703,7 +1703,7 @@ sub make_testmodules_install_check
 	my $status = $? >> 8;
 	my $log = PGBuild::Log->new("testmodules-install-check-$locale");
 	my @logs   = glob("$pgsql/src/test/modules/*/regression.diffs");
-	push(@logs, "$installdir/logfile");
+	push(@logs, "inst/logfile");
 	$log->add_log($_) foreach (@logs);
 	if ($status)
 	{
@@ -1740,7 +1740,7 @@ sub make_pl_install_check
 		glob("$pgsql/src/pl/*/regression.diffs"),
 		glob("$pgsql/src/pl/*/*/regression.diffs")
 	);
-	push(@logs, "$installdir/logfile");
+	push(@logs, "inst/logfile");
 	my $log = PGBuild::Log->new("pl-installcheck-$locale");
 	$log->add_log($_) foreach (@logs);
 	if ($status)
@@ -1784,7 +1784,7 @@ sub make_isolation_check
 	my $log = PGBuild::Log->new("isolation-check");
 	# get the log files and the regression diffs
 	my @logs = glob("$pgsql/src/test/isolation/log/*.log");
-	push(@logs, "$installdir/logfile");
+	push(@logs, "inst/logfile");
 	unshift(@logs, "$pgsql/src/test/isolation/regression.diffs")
 	  if (-e "$pgsql/src/test/isolation/regression.diffs");
 	unshift(@logs, "$pgsql/src/test/isolation/output_iso/regression.diffs")

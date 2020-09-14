@@ -98,11 +98,11 @@ sub installcheck
 	my $log = PGBuild::Log->new("install-check-ICU-$locale");
 
 	my @logfiles =
-	  ("$pgsql/src/test/regress/regression.diffs", "$installdir/logfile");
+	  ("$pgsql/src/test/regress/regression.diffs", "inst/logfile");
 	foreach my $logfile (@logfiles)
 	{
 		my $lpos = 0;
-		$lpos = $logpos if $logfile eq "$installdir/logfile";
+		$lpos = $logpos if $logfile eq "inst/logfile";
 		$log->add_log($logfile, $lpos);
 	}
 	if ($status)

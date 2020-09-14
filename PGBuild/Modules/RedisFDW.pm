@@ -201,12 +201,12 @@ sub installcheck
 	my $log = PGBuild::Log->new("$MODULE-installcheck-$locale");
 
 	my @logfiles =
-	  ("$self->{where}/test/regression.diffs", "$installdir/logfile");
+	  ("$self->{where}/test/regression.diffs", "inst/logfile");
 	foreach my $logfile (@logfiles)
 	{
 		last unless $status;
 		my $lpos = 0;
-		$lpos = $logpos if $logfile eq "$installdir/logfile";
+		$lpos = $logpos if $logfile eq "inst/logfile";
 		$log->add_log($logfile, $lpos);
 	}
 	if ($status)
