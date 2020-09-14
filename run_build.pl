@@ -2304,9 +2304,13 @@ sub configure
 			}
 			else
 			{
+				my $last_stage = get_last_stage() || "";
 				$obsolete = grep { /^configure / } @changed_files;
 				$obsolete ||= grep { m!^src/template/! } @changed_files;
+				# $last_status == 0 means a forced build
 				$obsolete ||= $last_status == 0;
+				$obsolete ||=
+				  $last_stage =~ /^(Make|Configure|Contrib|.*-build)$/;
 			}
 
 			# also remove if the buildfarm config file is newer, or the options
