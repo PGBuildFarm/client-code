@@ -434,6 +434,24 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		}
 	}
 
+	# operators not supported from release 14
+	if (   ($this_branch gt 'REL_13_STABLE' || $this_branch eq 'HEAD')
+		&& ($oversion le 'REL_13_STABLE' && $oversion ne 'HEAD'))
+	{
+		my $prstmt = join(';',
+						  'drop operator if exists #@# (bigint,NONE)',
+						  'drop operator if exists @#@ (NONE, bigint)',
+						  'drop operator if exists #%# (bigint,NONE)',
+						  'drop operator if exists !=- (bigint,NONE)',
+						  'drop operator if exists #@%# (bigint,NONE)');
+
+		system( "$other_branch/inst/bin/psql -X -e "
+				  . " -c '$prstmt' "
+				  . "regression "
+				  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+		return if $?;
+	}
+
 	my $extra_digits = "";
 
 	if (   $oversion ne 'HEAD'
