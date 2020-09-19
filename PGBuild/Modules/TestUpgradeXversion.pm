@@ -440,7 +440,6 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	{
 		my $prstmt = join(';',
 						  'drop operator if exists #@# (bigint,NONE)',
-						  'drop operator if exists @#@ (NONE, bigint)',
 						  'drop operator if exists #%# (bigint,NONE)',
 						  'drop operator if exists !=- (bigint,NONE)',
 						  'drop operator if exists #@%# (bigint,NONE)');
