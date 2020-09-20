@@ -449,6 +449,21 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 				  . "regression "
 				  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
 		return if $?;
+
+		if ($oversion le 'REL9_4_STABLE')
+		{
+			# this is fixed in 9.5 and later
+			$prstmt = join(';',
+						   'drop operator @#@ (NONE, bigint)',
+						   'CREATE OPERATOR @#@ (' .
+							 'PROCEDURE = factorial, ' .
+							 'RIGHTARG = bigint )');
+			system( "$other_branch/inst/bin/psql -X -e "
+					  . " -c '$prstmt' "
+					  . "regression "
+					  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+			return if $?;
+		}
 	}
 
 	my $extra_digits = "";
