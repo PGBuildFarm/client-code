@@ -53,7 +53,8 @@ BEGIN
 sub send_result
 {
 	# shouldn't return, but keep perlcritic happy.
-	return &$send_result_routine(@_); }
+	return &$send_result_routine(@_);
+}
 
 # something like IPC::RUN but without requiring it, as some installations
 # lack it.
