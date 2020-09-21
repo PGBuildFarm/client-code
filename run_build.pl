@@ -2637,6 +2637,7 @@ sub get_script_config_dump
 		eval $str;
 	}
 	$conf->{module_versions} = \%versions;
+	local $Data::Dumper::Sortkeys = 1;
 	return Data::Dumper->Dump([$conf], ['Script_Config']);
 }
 
