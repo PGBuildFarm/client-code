@@ -682,6 +682,7 @@ sub installcheck
 		foreach my $log (glob("$upgrade_loc/*$oversion*"),
 			glob("$installdir/${oversion}-pg_upgrade*"))
 		{
+			next if $log =~ /\.custom$/;
 			my $bn = basename $log;
 			next if $bn =~ /^(origin|converted)/;
 			$testlog->add_log($log) if -s $log || $bn =~ /dumpdiff/;
