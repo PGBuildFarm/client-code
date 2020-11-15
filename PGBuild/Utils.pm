@@ -18,6 +18,7 @@ use Carp;
 use Config;
 use Fcntl qw(:seek);
 use File::Path;
+use File::Copy;
 
 use vars qw($VERSION); $VERSION = 'REL_11';
 
@@ -30,7 +31,7 @@ our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
   set_last find_last step_wanted send_result
   file_lines file_contents check_make_log_warnings
   find_in_path $log_file_marker set_last_stage get_last_stage
-  check_install_is_complete spawn
+  check_install_is_complete spawn save_install
 );
 %EXPORT_TAGS = qw();
 @EXPORT_OK   = qw($st_prefix $logdirname $branch_root $steps_completed
@@ -42,6 +43,8 @@ use vars qw($core_file_glob $st_prefix $logdirname $branch_root
   $steps_completed %skip_steps %only_steps $tmpdir
   $send_result_routine $devnull $log_file_marker $ts_prefix
 );
+
+my $saved; # have we already saved the binaries
 
 BEGIN
 {
@@ -360,6 +363,33 @@ sub spawn
 		POSIX::_exit(&$coderef(@_));
 	}
 	return $pid;
+}
+
+sub save_install
+{
+	my $buildroot  = shift;
+	my $branch = shift;
+	my $pgsql = shift;
+	my $animal  = $PGBuild::conf{animal};
+
+	my $dest = "$buildroot/saves/$branch/$animal";
+
+	if (! $saved)
+	{
+		rmtree($dest) if -d $dest;
+
+		mkpath $dest;
+
+		my $installdir = "$buildroot/$branch/inst";
+		foreach my $idir (qw(bin lib share include))
+		{
+			system("cp -r $installdir/$idir $dest/$idir");
+		}
+
+		$saved = 1;
+	}
+
+	return $dest;
 }
 
 1;

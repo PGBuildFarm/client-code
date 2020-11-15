@@ -202,13 +202,24 @@ sub save_for_testing
 	{
 		$cp = "cp -r";
 	}
-	system(qq{$cp "$install_loc" "$installdir" >"$upgrade_loc/save.log" 2>&1});
+
+	mkpath $installdir;
+
+	system(qq{$cp "$install_loc/data-C" "$installdir" >"$upgrade_loc/save.log" 2>&1});
 
 	return if $?;
 
+	my $savebin =
+	  save_install($self->{buildroot}, $self->{pgbranch}, $self->{pgsql});
+
+	foreach my $idir (qw(bin lib include share))
+	{
+		symlink("$savebin/$idir","$installdir/$idir");
+	}
+
 	# at some stage we stopped installing regress.so
-	copy "$install_loc/../pgsql.build/src/test/regress/regress.so",
-	  "$installdir/lib/postgresql/regress.so"
+	copy "$self->{pgsql}/src/test/regress/regress.so",
+		 "$installdir/lib/postgresql/regress.so"
 	  unless (-e "$installdir/lib/postgresql/regress.so");
 
 	# keep a copy of installed database
