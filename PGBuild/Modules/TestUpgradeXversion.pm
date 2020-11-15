@@ -434,7 +434,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		}
 	}
 
-	# operators not supported from release 14
+	# operators/aggregates not supported from release 14
 	if (   ($this_branch gt 'REL_13_STABLE' || $this_branch eq 'HEAD')
 		&& ($oversion le 'REL_13_STABLE' && $oversion ne 'HEAD'))
 	{
@@ -460,6 +460,24 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 							 'RIGHTARG = bigint )');
 			system( "$other_branch/inst/bin/psql -X -e "
 					  . " -c '$prstmt' "
+					  . "regression "
+					  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+			return if $?;
+		}
+
+		if ($oversion le 'REL9_4_STABLE')
+		{
+			# this is fixed in 9.5 and later
+			$prstmt = join(';',
+						   'drop aggregate if exists public.array_cat_accum(anyarray)',
+						   'CREATE AGGREGATE array_larger_accum (anyarray) ' .
+						   ' ( ' .
+						   '   sfunc = array_larger, ' .
+						   '   stype = anyarray, ' .
+						   '   initcond = $${}$$ ' .
+						   '  ) ' );
+			system( "$other_branch/inst/bin/psql -X -e "
+					  . " -c '" . $prstmt . "' "
 					  . "regression "
 					  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
 			return if $?;
