@@ -22,7 +22,6 @@ use File::Copy;
 
 use vars qw($VERSION); $VERSION = 'REL_11';
 
-use Exporter ();
 ## no critic (ProhibitAutomaticExportation)
 use Exporter qw(import);
 our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
