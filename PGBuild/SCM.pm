@@ -683,6 +683,9 @@ sub checkout
 
 	if (-d $target)
 	{
+		# If a run crashed during copy_source(), repair.
+		move "./git-save", "$target/.git";
+
 		chdir $target;
 		my @branches = `git branch 2>&1`;    # too trivial for run_log
 		unless (grep { /^\* bf_$branch$/ } @branches)
