@@ -445,7 +445,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		}
 	}
 
-	# operators/aggregates not supported from release 14
+	# stuff not supported from release 14
 	if (   ($this_branch gt 'REL_13_STABLE' || $this_branch eq 'HEAD')
 		&& ($oversion le 'REL_13_STABLE' && $oversion ne 'HEAD'))
 	{
@@ -458,6 +458,17 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		system( "$other_branch/inst/bin/psql -X -e "
 				  . " -c '$prstmt' "
 				  . "regression "
+				  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+		return if $?;
+
+		$prstmt = "drop function if exists public.putenv(text)";
+
+		my $regrdb = $oversion le "REL9_4_STABLE" ? "contrib_regression" :
+		  "contrib_regression_dblink";
+
+		system( "$other_branch/inst/bin/psql -X -e "
+				  . " -c '$prstmt' "
+				  . "$regrdb"
 				  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
 		return if $?;
 
