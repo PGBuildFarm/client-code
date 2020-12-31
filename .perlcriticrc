@@ -19,6 +19,9 @@ verbose = %f: %m at line %l, column %c.  %e.  ([%p] Severity: %s)\n
 # we're enforcing this now
 # [-InputOutput::ProhibitTwoArgOpen]
 
+# allow constants with leading zeros
+[-ValuesAndExpressions::ProhibitLeadingZeros]
+
 # sev 4
 
 # this one is silly and horribly named. Even if I have a local copy of the
