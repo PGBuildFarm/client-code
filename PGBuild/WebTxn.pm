@@ -2,7 +2,7 @@ package PGBuild::WebTxn;
 
 =comment
 
-Copyright (c) 2003-2020, Andrew Dunstan
+Copyright (c) 2003-2021, Andrew Dunstan
 
 See accompanying License file for license details
 
