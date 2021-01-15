@@ -268,7 +268,7 @@ sub save_for_testing
 
 	return if $?;
 
-	if ($this_branch ge 'REL9_5' || $self->{pgbranch} eq 'HEAD')
+	if ($this_branch ge 'REL9_5' || $this_branch eq 'HEAD')
 	{
 		system(
 			"$installdir/bin/psql -A -X -t -c '$sql' contrib_regression_dblink "
@@ -289,9 +289,11 @@ sub save_for_testing
 		return if $?;
 	}
 
-	# disable modules known to cause pg_upgrade to fail
+	# remove dbs of modules known to cause pg_upgrade to fail
+	# anything not builtin and incompatible should clean up its own db
+	# e.g. jsonb_set_lax
 
-	foreach my $bad_module ("test_ddl_deparse", "jsonb_set_lax")
+	foreach my $bad_module ("test_ddl_deparse")
 	{
 		system( "$installdir/bin/psql -X -e "
 			  . "-c 'drop database if exists contrib_regression_$bad_module' postgres"
