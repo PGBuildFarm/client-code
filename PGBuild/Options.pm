@@ -15,7 +15,7 @@ use strict;
 use warnings;
 use Getopt::Long;
 
-use vars qw($VERSION); $VERSION = 'REL_11';
+use vars qw($VERSION); $VERSION = 'REL_12';
 
 use vars qw(@option_list);
 

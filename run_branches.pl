@@ -11,7 +11,7 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
-use vars qw($VERSION); $VERSION = 'REL_11';
+use vars qw($VERSION); $VERSION = 'REL_12';
 
 use Fcntl qw(:flock :seek);
 use File::Spec;

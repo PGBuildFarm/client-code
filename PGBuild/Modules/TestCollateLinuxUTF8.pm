@@ -22,7 +22,7 @@ use Fcntl qw(:seek);
 use strict;
 use warnings;
 
-use vars qw($VERSION); $VERSION = 'REL_11';
+use vars qw($VERSION); $VERSION = 'REL_12';
 
 my $hooks = { 'installcheck' => \&installcheck, };
 
