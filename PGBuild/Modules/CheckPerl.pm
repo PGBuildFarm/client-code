@@ -122,6 +122,7 @@ sub build
 		  src/test/ssl
 		  src/tools/msvc/dummylib);
 		do { s/^/-I/; }
+
 		  foreach @includes;
 		my $incl = join(' ', @includes);
 

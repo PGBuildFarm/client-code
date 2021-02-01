@@ -43,7 +43,7 @@ use vars qw($core_file_glob $st_prefix $logdirname $branch_root
   $send_result_routine $devnull $log_file_marker $ts_prefix
 );
 
-my $saved; # have we already saved the binaries
+my $saved;    # have we already saved the binaries
 
 BEGIN
 {
@@ -366,14 +366,14 @@ sub spawn
 
 sub save_install
 {
-	my $buildroot  = shift;
-	my $branch = shift;
-	my $pgsql = shift;
-	my $animal  = $PGBuild::conf{animal};
+	my $buildroot = shift;
+	my $branch    = shift;
+	my $pgsql     = shift;
+	my $animal    = $PGBuild::conf{animal};
 
 	my $dest = "$buildroot/saves.$animal/$branch";
 
-	if (! $saved)
+	if (!$saved)
 	{
 		rmtree($dest) if -d $dest;
 

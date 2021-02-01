@@ -101,7 +101,7 @@ sub new
 	my $target = shift;
 	my $self   = {};
 	$self->{cvsrepo} =
-	     $conf->{cvsrepo}
+		 $conf->{cvsrepo}
 	  || $conf->{scmrepo}
 	  || ":pserver:anoncvs\@anoncvs.postgresql.org:/projects/cvsroot";
 	$self->{cvsmethod}         = $conf->{cvsmethod} || 'update';
@@ -416,7 +416,7 @@ sub get_versions
 	while (@$flist)
 	{
 		my @chunk = splice(@$flist, 0, 200);
-		my @res = `cd $target && cvs status @chunk 2>&1`;
+		my @res   = `cd $target && cvs status @chunk 2>&1`;
 		push(@cvs_status, @res);
 		my $status = $? >> 8;
 		print "======== $target-cvs status log ===========\n", @cvs_status
@@ -717,7 +717,7 @@ sub checkout
 		@colog = run_log("git checkout . ")
 		  unless (grep { $_ ne ".git" } glob(".[a-z]* *"));
 		my @gitstat = `git status --porcelain`;    # too trivial for run_log
-		     # make sure it's clean before we try to update it
+			 # make sure it's clean before we try to update it
 		if (@gitstat)
 		{
 			print "Repo is not clean:\n", @gitstat

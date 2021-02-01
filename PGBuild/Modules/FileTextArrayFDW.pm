@@ -182,7 +182,7 @@ sub installcheck
 	my @logfiles   = ("$self->{where}/regression.diffs", "$installdir/logfile");
 	if ($status)
 	{
-		$log->add_log($_) foreach  (@logfiles);
+		$log->add_log($_) foreach (@logfiles);
 	}
 	push(@log, $log->log_string);
 	writelog("$MODULE-installcheck-$locale", \@log);

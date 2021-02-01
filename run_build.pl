@@ -79,7 +79,7 @@ BEGIN
 		# this is to stop leaking of things like passwords
 		$orig_env->{$k} = (
 			(
-				     $k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|CXX|LD|LD_LIBRARY_PATH/
+					 $k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|CXX|LD|LD_LIBRARY_PATH/
 				  || $k =~ /^(HOME|LOGNAME|USER|PATH|SHELL|LIBRAR|INCLUDE)$/
 				  || $k =~ /^BF_CONF_BRANCHES$/
 			)
@@ -490,7 +490,7 @@ my $installdir = "$buildroot/$branch/inst";
 # recursively fix any permissions that might stop us removing the directories
 # then remove old run artefacts if any, die if not possible
 my $fix_perms = sub { chmod 0700, $_ unless -l $_; };
-File::Find::find( $fix_perms, "inst") if -d "inst";
+File::Find::find($fix_perms, "inst") if -d "inst";
 rmtree("inst");
 die "$installdir exists!" if -e "inst";
 unless ($from_source && !$use_vpath)
@@ -623,7 +623,7 @@ END
 		unlink("builder.LCK");
 	}
 
-	$? = $exit_status; ## no critic (RequireLocalizedPunctuationVars)
+	$? = $exit_status;    ## no critic (RequireLocalizedPunctuationVars)
 }
 
 $waiter_pid = spawn(\&wait_timeout, $wait_timeout) if $wait_timeout;
@@ -1591,10 +1591,9 @@ sub make_install_check
 		@checklog = run_log("perl vcregress.pl installcheck");
 		chdir $branch_root;
 	}
-	my $status = $? >> 8;
-	my @logfiles =
-	  ("$pgsql/src/test/regress/regression.diffs", "inst/logfile");
-	my $log = PGBuild::Log->new("check");
+	my $status   = $? >> 8;
+	my @logfiles = ("$pgsql/src/test/regress/regression.diffs", "inst/logfile");
+	my $log      = PGBuild::Log->new("check");
 	$log->add_log($_) foreach (@logfiles);
 	if ($status)
 	{
@@ -1629,14 +1628,14 @@ sub make_contrib_install_check
 	}
 	my $status = $? >> 8;
 	my @logs   = glob("$pgsql/contrib/*/regression.diffs");
-	my $log = PGBuild::Log->new("contrib_install_check");
+	my $log    = PGBuild::Log->new("contrib_install_check");
 	$log->add_log("inst/logfile");
 	$log->add_log($_) foreach (@logs);
 	if ($status)
 	{
 		my @trace =
 		  get_stack_trace("$installdir/bin", "$installdir/data-$locale");
-		$log->add_log_lines("stack-trace",\@trace) if @trace;
+		$log->add_log_lines("stack-trace", \@trace) if @trace;
 	}
 	push(@checklog, $log->log_string);
 	writelog("contrib-install-check-$locale", \@checklog);
@@ -1659,19 +1658,21 @@ sub make_testmodules_check
 	print time_str(), "running make check for some test modules...\n"
 	  if $verbose;
 	my $temp_inst_ok = check_install_is_complete($pgsql, $installdir);
-	my $instflags = $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
-	my $log = PGBuild::Log->new("modules-check");
+	my $instflags    = $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
+	my $log          = PGBuild::Log->new("modules-check");
+
 	foreach my $dir (@dirs)
 	{
 		next unless -e "$dir/Makefile";
 		my $makefile = file_contents("$dir/Makefile");
 		next unless $makefile =~ /^NO_INSTALLCHECK/m;
 		my $test = basename($dir);
+
 		# skip redundant TAP tests which are called elsewhere
-		my @out  = run_log("cd $dir && $make $instflags TAP_TESTS= check");
+		my @out = run_log("cd $dir && $make $instflags TAP_TESTS= check");
 		$status ||= $? >> 8;
 		push(@checklog, "=========== Module $test check =============\n", @out);
-		my @logs   = glob("$dir/regression.diffs $dir/log/*.log");
+		my @logs = glob("$dir/regression.diffs $dir/log/*.log");
 		$log->add_log($_) foreach (@logs);
 	}
 	push(@checklog, $log->log_string);
@@ -1701,7 +1702,7 @@ sub make_testmodules_install_check
 		chdir $branch_root;
 	}
 	my $status = $? >> 8;
-	my $log = PGBuild::Log->new("testmodules-install-check-$locale");
+	my $log    = PGBuild::Log->new("testmodules-install-check-$locale");
 	my @logs   = glob("$pgsql/src/test/modules/*/regression.diffs");
 	push(@logs, "inst/logfile");
 	$log->add_log($_) foreach (@logs);
@@ -1747,7 +1748,7 @@ sub make_pl_install_check
 	{
 		my @trace =
 		  get_stack_trace("$installdir/bin", "$installdir/data-$locale");
-		$log->add_log_lines("stack-trace",\@trace) if @trace;
+		$log->add_log_lines("stack-trace", \@trace) if @trace;
 	}
 	push(@checklog, $log->log_string);
 	writelog("pl-install-check-$locale", \@checklog);
@@ -1782,6 +1783,7 @@ sub make_isolation_check
 	my $status = $? >> 8;
 
 	my $log = PGBuild::Log->new("isolation-check");
+
 	# get the log files and the regression diffs
 	my @logs = glob("$pgsql/src/test/isolation/log/*.log");
 	push(@logs, "inst/logfile");
@@ -1794,7 +1796,7 @@ sub make_isolation_check
 	{
 		my @trace =
 		  get_stack_trace("$installdir/bin", "$installdir/data-$locale");
-		$log->add_log_lines("stack-trace",\@trace) if @trace;
+		$log->add_log_lines("stack-trace", \@trace) if @trace;
 	}
 	push(@makeout, $log->log_string);
 	writelog('isolation-check', \@makeout);
@@ -1855,7 +1857,7 @@ sub run_tap_test
 	my $status = $? >> 8;
 
 	my $captarget = $is_install_check ? "InstallCheck" : "Check";
-	my $captest = $testname;
+	my $captest   = $testname;
 
 	my $log = PGBuild::Log->new("$captest$captarget");
 
@@ -1931,13 +1933,15 @@ sub run_misc_tests
 	}
 
 
-	my $using_ssl = $using_msvc ? $config_opts->{openssl} :
-	  (grep { $_ eq '--with-openssl' } @$config_opts);
+	my $using_ssl =
+		$using_msvc
+	  ? $config_opts->{openssl}
+	  : (grep { $_ eq '--with-openssl' } @$config_opts);
 
 	foreach my $testdir (glob("$pgsql/src/test/modules/*"))
 	{
 		my $testname = basename($testdir);
-		next if $testname =~ /ssl/ && ! $using_ssl;
+		next if $testname =~ /ssl/ && !$using_ssl;
 		next unless -d "$testdir/t";
 		run_tap_test("$testdir", "module-$testname", undef);
 	}
@@ -2019,7 +2023,7 @@ sub make_ecpg_check
 {
 	return unless step_wanted('ecpg-check');
 	my @makeout;
-	my $ecpg_dir = "$pgsql/src/interfaces/ecpg";
+	my $ecpg_dir     = "$pgsql/src/interfaces/ecpg";
 	my $temp_inst_ok = check_install_is_complete($pgsql, $installdir);
 	if ($using_msvc)
 	{
@@ -2067,7 +2071,7 @@ sub find_typedefs
 	$hostobjdump ||= "";
 	$hostobjdump =~ s/--host=(.*)/$1-objdump/;
 	my $objdump = 'objdump';
-	my $sep = $using_msvc ? ';' : ':';
+	my $sep     = $using_msvc ? ';' : ':';
 
 	# if we have a hostobjdump, find out which of it and objdump is in the path
 	foreach my $p (split(/$sep/, $ENV{PATH}))
@@ -2115,8 +2119,8 @@ sub find_typedefs
 	{
 		next if $bin =~ m!bin/(ipcclean|pltcl_)!;
 		next unless -f $bin;
-		next if -l $bin;  # ignore symlinks to plain files (e.g. postmaster)
-		if (@err == 1)    # Linux and sometimes windows
+		next if -l $bin;    # ignore symlinks to plain files (e.g. postmaster)
+		if (@err == 1)      # Linux and sometimes windows
 		{
 			my $cmd = "$objdump -Wi $bin 2>/dev/null | "
 			  . "egrep -A3 DW_TAG_typedef 2>/dev/null";
@@ -2234,8 +2238,8 @@ sub configure
 	if ($using_msvc)
 	{
 		my $lconfig = { %$config_opts, "--with-pgport" => $buildport };
-		my $conf = Data::Dumper->Dump([$lconfig], ['config']);
-		my @text = (
+		my $conf    = Data::Dumper->Dump([$lconfig], ['config']);
+		my @text    = (
 			"# Configuration arguments for vcbuild.\n",
 			"# written by buildfarm client \n",
 			"use strict; \n",
@@ -2290,13 +2294,17 @@ sub configure
 		$accachefile = "$accachedir/config-$branch.cache";
 		if (-e $accachefile)
 		{
-			my $obsolete = 0;
+			my $obsolete   = 0;
 			my @cache_stat = stat $accachefile;
 			my $cache_mod  = $cache_stat[9];
 			if ($from_source)
 			{
-				foreach my $conf (glob("$from_source/configure
-                                        $from_source/src/template/*"))
+				foreach my $conf (
+					glob(
+						"$from_source/configure
+                                        $from_source/src/template/*"
+					)
+				  )
 				{
 					my @tmpstat = stat $conf;
 					$obsolete ||= -e $conf && $tmpstat[9] > $cache_mod;
@@ -2307,6 +2315,7 @@ sub configure
 				my $last_stage = get_last_stage() || "";
 				$obsolete = grep { /^configure / } @changed_files;
 				$obsolete ||= grep { m!^src/template/! } @changed_files;
+
 				# $last_status == 0 means a forced build
 				$obsolete ||= $last_status == 0;
 				$obsolete ||=
@@ -2331,11 +2340,11 @@ sub configure
 	}
 
 	my $env = $PGBuild::conf{config_env};
-	$env = { %$env} ; # shallow clone it
+	$env = {%$env};    # shallow clone it
 	if ($use_valgrind && exists $PGBuild::conf{valgrind_config_env_extra})
 	{
 		my $vgenv = $PGBuild::conf{valgrind_config_env_extra};
-		while (my ($key,$val) = each %$vgenv)
+		while (my ($key, $val) = each %$vgenv)
 		{
 			if (defined $env->{$key})
 			{
@@ -2359,13 +2368,13 @@ sub configure
 	  ? ($from_source ? "$from_source/configure" : "../pgsql/configure")
 	  : "./configure";
 
-    if ($use_vpath)
+	if ($use_vpath)
 	{
 		# if you're using a vpath the source must be pristine for configure
 		(my $conf_stat = $conf_path) =~ s/configure$/config.status/;
-		(my $conf_log = $conf_path) =~ s/configure$/config.log/;
+		(my $conf_log  = $conf_path) =~ s/configure$/config.log/;
 
-		die "source not config clean" if ( -e $conf_stat || -e $conf_log);
+		die "source not config clean" if (-e $conf_stat || -e $conf_log);
 	}
 
 	my @confout = run_log("cd $pgsql && $envstr $conf_path $confstr");
@@ -2521,7 +2530,7 @@ sub send_res
 
 		chdir($lrname);
 		my @logfiles = glob("*.log");
-		my %mtimes = map { my @st = stat $_; $_ => $st[9] } @logfiles;
+		my %mtimes   = map { my @st = stat $_; $_ => $st[9] } @logfiles;
 		@logfiles = sort { $mtimes{$a} <=> $mtimes{$b} } @logfiles;
 		my $logfiles = join(' ', @logfiles);
 		$tar_log_cmd =~ s/\*\.log/$logfiles/;
@@ -2665,7 +2674,7 @@ sub scm_timeout
 	sleep($wait_time);
 	print STDERR "SCM timeout reached, cannot continue\n";
 	$SIG{TERM} = 'IGNORE';    # so we don't kill ourself, we're exiting anyway
-	                          # kill the whole process group
+							  # kill the whole process group
 	unless (kill $sig, $who_to_kill)
 	{
 		print "scm timeout kill failed\n";

@@ -109,8 +109,7 @@ sub installcheck
 
 	my $log = PGBuild::Log->new("install-check-collate-$locale");
 
-	my @logfiles =
-	  ("$pgsql/src/test/regress/regression.diffs", "inst/logfile");
+	my @logfiles = ("$pgsql/src/test/regress/regression.diffs", "inst/logfile");
 	foreach my $logfile (@logfiles)
 	{
 		my $lpos = 0;

@@ -205,7 +205,9 @@ sub save_for_testing
 
 	mkpath $installdir;
 
-	system(qq{$cp "$install_loc/data-C" "$installdir" >"$upgrade_loc/save.log" 2>&1});
+	system(
+		qq{$cp "$install_loc/data-C" "$installdir" >"$upgrade_loc/save.log" 2>&1}
+	);
 
 	return if $?;
 
@@ -214,12 +216,12 @@ sub save_for_testing
 
 	foreach my $idir (qw(bin lib include share))
 	{
-		symlink("$savebin/$idir","$installdir/$idir");
+		symlink("$savebin/$idir", "$installdir/$idir");
 	}
 
 	# at some stage we stopped installing regress.so
 	copy "$self->{pgsql}/src/test/regress/regress.so",
-		 "$installdir/lib/postgresql/regress.so"
+	  "$installdir/lib/postgresql/regress.so"
 	  unless (-e "$installdir/lib/postgresql/regress.so");
 
 	# keep a copy of installed database
@@ -353,7 +355,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	setinstenv($self, "$other_branch/inst", $save_env);
 
 	my $sconfig = `$other_branch/inst/bin/pg_config --configure`;
-	my $sport = $sconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
+	my $sport   = $sconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
 
 	system( "$other_branch/inst/bin/pg_ctl -D "
 		  . "$other_branch/inst/$upgrade_test -o '-F' -l "
@@ -452,40 +454,42 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		&& ($oversion le 'REL_13_STABLE' && $oversion ne 'HEAD'))
 	{
 		my $prstmt = join(';',
-						  'drop operator if exists #@# (bigint,NONE)',
-						  'drop operator if exists #%# (bigint,NONE)',
-						  'drop operator if exists !=- (bigint,NONE)',
-						  'drop operator if exists #@%# (bigint,NONE)');
+			'drop operator if exists #@# (bigint,NONE)',
+			'drop operator if exists #%# (bigint,NONE)',
+			'drop operator if exists !=- (bigint,NONE)',
+			'drop operator if exists #@%# (bigint,NONE)');
 
 		system( "$other_branch/inst/bin/psql -X -e "
-				  . " -c '$prstmt' "
-				  . "regression "
-				  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+			  . " -c '$prstmt' "
+			  . "regression "
+			  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
 		return if $?;
 
 		$prstmt = "drop function if exists public.putenv(text)";
 
-		my $regrdb = $oversion le "REL9_4_STABLE" ? "contrib_regression" :
-		  "contrib_regression_dblink";
+		my $regrdb =
+		  $oversion le "REL9_4_STABLE"
+		  ? "contrib_regression"
+		  : "contrib_regression_dblink";
 
 		system( "$other_branch/inst/bin/psql -X -e "
-				  . " -c '$prstmt' "
-				  . "$regrdb"
-				  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+			  . " -c '$prstmt' "
+			  . "$regrdb"
+			  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
 		return if $?;
 
 		if ($oversion le 'REL9_4_STABLE')
 		{
 			# this is fixed in 9.5 and later
 			$prstmt = join(';',
-						   'drop operator @#@ (NONE, bigint)',
-						   'CREATE OPERATOR @#@ (' .
-							 'PROCEDURE = factorial, ' .
-							 'RIGHTARG = bigint )');
+				'drop operator @#@ (NONE, bigint)',
+				'CREATE OPERATOR @#@ ('
+				  . 'PROCEDURE = factorial, '
+				  . 'RIGHTARG = bigint )');
 			system( "$other_branch/inst/bin/psql -X -e "
-					  . " -c '$prstmt' "
-					  . "regression "
-					  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+				  . " -c '$prstmt' "
+				  . "regression "
+				  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
 			return if $?;
 		}
 
@@ -493,17 +497,16 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		{
 			# this is fixed in 9.5 and later
 			$prstmt = join(';',
-						   'drop aggregate if exists public.array_cat_accum(anyarray)',
-						   'CREATE AGGREGATE array_larger_accum (anyarray) ' .
-						   ' ( ' .
-						   '   sfunc = array_larger, ' .
-						   '   stype = anyarray, ' .
-						   '   initcond = $${}$$ ' .
-						   '  ) ' );
-			system( "$other_branch/inst/bin/psql -X -e "
-					  . " -c '" . $prstmt . "' "
-					  . "regression "
-					  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
+				'drop aggregate if exists public.array_cat_accum(anyarray)',
+				'CREATE AGGREGATE array_larger_accum (anyarray) ' . ' ( '
+				  . '   sfunc = array_larger, '
+				  . '   stype = anyarray, '
+				  . '   initcond = $${}$$ '
+				  . '  ) ');
+			system( "$other_branch/inst/bin/psql -X -e " . " -c '"
+				  . $prstmt . "' "
+				  . "regression "
+				  . ">> '$upgrade_loc/$oversion-copy.log' 2>&1");
 			return if $?;
 		}
 	}
@@ -676,7 +679,7 @@ sub installcheck
 	my $savelog = PGBuild::Log->new('xversion-upgrade-save');
 
 	$savelog->add_log("$upgrade_loc/$_.log") foreach (qw( fix save db ctl ));
-	push(@saveout,$savelog->log_string);
+	push(@saveout, $savelog->log_string);
 
 	writelog('xversion-upgrade-save', \@saveout);
 	print "======== xversion upgrade save log ===========\n", @saveout
@@ -688,7 +691,7 @@ sub installcheck
 	# to test upgrading from
 
 	my $dconfig = `$installdir/bin/pg_config --configure`;
-	my $dport = $dconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
+	my $dport   = $dconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
 
 	foreach my $other_branch (
 		sort { $a =~ "HEAD" ? 999 : $b =~ "HEAD" ? -999 : $a cmp $b }

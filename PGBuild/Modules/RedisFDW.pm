@@ -188,7 +188,7 @@ sub installcheck
 	my $cmd = "make USE_PGXS=1 USE_MODULE_DB=1 installcheck";
 
 	my $installdir = "$self->{buildroot}/$self->{pgbranch}/inst";
-	my $logpos = -s "$installdir/logfile" || 0;
+	my $logpos     = -s "$installdir/logfile" || 0;
 
 	get_lock($self, 1);
 
@@ -200,8 +200,7 @@ sub installcheck
 
 	my $log = PGBuild::Log->new("$MODULE-installcheck-$locale");
 
-	my @logfiles =
-	  ("$self->{where}/test/regression.diffs", "inst/logfile");
+	my @logfiles = ("$self->{where}/test/regression.diffs", "inst/logfile");
 	foreach my $logfile (@logfiles)
 	{
 		last unless $status;

@@ -52,15 +52,15 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 
 	scmrepo => undef,   # default is community repo for either type
 	scm_url => undef,   # webref for diffs on server - use default for community
-	                    # git_reference => undef, # for --reference on git repo
-	                    # cvsmethod => 'update', # or 'export'
+						# git_reference => undef, # for --reference on git repo
+						# cvsmethod => 'update', # or 'export'
 	use_git_cvsserver => undef,    # or 'true' if repo is a git cvsserver
 
 	# external commands and control
 	make      => 'make',  # or gmake if required. can include path if necessary.
 	make_jobs => undef,   # >1 for parallel "make" and "make check" steps
 	tar_log_cmd => undef, # default is "tar -z -cf runlogs.tgz *.log"
-	                      # replacement must have the same effect
+						  # replacement must have the same effect
 
 	# archive this many copies of the report summary
 	archive_reports => undef,
@@ -233,7 +233,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# settings added to those in config_env if valgrind is being used
 	valgrind_config_env_extra => {
 
-		CFLAGS => "-fno-omit-frame-pointer -O0 -fPIC",
+		CFLAGS   => "-fno-omit-frame-pointer -O0 -fPIC",
 		CPPFLAGS => "-DUSE_VALGRIND  -DRELCACHE_FORCE_RELEASE",
 	},
 
