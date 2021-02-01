@@ -2359,6 +2359,15 @@ sub configure
 	  ? ($from_source ? "$from_source/configure" : "../pgsql/configure")
 	  : "./configure";
 
+    if ($use_vpath)
+	{
+		# if you're using a vpath the source must be pristine for configure
+		(my $conf_stat = $conf_path) =~ s/configure$/config.status/;
+		(my $conf_log = $conf_path) =~ s/configure$/config.log/;
+
+		die "source not config clean" if ( -e $conf_stat || -e $conf_log);
+	}
+
 	my @confout = run_log("cd $pgsql && $envstr $conf_path $confstr");
 
 	my $status = $? >> 8;
