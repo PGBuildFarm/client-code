@@ -2302,7 +2302,7 @@ sub configure
 				foreach my $conf (
 					glob(
 						"$from_source/configure
-                                        $from_source/src/template/*"
+                         $from_source/src/template/*"
 					)
 				  )
 				{
