@@ -11,7 +11,9 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
-# Log object for a step
+use vars qw($VERSION); $VERSION = 'REL_12';
+
+# provide a Log object for a step
 
 # we do this mostly OO style, so almost nothing is exported
 
@@ -22,7 +24,6 @@ our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 @EXPORT      = qw(print_header_line);
 %EXPORT_TAGS = ();
 @EXPORT_OK   = ();
-
 
 use PGBuild::Utils;
 
