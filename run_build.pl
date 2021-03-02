@@ -1898,6 +1898,8 @@ sub run_bin_tests
 	foreach my $bin (glob("$pgsql/src/bin/*"))
 	{
 		next unless -d "$bin/t";
+		next unless step_wanted("bin-$bin");
+		print time_str(), "running test bin-$bin ...\n" if $verbose;
 		run_tap_test($bin, basename($bin), undef);
 	}
 	return;
@@ -1929,6 +1931,8 @@ sub run_misc_tests
 		  if $test eq 'authentication'
 		  && ($using_msvc || $Config{osname} eq 'msys');
 		next unless -d "$pgsql/src/test/$test/t";
+		next unless step_wanted("misc-$test");
+		print time_str(), "running misc test $test ...\n" if $verbose;
 		run_tap_test("$pgsql/src/test/$test", $test, undef);
 	}
 
@@ -1943,12 +1947,16 @@ sub run_misc_tests
 		my $testname = basename($testdir);
 		next if $testname =~ /ssl/ && !$using_ssl;
 		next unless -d "$testdir/t";
+		next unless step_wanted("module-$testname");
+		print time_str(), "running misc test module-$testname ...\n" if $verbose;
 		run_tap_test("$testdir", "module-$testname", undef);
 	}
 
 	foreach my $testdir (glob("$pgsql/contrib/*"))
 	{
 		next unless -d "$testdir/t";
+		next unless step_wanted("contrib-" . basename($testdir));
+		print time_str(), "running test contrib-", basename($testdir), " ...\n" if $verbose;
 		run_tap_test("$testdir", "contrib-" . basename($testdir), undef);
 	}
 
