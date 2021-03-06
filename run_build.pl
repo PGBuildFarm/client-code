@@ -1893,14 +1893,13 @@ sub run_bin_tests
 		return unless grep { $_ eq '--enable-tap-tests' } @$config_opts;
 	}
 
-	print time_str(), "running bin checks ...\n" if $verbose;
-
 	foreach my $bin (glob("$pgsql/src/bin/*"))
 	{
 		next unless -d "$bin/t";
-		next unless step_wanted("bin-$bin");
-		print time_str(), "running test bin-$bin ...\n" if $verbose;
-		run_tap_test($bin, basename($bin), undef);
+		my $testname = basename($bin);
+		next unless step_wanted("bin-$testname");
+		print time_str(), "running bin test $testname ...\n" if $verbose;
+		run_tap_test($bin, $testname, undef);
 	}
 	return;
 }
@@ -1918,8 +1917,6 @@ sub run_misc_tests
 	{
 		return unless grep { $_ eq '--enable-tap-tests' } @$config_opts;
 	}
-
-	print time_str(), "running make misc checks ...\n" if $verbose;
 
 	my @extra_tap = ();
 	@extra_tap = split(/\s+/, $ENV{PG_TEST_EXTRA})
@@ -1955,9 +1952,10 @@ sub run_misc_tests
 	foreach my $testdir (glob("$pgsql/contrib/*"))
 	{
 		next unless -d "$testdir/t";
-		next unless step_wanted("contrib-" . basename($testdir));
-		print time_str(), "running test contrib-", basename($testdir), " ...\n" if $verbose;
-		run_tap_test("$testdir", "contrib-" . basename($testdir), undef);
+		my $testname = basename($testdir);
+		next unless step_wanted("contrib-$testname");
+		print time_str(), "running contrib test $testname ...\n" if $verbose;
+		run_tap_test("$testdir", "contrib-$testname", undef);
 	}
 
 	return;
