@@ -621,7 +621,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	# generally from reordering of larg object output.
 	# If not we heuristically allow up to 2000 lines of diffs
 
-	if (   ($oversion ne $this_branch && $difflines < 2000)
+	if (   ($oversion ne $this_branch && $difflines < 2700)
 		|| ($oversion eq $this_branch) && $difflines < 50)
 	{
 		return 1;

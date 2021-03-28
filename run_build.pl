@@ -2661,6 +2661,8 @@ sub get_script_config_dump
 		eval $str;
 	}
 	$conf->{module_versions} = \%versions;
+	$conf->{skip_steps} = join(" ", keys %skip_steps) if %skip_steps;
+	$conf->{only_steps} = join(" ", keys %only_steps) if %only_steps;
 	local $Data::Dumper::Sortkeys = 1;
 	return Data::Dumper->Dump([$conf], ['Script_Config']);
 }
