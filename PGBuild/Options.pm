@@ -58,7 +58,7 @@ my (%standard_options);
 	'from-source-clean=s' => \$from_source_clean,
 	'force'               => \$forcerun,
 	'find-typedefs'       => \$find_typedefs,
-	'keepall'             => \$keepall,
+	'keepall!'            => \$keepall,          # allow --no-keepall
 	'verbose:i'           => \$verbose,
 	'nostatus'            => \$nostatus,
 	'test'                => \$testmode,
