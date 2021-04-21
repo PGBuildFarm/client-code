@@ -722,8 +722,8 @@ sub checkout
 		my @colog = ();
 		@colog = run_log("git checkout . ")
 		  unless (grep { $_ ne ".git" } glob(".[a-z]* *"));
-		my @gitstat = `git status --porcelain`;    # too trivial for run_log
-			 # make sure it's clean before we try to update it
+		my @gitstat = `git status --porcelain --ignored`;    # too trivial for run_log
+		# make sure it's clean before we try to update it
 		if (@gitstat)
 		{
 			print "Repo is not clean:\n", @gitstat
