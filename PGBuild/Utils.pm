@@ -19,6 +19,7 @@ use Config;
 use Fcntl qw(:seek);
 use File::Path;
 use File::Copy;
+use File::Temp qw(tempfile);
 
 use vars qw($VERSION); $VERSION = 'REL_12';
 
@@ -144,8 +145,35 @@ sub process_module_hooks
 	return;
 }
 
+sub get_stack_trace_cygwin
+{
+	my $bindir = shift;
+	my $pgdata = shift;
+
+	my @cores = glob("$pgdata/*.stackdump");
+	return () unless @cores;
+
+	my $stacktrace = shift(@cores);
+	my @lines = file_lines($stacktrace);
+	my @addrs;
+	foreach my $line (@lines)
+	{
+		next unless $line =~ /^[[:xdigit:]]+\s+([[:xdigit:]]+)\s/;
+		push(@addrs,"$1\n");
+	}
+	my ($addrfile, $addrfilename) = tempfile( "stackaddrXXXX" );
+	print $addrfile @addrs;
+	close $addrfile;
+	my @tracelines = `addr2line -f -e $bindir/postgres.exe < $addrfilename`;
+	do { s!.*/src/!src/!; } foreach @tracelines;
+	return ("$log_file_marker stack trace: $stacktrace $log_file_marker\n",
+			@lines,"\n---- backtrace ----\n",@tracelines);
+}
+
 sub get_stack_trace
 {
+	return get_stack_trace_cygwin(@_) if ($ENV{CYGWIN});
+
 	my $bindir = shift;
 	my $pgdata = shift;
 

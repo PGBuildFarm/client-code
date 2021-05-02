@@ -192,8 +192,8 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		# directory
 		# CCACHE_DIR => "/path/to/your/ccache",
 
-		### use these settings for CYGWIN
-		# CYGWIN => 'server',
+		### use these settings for CYGWIN - adjust dumper path to be correct
+		# CYGWIN => 'server error_start=c:\cygwin\bin\dumper.exe -d %1 %2',
 		# MAX_CONNECTIONS => '3',
 
 		### set this if you need a proxy setting for the
