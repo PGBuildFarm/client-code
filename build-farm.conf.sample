@@ -192,8 +192,12 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		# directory
 		# CCACHE_DIR => "/path/to/your/ccache",
 
-		### use these settings for CYGWIN - adjust dumper path to be correct
-		# CYGWIN => 'server error_start=c:\cygwin\bin\dumper.exe -d %1 %2',
+		### use these settings for Cygwin - adjust dumper path to be correct
+		## see https://cygwin.org/cygwin-ug-net/using-cygwinenv.html
+		# CYGWIN => 'error_start=c:\cygwin\bin\dumper.exe -d %1 %2',
+
+		## Cygwin is known to choke on many concurrent connections, so
+		## reign back the regression test parallelism
 		# MAX_CONNECTIONS => '3',
 
 		### set this if you need a proxy setting for the
