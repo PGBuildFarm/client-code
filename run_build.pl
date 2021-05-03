@@ -862,7 +862,7 @@ process_module_hooks('install');
 
 process_module_hooks("check") if $delay_check;
 
-make_testmodules_check();
+make_misc_check();
 
 run_bin_tests();
 
@@ -1647,19 +1647,19 @@ sub make_contrib_install_check
 }
 
 # run the modules that can't be run with installcheck
-sub make_testmodules_check
+sub make_misc_check
 {
 	return if $using_msvc;
-	return unless step_wanted('testmodules-install-check');
+	return unless step_wanted('misc-check');
 	my @checklog;
 	my $status = 0;
-	my @dirs   = glob("$pgsql/src/test/modules/*");
+	my @dirs   = glob("$pgsql/src/test/modules/* $pgsql/contrib/*");
 	return unless @dirs;
-	print time_str(), "running make check for some test modules...\n"
+	print time_str(), "running make check miscellaneous modules ...\n"
 	  if $verbose;
 	my $temp_inst_ok = check_install_is_complete($pgsql, $installdir);
 	my $instflags    = $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
-	my $log          = PGBuild::Log->new("modules-check");
+	my $log          = PGBuild::Log->new("misc-check");
 
 	foreach my $dir (@dirs)
 	{
@@ -1677,10 +1677,10 @@ sub make_testmodules_check
 	}
 	push(@checklog, $log->log_string);
 	return unless ($status || @checklog);
-	writelog("modules-check", \@checklog);
+	writelog("misc-check", \@checklog);
 	print @checklog if ($verbose > 1);
-	send_result("ModulesCheck", $status, \@checklog) if $status;
-	$steps_completed .= " ModulesCheck";
+	send_result("MiscCheck", $status, \@checklog) if $status;
+	$steps_completed .= " MiscCheck";
 	return;
 }
 
