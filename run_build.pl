@@ -1865,6 +1865,13 @@ sub run_tap_test
 
 	$log->add_log($_) foreach (@logs);
 
+	if ($status)
+	{
+		my @trace = get_stack_trace("$pgsql/tmp_install/$installdir/bin",
+									"$dir/tmp_check");
+		$log->add_log_lines("stack-trace", \@trace) if @trace;
+	}
+
 	push(@makeout, $log->log_string);
 
 	writelog("$testname-$taptarget", \@makeout);

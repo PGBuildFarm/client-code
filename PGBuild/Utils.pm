@@ -17,6 +17,7 @@ use warnings;
 use Carp;
 use Config;
 use Fcntl qw(:seek);
+use File::Find qw();
 use File::Path;
 use File::Copy;
 use File::Temp qw(tempfile);
@@ -177,8 +178,27 @@ sub get_stack_trace
 	my $bindir = shift;
 	my $pgdata = shift;
 
+	my @cores;
+
+	if (-e "$pgdata/postgresql.conf")
+	{
+		@cores = glob("$pgdata/$core_file_glob");
+	}
+	else
+	{
+		# if this isn't a data directory, go hunting for subdirectories
+		# that are data directories and then look in those for core files
+		my @datadirs;
+		my $wanted = sub
+		{ $_ eq 'postgresql.conf' && push @datadirs, $File::Find::dir; } ;
+		File::Find::find($wanted, $pgdata);
+		foreach my $dir (@datadirs)
+		{
+			push(@cores, glob("$dir/$core_file_glob"));
+		}
+	}
+
 	# no core = no result
-	my @cores = glob("$pgdata/$core_file_glob");
 	return () unless @cores;
 
 	# no gdb = no result
