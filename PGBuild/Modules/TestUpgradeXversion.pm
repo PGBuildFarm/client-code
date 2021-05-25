@@ -50,7 +50,7 @@ sub setup
 	my $pgsql     = shift;    # postgres build dir
 
 	return if $from_source;
-	return if $conf->{using_msvc};    # disable on MSVC for now
+#	return if $conf->{using_msvc};    # disable on MSVC for now
 	return if $branch !~ /^(?:HEAD|REL_?\d+(?:_\d+)?_STABLE)$/;
 
 	my $animal = $conf->{animal};
@@ -63,6 +63,8 @@ sub setup
 		# support legacy use without animal name
 		$upgrade_install_root = "$buildroot/upgrade";
 	}
+
+	mkdir $upgrade_install_root unless -d $upgrade_install_root;
 
 	my $self = {
 		buildroot            => $buildroot,
@@ -85,7 +87,7 @@ sub get_lock
 	my $lockdir   = $self->{upgrade_install_root};
 	my $lockfile  = "$lockdir/$branch.upgrade.LCK";
 	open(my $ulock, ">", $lockfile)
-	  || die "opening upgrade lock file";
+	  || die "opening upgrade lock file $lockfile: $!";
 
 	# wait if necessary for the lock
 	if (!flock($ulock, $exclusive ? LOCK_EX : LOCK_SH))
@@ -146,6 +148,17 @@ sub setinstenv
 
 	# now adjust it to point to new dir
 
+	if ($self->{bfconf}->{using_msvc} || $^O eq 'msys' )
+	{
+	    my $sep = $self->{bfconf}->{using_msvc} ? ';'  : ':';
+	    $ENV{PATH} = "$installdir/bin$sep$ENV{PATH}";
+	    $ENV{PGHOST} = 'localhost';
+		return;
+	}
+	else
+	{
+		$ENV{PATH} = "$installdir/bin:$ENV{PATH}";
+	}
 	if (my $ldpath = $ENV{LD_LIBRARY_PATH})
 	{
 		$ENV{LD_LIBRARY_PATH} = "$installdir/lib:$ldpath";
@@ -161,14 +174,6 @@ sub setinstenv
 	else
 	{
 		$ENV{DYLD_LIBRARY_PATH} = "$installdir/lib";
-	}
-	if ($self->{pgconf}->{using_msvc})
-	{
-		$ENV{PATH} = "$installdir/bin;$ENV{PATH}";
-	}
-	else
-	{
-		$ENV{PATH} = "$installdir/bin:$ENV{PATH}";
 	}
 	return;
 }
@@ -220,9 +225,22 @@ sub save_for_testing
 	}
 
 	# at some stage we stopped installing regress.so
-	copy "$self->{pgsql}/src/test/regress/regress.so",
-	  "$installdir/lib/postgresql/regress.so"
-	  unless (-e "$installdir/lib/postgresql/regress.so");
+	if ($self->{bfconf}->{using_msvc})
+	{
+		# except on windows :-)
+	}
+	elsif ($^O eq 'msys')
+	{
+		copy "$self->{pgsql}/src/test/regress/regress.dll",
+		  "$installdir/lib/postgresql/regress.dll"
+		  unless (-e "$installdir/lib/postgresql/regress.dll");
+	}
+	else
+	{
+		copy "$self->{pgsql}/src/test/regress/regress.so",
+		  "$installdir/lib/postgresql/regress.so"
+		  unless (-e "$installdir/lib/postgresql/regress.so");
+	}
 
 	# keep a copy of installed database
 	# to test it against, but we still need to move the regression
@@ -246,6 +264,7 @@ sub save_for_testing
 	my @regresslibs = `psql -A -X -t -c '$sql' regression`;
 
 	chomp @regresslibs;
+	do { s/\r$// } foreach @regresslibs;
 
 	my %regresslibs = map { $_ => 1 } @regresslibs;
 
@@ -344,13 +363,16 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	# run in which it was set up, which will be gone by now, so we repoint
 	# it to the current run's tmpdir.
 	# listen_addresses will be set correctly and requires no adjustment.
-	open(my $opgconf, ">>", "$other_branch/inst/$upgrade_test/postgresql.conf")
-	  || die "opening $other_branch/inst/$upgrade_test/postgresql.conf: $!";
-	my $param = "unix_socket_directories";
-	$param = "unix_socket_directory"
-	  if $oversion ne 'HEAD' && $oversion lt 'REL9_3_STABLE';
-	print $opgconf "$param = '$tmpdir'\n";
-	close($opgconf);
+	unless ($self->{bfconf}->{using_msvc} || $^O eq 'msys' )
+	{
+	    open(my $opgconf, ">>", "$other_branch/inst/$upgrade_test/postgresql.conf")
+	      || die "opening $other_branch/inst/$upgrade_test/postgresql.conf: $!";
+	    my $param = "unix_socket_directories";
+	    $param = "unix_socket_directory"
+	      if $oversion ne 'HEAD' && $oversion lt 'REL9_3_STABLE';
+	    print $opgconf "$param = '$tmpdir'\n";
+	    close($opgconf);
+	}
 
 	setinstenv($self, "$other_branch/inst", $save_env);
 
@@ -539,14 +561,17 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		  . "> '$upgrade_loc/$oversion-initdb.log' 2>&1");
 	return if $?;
 
-	open(my $pgconf, ">>", "$installdir/$oversion-upgrade/postgresql.conf")
-	  || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
-	my $tmp_param = "unix_socket_directories";
-	$tmp_param = "unix_socket_directory"
-	  if $this_branch ne 'HEAD' && $this_branch lt 'REL9_3_STABLE';
-	print $pgconf "listen_addresses = ''\n";
-	print $pgconf "$tmp_param = '$tmpdir'\n";
-	close($pgconf);
+	unless ($self->{bfconf}->{using_msvc} || $^O eq 'msys' )
+	{
+	    open(my $pgconf, ">>", "$installdir/$oversion-upgrade/postgresql.conf")
+	      || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
+	    my $tmp_param = "unix_socket_directories";
+	    $tmp_param = "unix_socket_directory"
+	      if $this_branch ne 'HEAD' && $this_branch lt 'REL9_3_STABLE';
+	    print $pgconf "listen_addresses = ''\n";
+	    print $pgconf "$tmp_param = '$tmpdir'\n";
+	    close($pgconf);
+	}
 
 	if ($oversion ge 'REL9_5_STABLE' || $oversion eq 'HEAD')
 	{
@@ -619,7 +644,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	# If the versions match we expect a possible handful of diffs,
 	# generally from reordering of larg object output.
-	# If not we heuristically allow up to 2000 lines of diffs
+	# If not we heuristically allow up to 2700 lines of diffs
 
 	if (   ($oversion ne $this_branch && $difflines < 2700)
 		|| ($oversion eq $this_branch) && $difflines < 50)
@@ -649,7 +674,14 @@ sub installcheck
 
 	local %ENV = %ENV;
 
-	$ENV{PGHOST} = $tmpdir;
+	if ($self->{bfconf}->{using_msvc} || $^O eq 'msys' )
+	{
+	    $ENV{PGHOST} = $tmpdir;
+	}
+	else
+	{
+	    $ENV{PGHOST} = 'localhost';
+	}
 
 	my $save_env = {};
 	while (my ($env_key, $env_val) = each %ENV)
