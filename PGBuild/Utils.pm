@@ -448,6 +448,16 @@ sub save_install
 
 	my $dest = "$buildroot/saves.$animal/$branch";
 
+	my $cp;
+	if ($PGBuild::conf{using_msvc})
+	{
+		$cp = "robocopy /nfl /ndl /np /e /sec ";
+	}
+	else
+	{
+		$cp = "cp -r";
+	}
+
 	if (!$saved)
 	{
 		rmtree($dest) if -d $dest;
@@ -457,7 +467,7 @@ sub save_install
 		my $installdir = "$buildroot/$branch/inst";
 		foreach my $idir (qw(bin lib share include))
 		{
-			system("cp -r $installdir/$idir $dest/$idir");
+			system(qq{$cp "$installdir/$idir" "$dest/$idir"});
 		}
 
 		$saved = 1;
