@@ -330,59 +330,21 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 
 if ($conf{using_msvc})
 {
+	# get the settings from the VisualStudio installation
 
-	# all this stuff is to support MSVC builds - it's literally what
-	# a VS Command Prompt sets for me.
-	# make sure it's what your sets for you. There can be subtle differences.
-	# Note: we need to set here whatever would be set in buildenv.bat, as
-	# we aren't going to write that file. This supercedes it. In
-	# particular, the PATH possibly needs to include the path to perl, bison,
-	# flex etc., as well as CVS if that's not in the path.
+	require "PGBuild/VSenv.pm"; ## no critic (RequireBarewordIncludes)
 
-	my %extra_buildenv = (
+	my $VSdir = "c:/Program Files (x86)/Microsoft Visual Studio/2019";
 
-		VSINSTALLDIR => 'C:\Program Files\Microsoft Visual Studio 8',
-		VCINSTALLDIR => 'C:\Program Files\Microsoft Visual Studio 8\VC',
-		VS80COMNTOOLS =>
-		  'C:\Program Files\Microsoft Visual Studio 8\Common7\Tools',
-		FrameworkDir     => 'C:\WINDOWS\Microsoft.NET\Framework',
-		FrameworkVersion => 'v2.0.50727',
-		FrameworkSDKDir =>
-		  'C:\Program Files\Microsoft Visual Studio 8\SDK\v2.0',
-		DevEnvDir => 'C:\Program Files\Microsoft Visual Studio 8\Common7\IDE',
+	my $vsenv = PGBuild::VSenv::getenv($VSdir,'x64');
 
-		PATH => join(';',
-			'C:\Program Files\Microsoft Visual Studio 8\Common7\IDE',
-			'C:\Program Files\Microsoft Visual Studio 8\VC\BIN',
-			'C:\Program Files\Microsoft Visual Studio 8\Common7\Tools',
-			'C:\Program Files\Microsoft Visual Studio 8\Common7\Tools\bin',
-			'C:\Program Files\Microsoft Visual Studio 8\VC\PlatformSDK\bin',
-			'C:\Program Files\Microsoft Visual Studio 8\SDK\v2.0\bin',
-			'C:\WINDOWS\Microsoft.NET\Framework\v2.0.50727',
-			'C:\Program Files\Microsoft Visual Studio 8\VC\VCPackages',
-			'C:\Perl\Bin',
-			'c:\prog\pgdepend\bin',
-			$ENV{PATH}),
-		INCLUDE => join(';',
-			'C:\Program Files\Microsoft Visual Studio 8\VC\ATLMFC\INCLUDE',
-			'C:\Program Files\Microsoft Visual Studio 8\VC\INCLUDE',
-			'C:\Program Files\Microsoft Visual Studio 8\VC\PlatformSDK\include',
-			'C:\Program Files\Microsoft Visual Studio 8\SDK\v2.0\include',
-			$ENV{INCLUDE}),
+	# add other elements to the PATH if needed
+	$vsenv->{PATH} = join(';',
+						  'c:/prog/depend/bin',
+						  'c:/other/bin',
+						  $vsenv->{PATH});
 
-		LIB => join(';',
-			'C:\Program Files\Microsoft Visual Studio 8\VC\ATLMFC\LIB',
-			'C:\Program Files\Microsoft Visual Studio 8\VC\LIB'
-			  . 'C:\Program Files\Microsoft Visual Studio 8\VC\PlatformSDK\lib',
-			'C:\Program Files\Microsoft Visual Studio 8\SDK\v2.0\lib'
-			  . $ENV{LIB}),
-
-		LIBPATH => join(';',
-			'C:\WINDOWS\Microsoft.NET\Framework\v2.0.50727',
-			'C:\Program Files\Microsoft Visual Studio 8\VC\ATLMFC\LIB'),
-	);
-
-	%{ $conf{build_env} } = (%{ $conf{build_env} }, %extra_buildenv);
+	%{ $conf{build_env} } = (%{ $conf{build_env} }, %$vsenv);
 
 	# MSVC needs a somewhat different style of config opts (why??)
 	# What we write here will be literally (via Data::Dumper) put into
