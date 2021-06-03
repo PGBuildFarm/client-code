@@ -419,6 +419,16 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	return if $?;
 
+	my $sql = 'select datname from pg_database';
+
+	run_psql("psql","-A -t",$sql,"postgres",
+			 "$upgrade_loc/$oversion-dbnames.data");
+	my @dbnames = file_lines("$upgrade_loc/$oversion-dbnames.data");
+
+	chomp @dbnames;
+	my %dbnames;
+	do { s/\r$//; $dbnames{$_}=1; } foreach @dbnames;
+
 	if ($this_branch gt 'REL9_6_STABLE' || $this_branch eq 'HEAD')
 	{
 		run_psql("$other_branch/inst/bin/psql", "-e",
@@ -515,9 +525,12 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		  ? "contrib_regression"
 		  : "contrib_regression_dblink";
 
-		run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
-			  "$regrdb", "$upgrade_loc/$oversion-copy.log", 1);
-		return if $?;
+		if ($dbnames{$regrdb})
+		{
+			run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
+					 "$regrdb", "$upgrade_loc/$oversion-copy.log", 1);
+			return if $?;
+		}
 
 		if ($oversion le 'REL9_4_STABLE')
 		{
