@@ -67,23 +67,12 @@ sub setup
 
 	mkdir $upgrade_install_root unless -d $upgrade_install_root;
 
-	my $cp;
-	if ($conf->{using_msvc})
-	{
-		$cp = "robocopy /nfl /ndl /np /e /sec ";
-	}
-	else
-	{
-		$cp = "cp -r";
-	}
-
 	my $self = {
 		buildroot            => $buildroot,
 		pgbranch             => $branch,
 		bfconf               => $conf,
 		pgsql                => $pgsql,
 		upgrade_install_root => $upgrade_install_root,
-		cp                   => $cp,
 	};
 	bless($self, $class);
 
@@ -228,26 +217,24 @@ sub save_for_testing
 
 	mkdir $upgrade_loc;
 
-	my $cp = $self->{cp};
-
 	mkpath $installdir;
 
-	system(
-		qq{$cp "$install_loc/data-C" "$installdir/data-C" >"$upgrade_loc/save.log" 2>&1}
-	   );
+	copydir("$install_loc/data-C", "$installdir/data-C" ,
+			"$upgrade_loc/save.log");
 
-	return if (($cp =~ /robocopy/) ? ($? >> 8) > 1 : $?);
+	return if $?;
 
 	my $savebin =
-	  save_install($self->{buildroot}, $self->{pgbranch}, $self->{pgsql});
+	  save_install($self->{buildroot}, $self->{pgbranch}, $self->{pgsql},
+				  "$upgrade_loc/save.log");
 
-	return if (($cp =~ /robocopy/) ? ($? >> 8) > 1 : $?);
+	return if  $?;
 
 	foreach my $idir (qw(bin lib include share))
 	{
 		if ($self->{bfconf}->{using_msvc})
 		{
-			system(qq{mklink /J "$installdir/$idir" "$savebin/$idir"});
+			system(qq{mklink /J "$installdir/$idir" "$savebin/$idir" >> "$upgrade_loc/save.log" 2>&1});
 		}
 		else
 		{
@@ -376,21 +363,14 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	my $installdir   = "$upgrade_loc/inst";
 	my $oversion     = basename $other_branch;
 	my $upgrade_test = "upgrade_test-$this_branch";
-	my $cp = $self->{cp};
 
 	print time_str(), "checking upgrade from $oversion to $this_branch ...\n"
 	  if $verbose;
 
 	rmtree "$other_branch/inst/$upgrade_test";
-	my $testcmd = qq{
-          $cp "$other_branch/inst/data-C"
-                "$other_branch/inst/$upgrade_test/"
-          > "$upgrade_loc/$oversion-copy.log" 2>&1
-    };
-	$testcmd =~ s/\n//g;
-	system $testcmd;
-
-	return if (($cp =~ /robocopy/) ? ($? >> 8) > 1 : $?);
+	copydir("$other_branch/inst/data-C", "$other_branch/inst/$upgrade_test/",
+          "$upgrade_loc/$oversion-copy.log");
+	return if $?;
 
 	# The old version will have the unix sockets point to tmpdir from the
 	# run in which it was set up, which will be gone by now, so we repoint
@@ -667,7 +647,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 	elsif (-e "$installdir/delete_old_cluster.bat")
 	{
-		system("cd $installdir && delete_old_cluster");
+		system("cd $installdir && delete_old_cluster > nul");
 		return if $?;
 	}
 

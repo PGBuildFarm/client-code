@@ -32,7 +32,7 @@ our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
   set_last find_last step_wanted send_result
   file_lines file_contents check_make_log_warnings
   find_in_path $log_file_marker set_last_stage get_last_stage
-  check_install_is_complete spawn save_install
+  check_install_is_complete spawn save_install copydir
 );
 %EXPORT_TAGS = qw();
 @EXPORT_OK   = qw($st_prefix $logdirname $branch_root $steps_completed
@@ -444,19 +444,10 @@ sub save_install
 	my $buildroot = shift;
 	my $branch    = shift;
 	my $pgsql     = shift;
+	my $logfile = shift;
 	my $animal    = $PGBuild::conf{animal};
 
 	my $dest = "$buildroot/saves.$animal/$branch";
-
-	my $cp;
-	if ($PGBuild::conf{using_msvc})
-	{
-		$cp = "robocopy /nfl /ndl /np /e /sec ";
-	}
-	else
-	{
-		$cp = "cp -r";
-	}
 
 	if (!$saved)
 	{
@@ -465,15 +456,37 @@ sub save_install
 		mkpath $dest;
 
 		my $installdir = "$buildroot/$branch/inst";
+
 		foreach my $idir (qw(bin lib share include))
 		{
-			system(qq{$cp "$installdir/$idir" "$dest/$idir"});
+			copydir("$installdir/$idir", "$dest/$idir", "$logfile");
+			return if $?;
 		}
 
 		$saved = 1;
 	}
 
 	return $dest;
+}
+
+sub copydir
+{
+	my ($from, $to, $logfile) = @_;
+	my ($cp,$rd);
+	if ($PGBuild::conf{using_msvc})
+	{
+		$cp = "robocopy /nfl /ndl /np /e /sec ";
+		$rd = qq{/LOG+:"$logfile" >nul};
+	}
+	else
+	{
+		$cp = "cp -r";
+		$rd = qq{> "$logfile"};
+	}
+	system(qq{$cp "$from" "$to" $rd 2>&1});
+	## no critic (RequireLocalizedPunctuationVars)
+	$? = 0 if ($cp =~ /robocopy/ && $? >> 8 == 1);
+	return;
 }
 
 1;
