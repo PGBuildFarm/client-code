@@ -95,6 +95,8 @@ die "from-source cannot be used with run_branches,pl"
 my $buildroot  = $PGBuild::conf{build_root};
 my $using_msvc = $PGBuild::conf{using_msvc};
 
+exit 0 if -e "$buildroot/$animal.inhibit-runs";
+
 die "no buildroot" unless $buildroot;
 
 unless ($buildroot =~ m!^/!
@@ -233,6 +235,12 @@ if (!flock($lockfile, LOCK_EX | LOCK_NB))
 	print "Another process holds the lock on " . "$lockfilename. Exiting.\n"
 	  if ($verbose);
 	exit(0);
+}
+
+if (-e "$buildroot/$animal.force-one-run")
+{
+	$PGBuild::Options::forcerun = 1 ;
+	unlink "$buildroot/$animal.force-one-run";
 }
 
 if ($run_parallel)
