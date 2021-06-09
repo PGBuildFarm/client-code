@@ -647,7 +647,14 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 	elsif (-e "$installdir/delete_old_cluster.bat")
 	{
-		system("cd $installdir && delete_old_cluster > nul");
+		if ( $^O eq 'msys')
+		{
+			system(qq{cd "$installdir" && cmd //c 'delete_old_cluster > nul'});
+		}
+		else
+		{
+			system(qq{cd "$installdir" && delete_old_cluster > nul});
+		}
 		return if $?;
 	}
 
