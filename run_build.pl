@@ -1936,7 +1936,7 @@ sub run_misc_tests
 		  && ($using_msvc || $Config{osname} eq 'msys');
 		next unless -d "$pgsql/src/test/$test/t";
 		next unless step_wanted("misc-$test");
-		print time_str(), "running misc test $test ...\n" if $verbose;
+		print time_str(), "running test misc-$test ...\n" if $verbose;
 		run_tap_test("$pgsql/src/test/$test", $test, undef);
 	}
 
