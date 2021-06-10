@@ -23,6 +23,7 @@ use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils qw(:DEFAULT $tmpdir $steps_completed);
 
+use Cwd qw(abs_path);
 use Fcntl qw(:flock :seek);
 use File::Copy;
 use File::Path;
@@ -590,11 +591,14 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		close $handle;
 	}
 
+	my $old_data = abs_path("$other_branch/inst/$upgrade_test");
+	my $new_data = abs_path("$installdir/$oversion-upgrade");
+
 	system( "cd $installdir && pg_upgrade "
 		  . "--old-port=$sport "
 		  . "--new-port=$dport "
-		  . qq{--old-datadir="$other_branch/inst/$upgrade_test" }
-		  . qq{--new-datadir="$installdir/$oversion-upgrade" }
+		  . qq{--old-datadir="$old_data" }
+		  . qq{--new-datadir="$new_data" }
 		  . qq{--old-bindir="$other_branch/inst/bin" }
 		  . qq{--new-bindir="$installdir/bin" }
 		  . qq{>> "$upgrade_loc/$oversion-upgrade.log" 2>&1});
