@@ -461,12 +461,14 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
         };
 		foreach my $oiddb ("regression", "contrib_regression_btree_gist")
 		{
+			next unless $dbnames{$oiddb};
 			run_psql("$other_branch/inst/bin/psql", "-e", $nooid_stmt,
 				  "$oiddb", "$upgrade_loc/$oversion-copy.log", 1);
 			return if $?;
 		}
 
-		if ($oversion ge 'REL_10_STABLE')
+		if ($oversion ge 'REL_10_STABLE' &&
+			  $dbnames{'contrib_regression_postgres_fdw'})
 		{
 			run_psql("$other_branch/inst/bin/psql", "-e",
 				  "drop foreign table if exists ft_pg_type",
