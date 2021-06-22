@@ -53,7 +53,6 @@ sub setup
 
 	return if $from_source;
 
-	#	return if $conf->{using_msvc};    # disable on MSVC for now
 	return if $branch !~ /^(?:HEAD|REL_?\d+(?:_\d+)?_STABLE)$/;
 
 	my $animal = $conf->{animal};
