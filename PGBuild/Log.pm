@@ -54,7 +54,7 @@ sub add_log
 	my $logfile = shift;
 	my $filepos = shift;
 	return unless -e $logfile;
-	my $contents = file_contents($logfile, $filepos);
+	my $contents = file_contents($logfile, $filepos) || "";
 	my $list     = $self->{files};
 	my $fobj     = { name => $logfile, contents => $contents };
 	push(@$list, $fobj);
