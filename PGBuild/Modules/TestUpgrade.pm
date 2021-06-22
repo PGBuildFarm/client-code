@@ -52,7 +52,7 @@ sub setup
 
 	# don't run module if builtin test is enabled.
 	my $using_tap_tests =
-		$conf->{using_msvc}
+	    $conf->{using_msvc}
 	  ? $conf->{config}->{tap_tests}
 	  : grep { $_ eq '--enable-tap-tests' } @{ $conf->{config} };
 	return

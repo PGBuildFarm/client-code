@@ -52,7 +52,8 @@ sub setup
 	my $pgsql     = shift;    # postgres build dir
 
 	return if $from_source;
-#	return if $conf->{using_msvc};    # disable on MSVC for now
+
+	#	return if $conf->{using_msvc};    # disable on MSVC for now
 	return if $branch !~ /^(?:HEAD|REL_?\d+(?:_\d+)?_STABLE)$/;
 
 	my $animal = $conf->{animal};
@@ -81,7 +82,7 @@ sub setup
 	return;
 }
 
-sub run_psql  ## no critic (Subroutines::ProhibitManyArgs)
+sub run_psql    ## no critic (Subroutines::ProhibitManyArgs)
 {
 	my ($psql, $flags, $sql, $database, $logfile, $append) = @_;
 	my ($fh, $filename) = tempfile('bfsql-XXXX', UNLINK => 1);
@@ -89,7 +90,7 @@ sub run_psql  ## no critic (Subroutines::ProhibitManyArgs)
 	close $fh;
 	my $rd = $append ? '>>' : '>';
 	system(qq{"$psql" -X $flags -f "$filename" $database $rd "$logfile" 2>&1});
-	return; # callers can check $?
+	return;     # callers can check $?
 }
 
 sub get_lock
@@ -161,10 +162,10 @@ sub setinstenv
 
 	# now adjust it to point to new dir
 
-	if ($self->{bfconf}->{using_msvc} || $^O eq 'msys' )
+	if ($self->{bfconf}->{using_msvc} || $^O eq 'msys')
 	{
-	    my $sep = $self->{bfconf}->{using_msvc} ? ';'  : ':';
-	    $ENV{PATH} = "$installdir/bin$sep$ENV{PATH}";
+		my $sep = $self->{bfconf}->{using_msvc} ? ';' : ':';
+		$ENV{PATH} = "$installdir/bin$sep$ENV{PATH}";
 		return;
 	}
 	else
@@ -220,22 +221,25 @@ sub save_for_testing
 
 	mkpath $installdir;
 
-	copydir("$install_loc/data-C", "$installdir/data-C" ,
-			"$upgrade_loc/save.log");
+	copydir("$install_loc/data-C", "$installdir/data-C",
+		"$upgrade_loc/save.log");
 
 	return if $?;
 
-	my $savebin =
-	  save_install($self->{buildroot}, $self->{pgbranch}, $self->{pgsql},
-				  "$upgrade_loc/save.log");
+	my $savebin = save_install(
+		$self->{buildroot}, $self->{pgbranch},
+		$self->{pgsql},     "$upgrade_loc/save.log"
+	);
 
-	return if  $?;
+	return if $?;
 
 	foreach my $idir (qw(bin lib include share))
 	{
 		if ($self->{bfconf}->{using_msvc})
 		{
-			system(qq{mklink /J "$installdir/$idir" "$savebin/$idir" >> "$upgrade_loc/save.log" 2>&1});
+			system(
+				qq{mklink /J "$installdir/$idir" "$savebin/$idir" >> "$upgrade_loc/save.log" 2>&1}
+			);
 		}
 		else
 		{
@@ -278,18 +282,20 @@ sub save_for_testing
 	# the source directory, which won't persist past this build.
 
 	my $sql =
-	  'select distinct probin::text from pg_proc '
+	    'select distinct probin::text from pg_proc '
 	  . 'where probin not like $$$libdir%$$';
 
-	run_psql("psql","-A -t",$sql,"regression","$upgrade_loc/regresslibs.data");
+	run_psql("psql", "-A -t", $sql, "regression",
+		"$upgrade_loc/regresslibs.data");
 	my @regresslibs = file_lines("$upgrade_loc/regresslibs.data");
 
 	chomp @regresslibs;
-	do { s/\r$// } foreach @regresslibs;
+	do { s/\r$// }
+	  foreach @regresslibs;
 
 	foreach my $lib (@regresslibs)
 	{
-		last if ($self->{bfconf}->{using_msvc}); # windows install adds these
+		last if ($self->{bfconf}->{using_msvc});    # windows install adds these
 		my $dest = "$installdir/lib/postgresql/" . basename($lib);
 		copy($lib, $dest);
 		die "cannot find $dest (from $lib)" unless -e $dest;
@@ -304,15 +310,15 @@ sub save_for_testing
 	$sql =~ s/\n//g;
 
 	run_psql("$installdir/bin/psql", "-A -t -e", $sql, "regression",
-		  "$upgrade_loc/fix.log", 1);
+		"$upgrade_loc/fix.log", 1);
 
 	return if $?;
 
-	if (($this_branch ge 'REL9_5' || $this_branch eq 'HEAD') &&
-		! $self->{bfconf}->{using_msvc})
+	if (($this_branch ge 'REL9_5' || $this_branch eq 'HEAD')
+		&& !$self->{bfconf}->{using_msvc})
 	{
 		run_psql("$installdir/bin/psql", "-A -t -e", $sql,
-				 "contrib_regression_dblink", "$upgrade_loc/fix.log", 1);
+			"contrib_regression_dblink", "$upgrade_loc/fix.log", 1);
 		return if $?;
 	}
 
@@ -324,7 +330,7 @@ sub save_for_testing
 		# be possible for it to exist there anyway.
 		# quoting the operator can also fail,  so it's left unquoted.
 		run_psql("$installdir/bin/psql", "-e", $opsql, "regression",
-				 "$upgrade_loc/fix.log", 1);
+			"$upgrade_loc/fix.log", 1);
 		return if $?;
 	}
 
@@ -337,7 +343,7 @@ sub save_for_testing
 		my $dsql = "drop database if exists contrib_regression_$bad_module";
 
 		run_psql("$installdir/bin/psql", "-e", $dsql,
-				 "postgres",  "$upgrade_loc/fix.log", 1);
+			"postgres", "$upgrade_loc/fix.log", 1);
 		return if $?;
 	}
 
@@ -369,29 +375,33 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	  if $verbose;
 
 	rmtree "$other_branch/inst/$upgrade_test";
-	copydir("$other_branch/inst/data-C", "$other_branch/inst/$upgrade_test/",
-          "$upgrade_loc/$oversion-copy.log");
+	copydir(
+		"$other_branch/inst/data-C",
+		"$other_branch/inst/$upgrade_test/",
+		"$upgrade_loc/$oversion-copy.log"
+	);
 	return if $?;
 
 	# The old version will have the unix sockets point to tmpdir from the
 	# run in which it was set up, which will be gone by now, so we repoint
 	# it to the current run's tmpdir.
 	# listen_addresses will be set correctly and requires no adjustment.
-	unless ($self->{bfconf}->{using_msvc} || $^O eq 'msys' )
+	unless ($self->{bfconf}->{using_msvc} || $^O eq 'msys')
 	{
-	    open(my $opgconf, ">>", "$other_branch/inst/$upgrade_test/postgresql.conf")
-	      || die "opening $other_branch/inst/$upgrade_test/postgresql.conf: $!";
-	    my $param = "unix_socket_directories";
-	    $param = "unix_socket_directory"
-	      if $oversion ne 'HEAD' && $oversion lt 'REL9_3_STABLE';
-	    print $opgconf "$param = '$tmpdir'\n";
-	    close($opgconf);
+		open(my $opgconf, ">>",
+			"$other_branch/inst/$upgrade_test/postgresql.conf")
+		  || die "opening $other_branch/inst/$upgrade_test/postgresql.conf: $!";
+		my $param = "unix_socket_directories";
+		$param = "unix_socket_directory"
+		  if $oversion ne 'HEAD' && $oversion lt 'REL9_3_STABLE';
+		print $opgconf "$param = '$tmpdir'\n";
+		close($opgconf);
 	}
 
 	setinstenv($self, "$other_branch/inst", $save_env);
 
 	my $sconfig = `$other_branch/inst/bin/pg_config --configure`;
-	my $sport   = $sconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
+	my $sport = $sconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
 
 	system( qq{"$other_branch/inst/bin/pg_ctl" -D }
 		  . qq{"$other_branch/inst/$upgrade_test" -o -F -l }
@@ -402,24 +412,32 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	my $sql = 'select datname from pg_database';
 
-	run_psql("psql","-A -t",$sql,"postgres",
-			 "$upgrade_loc/$oversion-dbnames.data");
+	run_psql("psql", "-A -t", $sql, "postgres",
+		"$upgrade_loc/$oversion-dbnames.data");
 	my @dbnames = file_lines("$upgrade_loc/$oversion-dbnames.data");
 
 	chomp @dbnames;
 	my %dbnames;
-	do { s/\r$//; $dbnames{$_}=1; } foreach @dbnames;
+	do { s/\r$//; $dbnames{$_} = 1; }
+	  foreach @dbnames;
 
 	if ($this_branch gt 'REL9_6_STABLE' || $this_branch eq 'HEAD')
 	{
-		run_psql("$other_branch/inst/bin/psql", "-e",
-			  "drop database if exists contrib_regression_tsearch2",
-			  "postgres", "$upgrade_loc/$oversion-copy.log", 1);
+		run_psql(
+			"$other_branch/inst/bin/psql",                         "-e",
+			"drop database if exists contrib_regression_tsearch2", "postgres",
+			"$upgrade_loc/$oversion-copy.log",                     1
+		);
 		return if $?;
 
-		run_psql("$other_branch/inst/bin/psql", "-e",
-			  "drop function if exists oldstyle_length(integer, text)",
-			  "regression", "$upgrade_loc/$oversion-copy.log", 1 );
+		run_psql(
+			"$other_branch/inst/bin/psql",
+			"-e",
+			"drop function if exists oldstyle_length(integer, text)",
+			"regression",
+			"$upgrade_loc/$oversion-copy.log",
+			1
+		);
 		return if $?;
 	}
 
@@ -433,7 +451,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		$missing_funcs =~ s/\n//g;
 
 		run_psql("$other_branch/inst/bin/psql", "-e", $missing_funcs,
-			  "regression", "$upgrade_loc/$oversion-copy.log", 1);
+			"regression", "$upgrade_loc/$oversion-copy.log", 1);
 		return if $?;
 	}
 
@@ -463,26 +481,34 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		{
 			next unless $dbnames{$oiddb};
 			run_psql("$other_branch/inst/bin/psql", "-e", $nooid_stmt,
-				  "$oiddb", "$upgrade_loc/$oversion-copy.log", 1);
+				"$oiddb", "$upgrade_loc/$oversion-copy.log", 1);
 			return if $?;
 		}
 
-		if ($oversion ge 'REL_10_STABLE' &&
-			  $dbnames{'contrib_regression_postgres_fdw'})
+		if (   $oversion ge 'REL_10_STABLE'
+			&& $dbnames{'contrib_regression_postgres_fdw'})
 		{
-			run_psql("$other_branch/inst/bin/psql", "-e",
-				  "drop foreign table if exists ft_pg_type",
-				  "contrib_regression_postgres_fdw",
-				  "$upgrade_loc/$oversion-copy.log", 1);
+			run_psql(
+				"$other_branch/inst/bin/psql",
+				"-e",
+				"drop foreign table if exists ft_pg_type",
+				"contrib_regression_postgres_fdw",
+				"$upgrade_loc/$oversion-copy.log",
+				1
+			);
 			return if $?;
 		}
 
 		if ($oversion lt 'REL9_3_STABLE')
 		{
 			run_psql(
-				"$other_branch/inst/bin/psql", "-e",
+				"$other_branch/inst/bin/psql",
+				"-e",
 				"drop table if exists abstime_tbl, reltime_tbl, tinterval_tbl",
-				"regression","$upgrade_loc/$oversion-copy.log", 1);
+				"regression",
+				"$upgrade_loc/$oversion-copy.log",
+				1
+			);
 			return if $?;
 		}
 	}
@@ -498,7 +524,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 			'drop operator if exists #@%# (bigint,NONE)');
 
 		run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
-			  "regression", "$upgrade_loc/$oversion-copy.log", 1);
+			"regression", "$upgrade_loc/$oversion-copy.log", 1);
 		return if $?;
 
 		$prstmt = "drop function if exists public.putenv(text)";
@@ -511,7 +537,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		if ($dbnames{$regrdb})
 		{
 			run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
-					 "$regrdb", "$upgrade_loc/$oversion-copy.log", 1);
+				"$regrdb", "$upgrade_loc/$oversion-copy.log", 1);
 			return if $?;
 		}
 
@@ -524,7 +550,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 				  . 'PROCEDURE = factorial, '
 				  . 'RIGHTARG = bigint )');
 			run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
-				  "regression", "$upgrade_loc/$oversion-copy.log", 1);
+				"regression", "$upgrade_loc/$oversion-copy.log", 1);
 			return if $?;
 		}
 
@@ -538,8 +564,8 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 				  . '   stype = anyarray, '
 				  . '   initcond = $${}$$ '
 				  . '  ) ');
-			run_psql("$other_branch/inst/bin/psql", "-e" , $prstmt,
-				  "regression", "$upgrade_loc/$oversion-copy.log", 1);
+			run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
+				"regression", "$upgrade_loc/$oversion-copy.log", 1);
 			return if $?;
 		}
 	}
@@ -572,16 +598,16 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		  . qq{> "$upgrade_loc/$oversion-initdb.log" 2>&1});
 	return if $?;
 
-	unless ($self->{bfconf}->{using_msvc} || $^O eq 'msys' )
+	unless ($self->{bfconf}->{using_msvc} || $^O eq 'msys')
 	{
-	    open(my $pgconf, ">>", "$installdir/$oversion-upgrade/postgresql.conf")
-	      || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
-	    my $tmp_param = "unix_socket_directories";
-	    $tmp_param = "unix_socket_directory"
-	      if $this_branch ne 'HEAD' && $this_branch lt 'REL9_3_STABLE';
-	    print $pgconf "listen_addresses = ''\n";
-	    print $pgconf "$tmp_param = '$tmpdir'\n";
-	    close($pgconf);
+		open(my $pgconf, ">>", "$installdir/$oversion-upgrade/postgresql.conf")
+		  || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
+		my $tmp_param = "unix_socket_directories";
+		$tmp_param = "unix_socket_directory"
+		  if $this_branch ne 'HEAD' && $this_branch lt 'REL9_3_STABLE';
+		print $pgconf "listen_addresses = ''\n";
+		print $pgconf "$tmp_param = '$tmpdir'\n";
+		close($pgconf);
 	}
 
 	if ($oversion ge 'REL9_5_STABLE' || $oversion eq 'HEAD')
@@ -626,7 +652,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 	else
 	{
-		system(qq{"$installdir/bin/vacuumdb" --all --analyze-only }
+		system( qq{"$installdir/bin/vacuumdb" --all --analyze-only }
 			  . qq{> "$upgrade_loc/$oversion-analyse.log"2>&1 });
 		return if $?;
 	}
@@ -653,7 +679,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 	elsif (-e "$installdir/delete_old_cluster.bat")
 	{
-		if ( $^O eq 'msys')
+		if ($^O eq 'msys')
 		{
 			system(qq{cd "$installdir" && cmd //c 'delete_old_cluster > nul'});
 		}
@@ -667,10 +693,11 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	system( qq{diff -I "^-- " -u "$upgrade_loc/origin-$oversion.sql" }
 		  . qq{"$upgrade_loc/converted-$oversion-to-$this_branch.sql" }
 		  . qq{> "$upgrade_loc/dumpdiff-$oversion" 2>&1});
+
 	# diff exits with status 1 if files differ
 	return if $? >> 8 > 1;
 
-	open (my $diffile, '<', "$upgrade_loc/dumpdiff-$oversion")
+	open(my $diffile, '<', "$upgrade_loc/dumpdiff-$oversion")
 	  || die "opening $upgrade_loc/dumpdiff-$oversion: $!";
 	my $difflines = 0;
 	$difflines++ while <$diffile>;
@@ -708,13 +735,13 @@ sub installcheck
 
 	local %ENV = %ENV;
 
-	if ($self->{bfconf}->{using_msvc} || $^O eq 'msys' )
+	if ($self->{bfconf}->{using_msvc} || $^O eq 'msys')
 	{
-	    $ENV{PGHOST} = 'localhost';
+		$ENV{PGHOST} = 'localhost';
 	}
 	else
 	{
-	    $ENV{PGHOST} = $tmpdir;
+		$ENV{PGHOST} = $tmpdir;
 	}
 
 	my $save_env = {};
@@ -757,7 +784,7 @@ sub installcheck
 	# to test upgrading from
 
 	my $dconfig = `$installdir/bin/pg_config --configure`;
-	my $dport   = $dconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
+	my $dport = $dconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
 
 	foreach my $other_branch (
 		sort { $a =~ "HEAD" ? 999 : $b =~ "HEAD" ? -999 : $a cmp $b }

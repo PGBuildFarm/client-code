@@ -28,10 +28,10 @@ sub getenv
 
 	my $devenv = env_from_lines(\@lines);
 
-	while (my ($k,$v) = each %$preenv)
-			{
-				delete $devenv->{$k} if $devenv->{$k} eq $v;
-			}
+	while (my ($k, $v) = each %$preenv)
+	{
+		delete $devenv->{$k} if $devenv->{$k} eq $v;
+	}
 
 	return $devenv;
 }
@@ -41,16 +41,17 @@ sub env_from_lines
 	my $lines = shift;
 
 	chomp @$lines;
-	do { s/\r$//; } foreach @$lines;
+	do { s/\r$//; }
+	  foreach @$lines;
 
 	my $env = {};
 
 	foreach my $line (@$lines)
-			{
-				next unless $line =~ /=/;
-				my ($k,$v) = split(/=/, $line, 2);
-				$env->{$k} = $v;
-			}
+	{
+		next unless $line =~ /=/;
+		my ($k, $v) = split(/=/, $line, 2);
+		$env->{$k} = $v;
+	}
 	return $env;
 }
 

@@ -143,7 +143,7 @@ sub run_web_txn
 		$tardata, $frozen_sconf);
 
 	my $content =
-		"changed_files=$changed_this_run&"
+	    "changed_files=$changed_this_run&"
 	  . "changed_since_success=$changed_since_success&"
 	  . "branch=$branch&res=$status&stage=$stage&animal=$animal&ts=$ts"
 	  . "&log=$log_data&conf=$confsum";

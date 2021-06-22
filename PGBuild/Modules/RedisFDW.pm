@@ -188,7 +188,7 @@ sub installcheck
 	my $cmd = "make USE_PGXS=1 USE_MODULE_DB=1 installcheck";
 
 	my $installdir = "$self->{buildroot}/$self->{pgbranch}/inst";
-	my $logpos     = -s "$installdir/logfile" || 0;
+	my $logpos = -s "$installdir/logfile" || 0;
 
 	get_lock($self, 1);
 

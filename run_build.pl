@@ -79,7 +79,7 @@ BEGIN
 		# this is to stop leaking of things like passwords
 		$orig_env->{$k} = (
 			(
-					 $k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|CXX|LD|LD_LIBRARY_PATH/
+				     $k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|CXX|LD|LD_LIBRARY_PATH/
 				  || $k =~ /^(HOME|LOGNAME|USER|PATH|SHELL|LIBRAR|INCLUDE)$/
 				  || $k =~ /^BF_CONF_BRANCHES$/
 			)
@@ -1658,8 +1658,8 @@ sub make_misc_check
 	print time_str(), "running make check miscellaneous modules ...\n"
 	  if $verbose;
 	my $temp_inst_ok = check_install_is_complete($pgsql, $installdir);
-	my $instflags    = $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
-	my $log          = PGBuild::Log->new("misc-check");
+	my $instflags = $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
+	my $log = PGBuild::Log->new("misc-check");
 
 	foreach my $dir (@dirs)
 	{
@@ -1857,7 +1857,7 @@ sub run_tap_test
 	my $status = $? >> 8;
 
 	my $captarget = $is_install_check ? "InstallCheck" : "Check";
-	my $captest   = $testname;
+	my $captest = $testname;
 
 	my $log = PGBuild::Log->new("$captest$captarget");
 
@@ -1868,7 +1868,7 @@ sub run_tap_test
 	if ($status)
 	{
 		my @trace = get_stack_trace("$pgsql/tmp_install/$installdir/bin",
-									"$dir/tmp_check");
+			"$dir/tmp_check");
 		$log->add_log_lines("stack-trace", \@trace) if @trace;
 	}
 
@@ -1942,7 +1942,7 @@ sub run_misc_tests
 
 
 	my $using_ssl =
-		$using_msvc
+	    $using_msvc
 	  ? $config_opts->{openssl}
 	  : (grep { $_ eq '--with-openssl' } @$config_opts);
 
@@ -1952,7 +1952,8 @@ sub run_misc_tests
 		next if $testname =~ /ssl/ && !$using_ssl;
 		next unless -d "$testdir/t";
 		next unless step_wanted("module-$testname");
-		print time_str(), "running misc test module-$testname ...\n" if $verbose;
+		print time_str(), "running misc test module-$testname ...\n"
+		  if $verbose;
 		run_tap_test("$testdir", "module-$testname", undef);
 	}
 
@@ -2036,7 +2037,7 @@ sub make_ecpg_check
 {
 	return unless step_wanted('ecpg-check');
 	my @makeout;
-	my $ecpg_dir     = "$pgsql/src/interfaces/ecpg";
+	my $ecpg_dir = "$pgsql/src/interfaces/ecpg";
 	my $temp_inst_ok = check_install_is_complete($pgsql, $installdir);
 	if ($using_msvc)
 	{
@@ -2084,7 +2085,7 @@ sub find_typedefs
 	$hostobjdump ||= "";
 	$hostobjdump =~ s/--host=(.*)/$1-objdump/;
 	my $objdump = 'objdump';
-	my $sep     = $using_msvc ? ';' : ':';
+	my $sep = $using_msvc ? ';' : ':';
 
 	# if we have a hostobjdump, find out which of it and objdump is in the path
 	foreach my $p (split(/$sep/, $ENV{PATH}))
@@ -2251,8 +2252,8 @@ sub configure
 	if ($using_msvc)
 	{
 		my $lconfig = { %$config_opts, "--with-pgport" => $buildport };
-		my $conf    = Data::Dumper->Dump([$lconfig], ['config']);
-		my @text    = (
+		my $conf = Data::Dumper->Dump([$lconfig], ['config']);
+		my @text = (
 			"# Configuration arguments for vcbuild.\n",
 			"# written by buildfarm client \n",
 			"use strict; \n",
@@ -2543,7 +2544,7 @@ sub send_res
 
 		chdir($lrname);
 		my @logfiles = glob("*.log");
-		my %mtimes   = map { my @st = stat $_; $_ => $st[9] } @logfiles;
+		my %mtimes = map { my @st = stat $_; $_ => $st[9] } @logfiles;
 		@logfiles = sort { $mtimes{$a} <=> $mtimes{$b} } @logfiles;
 		my $logfiles = join(' ', @logfiles);
 		$tar_log_cmd =~ s/\*\.log/$logfiles/;
@@ -2668,8 +2669,8 @@ sub get_script_config_dump
 		eval $str;
 	}
 	$conf->{module_versions} = \%versions;
-	$conf->{skip_steps} = join(" ", keys %skip_steps) if %skip_steps;
-	$conf->{only_steps} = join(" ", keys %only_steps) if %only_steps;
+	$conf->{skip_steps}      = join(" ", keys %skip_steps) if %skip_steps;
+	$conf->{only_steps}      = join(" ", keys %only_steps) if %only_steps;
 	local $Data::Dumper::Sortkeys = 1;
 	return Data::Dumper->Dump([$conf], ['Script_Config']);
 }
@@ -2689,7 +2690,7 @@ sub scm_timeout
 	sleep($wait_time);
 	print STDERR "SCM timeout reached, cannot continue\n";
 	$SIG{TERM} = 'IGNORE';    # so we don't kill ourself, we're exiting anyway
-							  # kill the whole process group
+	                          # kill the whole process group
 	unless (kill $sig, $who_to_kill)
 	{
 		print "scm timeout kill failed\n";

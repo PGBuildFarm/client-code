@@ -52,15 +52,15 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 
 	scmrepo => undef,   # default is community repo for either type
 	scm_url => undef,   # webref for diffs on server - use default for community
-						# git_reference => undef, # for --reference on git repo
-						# cvsmethod => 'update', # or 'export'
+	                    # git_reference => undef, # for --reference on git repo
+	                    # cvsmethod => 'update', # or 'export'
 	use_git_cvsserver => undef,    # or 'true' if repo is a git cvsserver
 
 	# external commands and control
 	make      => 'make',  # or gmake if required. can include path if necessary.
 	make_jobs => undef,   # >1 for parallel "make" and "make check" steps
 	tar_log_cmd => undef, # default is "tar -z -cf runlogs.tgz *.log"
-						  # replacement must have the same effect
+	                      # replacement must have the same effect
 
 	# archive this many copies of the report summary
 	archive_reports => undef,
@@ -324,6 +324,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	},
 
 	my_tap_tests => {
+
 		# settings for module TestMyTap:
 		# branch setting can be missing altogether, in which case 'main' is
 		# used, or it can be a scalar, in which case that is used for all
@@ -350,17 +351,15 @@ if ($conf{using_msvc})
 {
 	# get the settings from the VisualStudio installation
 
-	require "PGBuild/VSenv.pm"; ## no critic (RequireBarewordIncludes)
+	require "PGBuild/VSenv.pm";    ## no critic (RequireBarewordIncludes)
 
 	my $VSdir = "c:/Program Files (x86)/Microsoft Visual Studio/2019";
 
-	my $vsenv = PGBuild::VSenv::getenv($VSdir,'x64');
+	my $vsenv = PGBuild::VSenv::getenv($VSdir, 'x64');
 
 	# add other elements to the PATH, LIB and INCLUDE if needed
-	$vsenv->{PATH} = join(';',
-						  'c:/prog/depend/bin',
-						  'c:/other/bin',
-						  $vsenv->{PATH});
+	$vsenv->{PATH} =
+	  join(';', 'c:/prog/depend/bin', 'c:/other/bin', $vsenv->{PATH});
 
 	%{ $conf{build_env} } = (%{ $conf{build_env} }, %$vsenv);
 

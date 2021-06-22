@@ -239,7 +239,7 @@ if (!flock($lockfile, LOCK_EX | LOCK_NB))
 
 if (-e "$buildroot/$animal.force-one-run")
 {
-	$PGBuild::Options::forcerun = 1 ;
+	$PGBuild::Options::forcerun = 1;
 	unlink "$buildroot/$animal.force-one-run";
 }
 
@@ -418,7 +418,7 @@ sub run_branch
 	# this perl.
 
 	my $pathperlinfo = qx(perl -v 2>&1);
-	my $runperl      = $pathperlinfo =~ /cygwin/ ? "perl" : $^X;
+	my $runperl = $pathperlinfo =~ /cygwin/ ? "perl" : $^X;
 
 	system($runperl, @args);
 	return $? >> 8;
@@ -457,7 +457,7 @@ sub apply_throttle
 	}
 	elsif (exists $throttle{'!HEAD'})
 	{
-		@candidates  = grep { $_ ne 'HEAD' } @thrbranches;
+		@candidates = grep { $_ ne 'HEAD' } @thrbranches;
 		$replacement = $throttle{'!HEAD'};
 	}
 	elsif (exists $throttle{'!RECENT'})
@@ -498,7 +498,7 @@ sub apply_throttle
 		if (exists $this_throttle->{allowed_hours})
 		{
 			my @allowed_hours = split(/,/, $this_throttle->{allowed_hours});
-			my $hour          = (localtime(time))[2];
+			my $hour = (localtime(time))[2];
 			next unless grep { $_ == $hour } @allowed_hours;
 		}
 		push(@result, $branch);

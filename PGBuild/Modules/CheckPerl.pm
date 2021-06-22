@@ -121,7 +121,8 @@ sub build
 		  src/bin/pg_rewind
 		  src/test/ssl
 		  src/tools/msvc/dummylib);
-		do { s/^/-I/; } foreach @includes;
+		do { s/^/-I/; }
+		  foreach @includes;
 		my $incl = join(' ', @includes);
 
 		my @cwlog =

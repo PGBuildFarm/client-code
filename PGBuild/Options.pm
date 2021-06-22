@@ -58,7 +58,7 @@ my (%standard_options);
 	'from-source-clean=s' => \$from_source_clean,
 	'force'               => \$forcerun,
 	'find-typedefs'       => \$find_typedefs,
-	'keepall!'            => \$keepall,          # allow --no-keepall
+	'keepall!'            => \$keepall,             # allow --no-keepall
 	'verbose:i'           => \$verbose,
 	'nostatus'            => \$nostatus,
 	'test'                => \$testmode,
@@ -87,10 +87,10 @@ sub fetch_options
 
 	# override GetOptions default for :i
 	$orig_verbose = $verbose;
-	$verbose      = 1 if (defined($verbose) && $verbose == 0);
+	$verbose = 1 if (defined($verbose) && $verbose == 0);
 	$verbose ||= 0;  # stop complaints about undefined var in numeric comparison
-					 # work around fact that modern perl doesn't put .
-					 # in the search path any more
+	                 # work around fact that modern perl doesn't put .
+	                 # in the search path any more
 	$buildconf = "./$buildconf" if (-f $buildconf && $buildconf !~ m!/!);
 	return;
 }
