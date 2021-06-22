@@ -323,6 +323,24 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 
 	},
 
+	my_tap_tests => {
+		# settings for module TestMyTap:
+		# branch setting can be missing altogether, in which case 'main' is
+		# used, or it can be a scalar, in which case that is used for all
+		# branches, or it can be a hashref, in which case the value used
+		# corresponds to the pg branch being used. 'default' is specified,
+		# is for any branch not otherwise specified. If PGBRANCH is mapped,
+		# then the Postgres branch is used.
+		#
+		# testset1 => { url => "git@somewhere.com/testrepo.git",
+		#               branch => 'mymainbranch' # default is 'main'
+		#             },
+		# testset2 => { url => "git@somewhere-else.com/othertestrepo.git",
+		#               branch => { HEAD => 'main',
+		#                           default => 'PGBRANCH' },
+		#             },
+	},
+
 );
 
 
@@ -338,7 +356,7 @@ if ($conf{using_msvc})
 
 	my $vsenv = PGBuild::VSenv::getenv($VSdir,'x64');
 
-	# add other elements to the PATH if needed
+	# add other elements to the PATH, LIB and INCLUDE if needed
 	$vsenv->{PATH} = join(';',
 						  'c:/prog/depend/bin',
 						  'c:/other/bin',
