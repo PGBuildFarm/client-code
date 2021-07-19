@@ -26,7 +26,7 @@ BEGIN
 	@option_list = qw(
 	  $forcerun $buildconf $keepall $help
 	  $quiet $from_source $from_source_clean $testmode
-	  $test_mode $skip_steps $only_steps $find_typedefs
+	  $skip_steps $only_steps $find_typedefs
 	  $nosend $nostatus $verbose @config_set $schedule $tests
 	  $check_warnings $delay_check $show_error_log
 	);
@@ -43,7 +43,7 @@ our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 our (
 	$forcerun,  $buildconf,   $keepall,           $help,
 	$quiet,     $from_source, $from_source_clean, $testmode,
-	$test_mode, $skip_steps,  $only_steps,        $find_typedefs,
+	$skip_steps,  $only_steps,        $find_typedefs,
 	$nosend,    $nostatus,    $verbose,           @config_set,
 	$schedule,  $tests,       $check_warnings,    $delay_check,
 	$show_error_log,
