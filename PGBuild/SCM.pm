@@ -502,6 +502,7 @@ sub new
 		$self->{gchours} = $conf->{git_gc_hours};
 	}
 	$self->{target} = $target;
+	$self->{skip_git_default_check} = $conf->{skip_git_default_check} || 0;
 	return bless $self, $class;
 }
 
@@ -597,31 +598,453 @@ sub make_symlink
 
 }
 
-sub checkout
+sub _check_default_branch
 {
+	my $self   = shift;
+	my $target = shift;
 
-	my $self      = shift;
-	my $branch    = shift;
+	return if $self->{skip_git_default_check};
+
+	my $upstream = $self->{mirror} || $self->{gitrepo};
+
+	my @remote = `git ls-remote --symref $upstream HEAD`;
+	chomp(@remote);
+	my $remote_def = (grep { /^ref:/ } @remote)[0];
+	die "no remote default: @remote" unless $remote_def;
+	$remote_def =~ s!.*/([a-zA-Z0-9_-]+)\s.*!$1!;
+
+	my $local = `git symbolic-ref refs/remotes/origin/HEAD`;
+	chomp $local;
+
+	return () if $local eq "refs/remotes/origin/$remote_def";
+
+	$local =~ s!.*/!!;
+	my $this_branch = `git rev-parse --abbrev-ref HEAD`;
+	chomp $this_branch;
+
+	# ok, here we go
+	my (@lines, @log);
+
+	# check out the local idea of the upstream default
+	@lines = run_log("git checkout $local");
+	push(@log, @lines);
+	return @log if $?;
+
+	# bring it up to date
+	@lines = run_log("git merge -q --ff-only origin/$local");
+	push(@log, @lines);
+	return @log if $?;
+
+	# delete the bf_HEAD branch if it exists
+	my $hasbfhead = `git branch | grep bf_HEAD`;
+	if ($hasbfhead)
+	{
+		my $here = getcwd();
+
+		# clean out the bf_HEAD working files before we mangle things
+		chdir "../../HEAD";
+		$self->rm_worktree($target);
+		chdir $here;
+		@lines = run_log("git branch -d bf_HEAD");
+		push(@log, @lines);
+		return @log if $?;
+	}
+
+	# rename the branch to align with upstream
+	@lines = run_log("git branch -m $remote_def");
+	push(@log, @lines);
+	return @log if $?;
+
+	# fetch the upstream
+	@lines = run_log("git fetch");
+	push(@log, @lines);
+	return @log if $?;
+
+	# realign the branch to fetch from the right upstream branch
+	@lines = run_log("git branch --unset-upstream");
+	push(@log, @lines);
+	return @log if $?;
+	@lines = run_log("git branch -u origin/$remote_def");
+	push(@log, @lines);
+	return @log if $?;
+
+	# bring it up to date
+	@lines = run_log("git merge -q --ff-only origin/$remote_def");
+	push(@log, @lines);
+	return @log if $?;
+
+	# realign the local version of the remote HEAD ref
+	@lines = run_log("git symbolic-ref refs/remotes/origin/HEAD "
+		  . "refs/remotes/origin/$remote_def");
+	push(@log, @lines);
+	return @log if $?;
+
+	# now run a pruning fetch, which will remove the last vestiges of the
+	# old branch name
+	@lines = run_log("git fetch -p");
+	push(@log, @lines);
+	return @log if $?;
+
+	# recreate the bf_HEAD branch if we deleted it above
+	if ($hasbfhead)
+	{
+		my $here = getcwd;
+		chdir "../../HEAD/$target";
+		@lines = run_log("git checkout -b bf_HEAD --track origin/$remote_def");
+		push(@log, @lines);
+		return @log if $?;
+
+		# fix the git index for bf_HEAD
+		@lines = run_log("git reset --hard origin/$remote_def");
+		push(@log, @lines);
+		return @log if $?;
+		chdir $here;
+	}
+
+	# go back to the branch we were on if we're not on it already
+	unless ($this_branch eq 'bf_HEAD')
+	{
+		@lines = run_log("git checkout $this_branch");
+		push(@log, @lines);
+		return @log if $?;
+	}
+
+	return @log;
+}
+
+sub _create_or_update_mirror
+{
+	my $self   = shift;
+	my $target = shift;
+	my $branch = shift;
+
 	my $gitserver = $self->{gitrepo};
-	my $target    = $self->{target};
+
+	my @gitlog;
+	my $status;
+	if (-d $self->{mirror})
+	{
+		@gitlog =
+		  run_log(
+			qq{git --git-dir="$self->{mirror}" fetch --prune --prune-tags});
+		$status = $self->{ignore_mirror_failure} ? 0 : $? >> 8;
+
+		if (!$status)
+		{
+			# make sure we have the same idea of the default branch name
+			# as upstream
+			my @remote_def = run_log(
+				qq{git --git-dir="$self->{mirror}" ls-remote --symref origin HEAD}
+			);
+			$status = $? >> 8;
+			if (!$status)
+			{
+				my $ref = (grep { m!^ref: .*\s+HEAD! } @remote_def)[0];
+				$ref =~ s/^ref: //;
+				$ref =~ s/\s+HEAD.*//;
+				system(
+					qq{git --git-dir="$self->{mirror}" symbolic-ref HEAD $ref});
+				$status = $? >> 8;
+			}
+		}
+
+		my $last_gc = find_last("$target.mirror.gc") || 0;
+		if (  !$status
+			&& $branch eq 'HEAD'
+			&& $self->{gchours}
+			&& time - $last_gc > $self->{gchours} * 3600)
+		{
+			my @gclog = run_log(qq{git --git-dir="$self->{mirror}" gc});
+			push(@gitlog, "----- mirror garbage collection -----\n", @gclog);
+			set_last("$target.mirror.gc");
+			$status = $? >> 8;
+		}
+	}
+	else    # mirror does not exist
+	{
+		$gitserver = abs_path($gitserver) if $gitserver =~ m!^[/\\]!;
+
+		# this will fail on older git versions
+		# workaround is to do this manually in the buildroot:
+		#   git clone --bare $gitserver pgmirror.git
+		#   (cd pgmirror.git && git remote add --mirror origin $gitserver)
+		# or equivalent for other targets
+		@gitlog = run_log("git clone --mirror $gitserver $self->{mirror}");
+		$status = $? >> 8;
+	}
+	if ($status)
+	{
+		unshift(@gitlog, "Git mirror failure:\n");
+		print @gitlog if ($verbose);
+		send_result('Git-mirror', $status, \@gitlog);
+	}
+
+	return @gitlog;
+}
+
+sub _setup_new_head
+{
+	print "recloning HEAD\n";
+
+	# only called when HEAD has disappeared from under a workdir (or it never
+	# existed)
+
+	my $self   = shift;
+	my $target = shift;
+
+	my $gitserver = $self->{gitrepo};
+	my $base      = $self->{mirror} || $gitserver;
+	my $head      = $self->{build_root} . '/HEAD';
+
+	my @gitlog;
 	my $status;
 
-	# Msysgit does some horrible things, especially when it expects a drive
-	# spec and doesn't get one.  So we extract it if it exists and use it
-	# where necessary.
+	$base = abs_path($base) if $base =~ m!^[/\\]!;
 
-	my $drive = "";
-	my $cwd   = getcwd();
-	$drive = substr($cwd, 0, 2) if $cwd =~ /^[A-Z]:/;
+	mkdir $head;
+
+	print "running ", qq{git clone -q $base "$head/$target"}, "\n";
+	my @clonelog = run_log(qq{git clone -q $base "$head/$target"});
+	push(@gitlog, @clonelog);
+	$status = $? >> 8;
+	if (!$status)
+	{
+		my $savedir = getcwd();
+		chdir "$head/$target";
+
+		print "Status: ", getcwd(), "\n";
+		system("git branch");
+		print "\n";
+
+		# we're on a fresh clone so the current branch should be the
+		# upstream default
+		my $defbranch = `git rev-parse --abbrev-ref HEAD`;
+		chomp($defbranch);
+
+		# make sure we don't name the new branch HEAD
+		my @colog =
+		  run_log("git checkout -b bf_HEAD --track origin/$defbranch");
+		push(@gitlog, @colog);
+		chdir $savedir;
+	}
+	else
+	{
+		die "clone status: $status";
+	}
+
+	return @gitlog;
+}
+
+sub _setup_new_workdir
+{
+	my $self   = shift;
+	my $target = shift;
+	my $branch = shift;
+
+	my @gitlog;
+
+	my $head = $self->{build_root} . '/HEAD';
+	unless (-d "$head/$target/.git")
+	{
+		# clone HEAD even if not (yet) needed for a run, as it will be the
+		# non-symlinked repo linkd to by all the others.
+		@gitlog = $self->_setup_new_head($target);
+	}
+
+	# now we can set up the git dir symlinks like git-new-workdir does
+
+	mkdir $target;
+	chdir $target;
+	mkdir ".git";
+	mkdir ".git/logs";
+	my @links = qw (config refs logs/refs objects info hooks
+	  packed-refs remotes rr-cache svn);
+	foreach my $link (@links)
+	{
+		make_symlink("$head/$target/.git/$link", ".git/$link");
+	}
+	copy("$head/$target/.git/HEAD", ".git/HEAD");
+
+	my @checklog = $self->_check_default_branch($target);
+
+	# run git fetch in case there are new branches the local repo
+	# doesn't yet know about
+	my @fetchlog = run_log('git fetch --prune');
+
+	my @branches = `git branch`;
+	chomp @branches;
+	my @colog;
+	if (grep { /\bbf_$branch\b/ } @branches)
+	{
+		# Don't try to create an existing branch
+		# the target dir only might have been wiped away,
+		# so we need to handle this case.
+		@colog = run_log("git checkout -f bf_$branch");
+	}
+	else
+	{
+		@colog =
+		  run_log("git checkout -f -b bf_$branch --track origin/$branch");
+	}
+
+	# Make sure the branch we just checked out is up to date.
+	my @pull_log = run_log("git pull");
+	push(@gitlog, @checklog, @fetchlog, @colog, @pull_log);
+
+	chdir "..";
+
+	return;
+}
+
+sub _setup_new_basedir
+{
+	my $self   = shift;
+	my $target = shift;
+	my $branch = shift;
+
+	my $gitserver = $self->{gitrepo};
+
+	my @gitlog;
+	my $status;
+
+	my $reference =
+	  defined($self->{reference}) ? "--reference $self->{reference}" : "";
+
+	my $base = $self->{mirror} || $gitserver;
+
+	$base = abs_path($base) if $base =~ m!^[/\\]!;
+
+	my @clonelog = run_log("git clone -q $reference $base $target");
+	push(@gitlog, @clonelog);
+	$status = $? >> 8;
+	if (!$status)
+	{
+		chdir $target;
+
+		my $rbranch = $branch;
+
+		if ($branch eq 'HEAD')
+		{
+			$rbranch = `git rev-parse --abbrev-ref HEAD`;
+			chomp $rbranch;
+		}
+
+		my @colog =
+		  run_log("git checkout -b bf_$branch --track origin/$rbranch");
+		push(@gitlog, @colog);
+		chdir "..";
+	}
+
+	return @gitlog;
+}
+
+sub _update_target
+{
+	my $self   = shift;
+	my $target = shift;
+	my $branch = shift;
+
+	my @gitlog;
+
+	# If a run crashed during copy_source(), repair.
+	if (-d "./git-save" && !-d "$target/.git")
+	{
+		move "./git-save", "$target/.git";
+	}
+
+	chdir $target;
+	my @branches = `git branch 2>&1`;    # too trivial for run_log
+	unless (grep { /^\* bf_$branch$/ } @branches)
+	{
+		if (-l ".git/config" && -f ".git/config")
+		{
+			# if it's a symlinked workdir, and the config link isn't into
+			# thin air, it's likely that the HEAD has been refreshed, so
+			# we'll just check out the branch again
+			# this shouldn't happen on HEAD/default, so we don't need
+			# special branch name logic
+			my @ncolog =
+			  run_log("git checkout -b bf_$branch --track origin/$branch");
+			push(@gitlog, @ncolog);
+		}
+		else
+		{
+			# otherwise we expect the branch to be there, and it's a failure
+			# if it's not there
+
+			chdir '..';
+			print "Missing checked out branch bf_$branch:\n", @branches
+			  if ($verbose);
+			unshift @branches, "Missing checked out branch bf_$branch:\n";
+			send_result("$target-Git", 1, \@branches);
+		}
+	}
+
+	# do a checkout if the work tree has apparently been removed
+	# If not, don't overwrite anything the user has left there
+	my @colog = ();
+	system('git status --porcelain --ignored | grep -v "^ D"');
+	@colog = run_log("git checkout . ")
+	  unless (grep { $_ ne ".git" } glob(".[a-z]* *"));
+	my @gitstat = `git status --porcelain --ignored`;  # too trivial for run_log
+	     # make sure it's clean before we try to update it
+	if (@gitstat)
+	{
+		print "Repo is not clean:\n", @gitstat
+		  if ($verbose);
+		chdir '..';
+		push(@gitlog, "===========", @gitstat);
+		send_result("$target-Git-Dirty", 99, \@gitlog);
+	}
+
+	my @checklog = $self->_check_default_branch($target);
+
+	# we do this instead of 'git pull' in case the upstream repo
+	# has been rebased
+
+	my $rbranch = $branch;
+
+	if ($branch eq 'HEAD')
+	{
+		# bf_HEAD should map to the upstream default.
+		$rbranch = `git symbolic-ref refs/remotes/origin/HEAD`;
+		chomp $rbranch;
+		$rbranch =~ s!.*/!!;
+	}
+
+	my @pulllog =
+	  run_log("git fetch --prune && git reset --hard origin/$rbranch");
+	push(@gitlog, @checklog, @colog, @pulllog);
+
+	chdir "..";
+
+	# run gc from the parent so we find and set the status file correctly
+	if (!-l "$target/.git/config" && $self->{gchours})
+	{
+		my $last_gc = find_last("$target.gc") || 0;
+		if (time - $last_gc > $self->{gchours} * 3600)
+		{
+			my @gclog = run_log("git --git-dir=$target/.git gc");
+			push(@gitlog, "----- garbage collection -----\n", @gclog);
+			set_last("$target.gc");
+		}
+	}
+
+	return @gitlog;
+}
+
+sub checkout
+{
+	my $self   = shift;
+	my $branch = shift;
+	my $target = $self->{target};
+	my $status;
 
 	# we are currently in the branch directory.
 	# If we're using git_use_workdirs, open a file and wait for a lock on it
 	# in the HEAD directory
 
 	my $lockfile;
-
-	# name of the remote branch corresponding to this branch
-	my $rbranch = $branch eq 'HEAD' ? 'master' : $branch;
 
 	if (   $self->{use_workdirs}
 		&& !defined($self->{reference})
@@ -639,119 +1062,13 @@ sub checkout
 	my @gitlog;
 	if ($self->{mirror})
 	{
-
-		if (-d $self->{mirror})
-		{
-			@gitlog =
-			  run_log(qq{git --git-dir="$self->{mirror}" fetch --prune});
-			$status = $self->{ignore_mirror_failure} ? 0 : $? >> 8;
-
-			my $last_gc = find_last("$target.mirror.gc") || 0;
-			if (  !$status
-				&& $branch eq 'HEAD'
-				&& $self->{gchours}
-				&& time - $last_gc > $self->{gchours} * 3600)
-			{
-				my @gclog = run_log(qq{git --git-dir="$self->{mirror}" gc});
-				push(@gitlog, "----- mirror garbage collection -----\n",
-					@gclog);
-				set_last("$target.mirror.gc");
-				$status = $? >> 8;
-			}
-		}
-		else
-		{
-			my $char1 = substr($gitserver, 0, 1);
-			$gitserver = "$drive$gitserver"
-			  if ($char1 eq '/' or $char1 eq '\\');
-
-			# this will fail on older git versions
-			# workaround is to do this manually in the buildroot:
-			#   git clone --bare $gitserver pgmirror.git
-			#   (cd pgmirror.git && git remote add --mirror origin $gitserver)
-			# or equivalent for other targets
-			@gitlog = run_log("git clone --mirror $gitserver $self->{mirror}");
-			$status = $? >> 8;
-		}
-		if ($status)
-		{
-			unshift(@gitlog, "Git mirror failure:\n");
-			print @gitlog if ($verbose);
-			send_result('Git-mirror', $status, \@gitlog);
-		}
+		@gitlog = $self->_create_or_update_mirror($target, $branch);
 	}
 
 	if (-d $target)
 	{
-		# If a run crashed during copy_source(), repair.
-		if (-d "./git-save" && !-d "$target/.git")
-		{
-			move "./git-save", "$target/.git";
-		}
-
-		chdir $target;
-		my @branches = `git branch 2>&1`;    # too trivial for run_log
-		unless (grep { /^\* bf_$branch$/ } @branches)
-		{
-			if (-l ".git/config" && -f ".git/config")
-			{
-				# if it's a symlinked workdir, and the config link isn't into
-				# thin air, it's likely that the HEAD has been refreshed, so
-				# we'll just check out the branch again
-				# this shouldn't happen on HEAD/master, so we don't need
-				# special branch name logic
-				my @ncolog =
-				  run_log("git checkout -b bf_$branch --track origin/$branch");
-				push(@gitlog, @ncolog);
-			}
-			else
-			{
-				# otherwise we expect the branch to be there, and it's a failure
-				# if it's not there
-
-				chdir '..';
-				print "Missing checked out branch bf_$branch:\n", @branches
-				  if ($verbose);
-				unshift @branches, "Missing checked out branch bf_$branch:\n";
-				send_result("$target-Git", $status, \@branches);
-			}
-		}
-
-		# do a checkout if the work tree has apparently been removed
-		# If not, don't overwrite anything the user has left there
-		my @colog = ();
-		@colog = run_log("git checkout . ")
-		  unless (grep { $_ ne ".git" } glob(".[a-z]* *"));
-		my @gitstat =
-		  `git status --porcelain --ignored`;    # too trivial for run_log
-		    # make sure it's clean before we try to update it
-		if (@gitstat)
-		{
-			print "Repo is not clean:\n", @gitstat
-			  if ($verbose);
-			chdir '..';
-			push(@gitlog, "===========", @gitstat);
-			send_result("$target-Git-Dirty", 99, \@gitlog);
-		}
-
-		# we do this instead of 'git pull' in case the upstream repo
-		# has been rebased
-		my @pulllog =
-		  run_log("git fetch --prune && git reset --hard origin/$rbranch");
-		push(@gitlog, @colog, @pulllog);
-		chdir '..';
-
-		# run gc from the parent so we find and set the status file correctly
-		if (!-l "$target/.git/config" && $self->{gchours})
-		{
-			my $last_gc = find_last("$target.gc") || 0;
-			if (time - $last_gc > $self->{gchours} * 3600)
-			{
-				my @gclog = run_log("git --git-dir=$target/.git gc");
-				push(@gitlog, "----- garbage collection -----\n", @gclog);
-				set_last("$target.gc");
-			}
-		}
+		my @updatelog = $self->_update_target($target, $branch);
+		push(@gitlog, @updatelog);
 	}
 	elsif ($branch ne 'HEAD'
 		&& $self->{use_workdirs}
@@ -762,100 +1079,13 @@ sub checkout
 		# that, too
 		# currently the following 4 members use --reference:
 		#     castoroides protosciurus mastodon narwhal
-
-		my $head = $self->{build_root} . '/HEAD';
-		unless (-d "$head/$target/.git")
-		{
-			# clone HEAD even if not (yet) needed for a run, as it will be the
-			# non-symlinked repo linkd to by all the others.
-
-			my $base = $self->{mirror} || $gitserver;
-
-			my $char1 = substr($base, 0, 1);
-			$base = "$drive$base"
-			  if ($char1 eq '/' or $char1 eq '\\');
-
-			mkdir $head;
-
-			my @clonelog = run_log(qq{git clone -q $base "$head/$target"});
-			push(@gitlog, @clonelog);
-			$status = $? >> 8;
-			if (!$status)
-			{
-				my $savedir = getcwd();
-				chdir "$head/$target";
-
-				# make sure we don't name the new branch HEAD
-				my @colog =
-				  run_log("git checkout -b bf_HEAD --track origin/master");
-				push(@gitlog, @colog);
-				chdir $savedir;
-			}
-		}
-
-		# now we can set up the git dir symlinks like git-new-workdir does
-
-		mkdir $target;
-		chdir $target;
-		mkdir ".git";
-		mkdir ".git/logs";
-		my @links = qw (config refs logs/refs objects info hooks
-		  packed-refs remotes rr-cache svn);
-		foreach my $link (@links)
-		{
-			make_symlink("$head/$target/.git/$link", ".git/$link");
-		}
-		copy("$head/$target/.git/HEAD", ".git/HEAD");
-
-		# run git fetch in case there are new branches the local repo
-		# doesn't yet know about
-		my @fetchlog = run_log('git fetch --prune');
-
-		my @branches = `git branch`;
-		chomp @branches;
-		my @colog;
-		if (grep { /\bbf_$branch\b/ } @branches)
-		{
-			# Don't try to create an existing branch
-			# the target dir only might have been wiped away,
-			# so we need to handle this case.
-			@colog = run_log("git checkout -f bf_$branch");
-		}
-		else
-		{
-			@colog =
-			  run_log("git checkout -f -b bf_$branch --track origin/$branch");
-		}
-
-		# Make sure the branch we just checked out is up to date.
-		my @pull_log = run_log("git pull");
-		push(@gitlog, @fetchlog, @colog, @pull_log);
-
-		chdir "..";
+		my @newwdlog = $self->_setup_new_workdir($target, $branch);
+		push(@gitlog, @newwdlog);
 	}
-	else
+	else    # directory doesn't exist, not setting it up as a workdir
 	{
-		my $reference =
-		  defined($self->{reference}) ? "--reference $self->{reference}" : "";
-
-		my $base = $self->{mirror} || $gitserver;
-
-		my $char1 = substr($base, 0, 1);
-		$base = "$drive$base"
-		  if ($char1 eq '/' or $char1 eq '\\');
-
-		my @clonelog = run_log("git clone -q $reference $base $target");
-		push(@gitlog, @clonelog);
-		$status = $? >> 8;
-		if (!$status)
-		{
-			chdir $target;
-
-			my @colog =
-			  run_log("git checkout -b bf_$branch --track origin/$rbranch");
-			push(@gitlog, @colog);
-			chdir "..";
-		}
+		my @newbaselog = $self->_setup_new_basedir($target, $branch);
+		push(@gitlog, @newbaselog);
 	}
 	$status = $? >> 8;
 	print "================== git log =====================\n", @gitlog

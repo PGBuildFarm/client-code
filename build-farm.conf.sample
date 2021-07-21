@@ -50,6 +50,9 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# like git-new-workdir does
 	git_use_workdirs => 1,
 
+	# check if the default git branch name has changed
+	skip_git_default_check => undef,
+
 	scmrepo => undef,   # default is community repo for either type
 	scm_url => undef,   # webref for diffs on server - use default for community
 	                    # git_reference => undef, # for --reference on git repo
