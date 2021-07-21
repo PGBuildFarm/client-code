@@ -178,6 +178,7 @@ my (
 	$wait_timeout,              $use_accache,
 	$use_valgrind,              $valgrind_options,
 	$use_installcheck_parallel, $max_load_avg,
+	$use_clobber_cache,
 	$archive_reports
   )
   = @PGBuild::conf{
@@ -186,7 +187,7 @@ my (
 	  use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob
 	  ccache_failure_remove wait_timeout use_accache
 	  use_valgrind valgrind_options use_installcheck_parallel max_load_avg
-	  archive_reports)
+	  use_clobber_cache archive_reports)
   };
 
 $ts_prefix = sprintf('%s:%-13s ', $animal, $branch);
@@ -649,6 +650,18 @@ if ($extra_config && $extra_config->{DEFAULT})
 	{
 		unshift(@{ $extra_config->{$branch} }, @{ $extra_config->{DEFAULT} });
 	}
+}
+
+if ($use_clobber_cache && ($branch eq 'HEAD' || $branch ge 'REL_14'))
+{
+    if (!exists $extra_config->{$branch})
+    {
+		$extra_config->{$branch} = ["debug_discard_caches = 1"];
+    }
+    else
+    {
+		push(@{ $extra_config->{$branch} }, "debug_discard_caches = 1");
+    }
 }
 
 if ($extra_config && $extra_config->{$branch})
@@ -1340,9 +1353,15 @@ sub initdb
 
 	chdir $installdir;
 
+	my $initdbopts = qq{-A trust -U buildfarm --locale=$locale};
+
+	if ($use_clobber_cache && ($branch eq 'HEAD' || $branch ge 'REL_14'))
+	{
+	    $initdbopts .= " --discard-caches";
+	}
+
 	@initout =
-	  run_log(
-		qq{"bin/initdb" -A trust -U buildfarm --locale=$locale data-$locale});
+	  run_log(qq{"bin/initdb" $initdbopts data-$locale});
 
 	my $status = $? >> 8;
 
@@ -2369,6 +2388,17 @@ sub configure
 				$env->{$key} = $val;
 			}
 		}
+	}
+	if ($use_clobber_cache && $branch ne 'HEAD' && $branch lt 'REL_14')
+	{
+	    if (defined $env->{CPPFLAGS})
+	    {
+			$env->{CPPFLAGS} .= " -DCLOBBER_CACHE_ALWAYS";
+	    }
+	    else
+	    {
+			$env->{CPPFLAGS} = "-DCLOBBER_CACHE_ALWAYS";
+	    }
 	}
 
 	my $envstr = "";

@@ -101,6 +101,10 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		  --leak-check=no --gen-suppressions=all   --error-limit=no}
 	),
 
+	# if true run tests with debug_discard_caches=1, or the equivalent
+	# on older branches. Do not set CLOBBER_CACHE_ALWAYS if you use this.
+	use_clobber_cache => undef,
+
 	# path to directory with auxiliary web script
 	# if relative, the must be relative to buildroot/branch
 	# Now only used on older Msys installations
