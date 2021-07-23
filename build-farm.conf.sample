@@ -103,7 +103,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 
 	# if true run tests with debug_discard_caches=1, or the equivalent
 	# on older branches. Do not set CLOBBER_CACHE_ALWAYS if you use this.
-	use_clobber_cache => undef,
+	use_discard_caches => undef,
 
 	# path to directory with auxiliary web script
 	# if relative, the must be relative to buildroot/branch

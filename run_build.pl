@@ -178,7 +178,7 @@ my (
 	$wait_timeout,              $use_accache,
 	$use_valgrind,              $valgrind_options,
 	$use_installcheck_parallel, $max_load_avg,
-	$use_clobber_cache,
+	$use_discard_caches,
 	$archive_reports
   )
   = @PGBuild::conf{
@@ -187,7 +187,7 @@ my (
 	  use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob
 	  ccache_failure_remove wait_timeout use_accache
 	  use_valgrind valgrind_options use_installcheck_parallel max_load_avg
-	  use_clobber_cache archive_reports)
+	  use_discard_caches archive_reports)
   };
 
 $ts_prefix = sprintf('%s:%-13s ', $animal, $branch);
@@ -652,7 +652,7 @@ if ($extra_config && $extra_config->{DEFAULT})
 	}
 }
 
-if ($use_clobber_cache && ($branch eq 'HEAD' || $branch ge 'REL_14'))
+if ($use_discard_caches && ($branch eq 'HEAD' || $branch ge 'REL_14'))
 {
     if (!exists $extra_config->{$branch})
     {
@@ -1355,7 +1355,7 @@ sub initdb
 
 	my $initdbopts = qq{-A trust -U buildfarm --locale=$locale};
 
-	if ($use_clobber_cache && ($branch eq 'HEAD' || $branch ge 'REL_14'))
+	if ($use_discard_caches && ($branch eq 'HEAD' || $branch ge 'REL_14'))
 	{
 	    $initdbopts .= " --discard-caches";
 	}
@@ -2389,7 +2389,7 @@ sub configure
 			}
 		}
 	}
-	if ($use_clobber_cache && $branch ne 'HEAD' && $branch lt 'REL_14')
+	if ($use_discard_caches && $branch ne 'HEAD' && $branch lt 'REL_14')
 	{
 	    if (defined $env->{CPPFLAGS})
 	    {
