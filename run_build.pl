@@ -146,7 +146,13 @@ if ($only_steps =~ /\S/)
 
 use vars qw($branch);
 my $explicit_branch = shift;
-$branch = $explicit_branch || 'HEAD';
+my $from_source_branch = '';
+if ($from_source || $from_source_clean)
+{
+	my $parent = basename(dirname($from_source || $from_source_clean));
+	$from_source_branch = $parent if $parent =~ /^REL_?\d+(_\d+)_STABLE/;
+}
+$branch = $explicit_branch || $from_source_branch || 'HEAD';
 
 print_help() if ($help);
 
@@ -282,13 +288,13 @@ if ($from_source || $from_source_clean)
 	$from_source = abs_path($from_source)
 	  unless File::Spec->file_name_is_absolute($from_source);
 
-	# we need to know where the lock should go, so unless the path
-	# contains HEAD or they have explicitly said the branch let
-	# them know where things are going.
+	# we need to know where the lock should go, so unless
+	# they have explicitly said the branch let them know where
+	# things are going.
 	print
 	  "branch not specified, locks, logs, ",
-	  "build artefacts etc will go in HEAD\n"
-	  unless ($explicit_branch || $from_source =~ m!/HEAD/!);
+	  "build artefacts etc will go in $branch\n"
+	  unless ($explicit_branch);
 	$verbose ||= 1;
 	$nosend     = 1;
 	$nostatus   = 1;
