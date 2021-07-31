@@ -6,6 +6,7 @@ use strict;
 use warnings;
 
 use Cwd;
+use File::Find;
 
 use vars qw($VERSION); $VERSION = 'REL_12';
 
@@ -20,7 +21,16 @@ sub getenv
 
 	my $preenv = env_from_lines(\@prelines);
 
-	chdir "$vsdir/BuildTools/VC/Auxiliary/Build";
+	# File::Find doesn't provide a way to do find's -quit command. I could
+	# use a goto to exit here but I prefer not to. With any luck traversing
+	# the VS tree won't take too long. Looks like about 2s and not much
+	# difference with or without -quit.
+	my $where = '';
+	my $wanted = sub { $where = $File::Find::dir if /^vcvarsall\.bat\z/s; };
+	File::Find::find({wanted => $wanted}, $vsdir);
+	die "vcvarsall.bat not found" unless $where;
+
+	chdir $where;
 
 	my @lines = qx{.\\vcvarsall $arg && set};
 
