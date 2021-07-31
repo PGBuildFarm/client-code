@@ -6,6 +6,7 @@ verbose = %f: %m at line %l, column %c.  %e.  ([%p] Severity: %s)\n
 
 # for policy descriptions see
 # https://metacpan.org/release/Perl-Critic
+# or /usr/share/perl5/vendor_perl/Perl/Critic/PolicySummary.pod
 
 # sev 5
 # tl;dr - return undef returns (undef) instead of () in list context
