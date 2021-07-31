@@ -983,7 +983,6 @@ sub _update_target
 	# do a checkout if the work tree has apparently been removed
 	# If not, don't overwrite anything the user has left there
 	my @colog = ();
-	system('git status --porcelain --ignored | grep -v "^ D"');
 	@colog = run_log("git checkout . ")
 	  unless (grep { $_ ne ".git" } glob(".[a-z]* *"));
 	my @gitstat = `git status --porcelain --ignored`;  # too trivial for run_log
