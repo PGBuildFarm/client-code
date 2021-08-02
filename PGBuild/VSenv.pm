@@ -27,7 +27,7 @@ sub getenv
 	# difference with or without -quit.
 	my $where = '';
 	my $wanted = sub { $where = $File::Find::dir if /^vcvarsall\.bat\z/s; };
-	File::Find::find({wanted => $wanted}, $vsdir);
+	File::Find::find({ wanted => $wanted }, $vsdir);
 	die "vcvarsall.bat not found" unless $where;
 
 	chdir $where;

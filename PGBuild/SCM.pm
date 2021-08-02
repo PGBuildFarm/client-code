@@ -636,7 +636,7 @@ sub _check_default_branch
 	return @log if $?;
 
 	# delete the bf_HEAD branch if it exists
-	my ($hasbfhead) = grep { /bf_HEAD/ } split(/\n/,`git branch`);
+	my ($hasbfhead) = grep { /bf_HEAD/ } split(/\n/, `git branch`);
 	if ($hasbfhead)
 	{
 		my $here = getcwd();

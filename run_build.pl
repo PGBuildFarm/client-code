@@ -145,7 +145,7 @@ if ($only_steps =~ /\S/)
 }
 
 use vars qw($branch);
-my $explicit_branch = shift;
+my $explicit_branch    = shift;
 my $from_source_branch = '';
 if ($from_source || $from_source_clean)
 {
@@ -184,8 +184,7 @@ my (
 	$wait_timeout,              $use_accache,
 	$use_valgrind,              $valgrind_options,
 	$use_installcheck_parallel, $max_load_avg,
-	$use_discard_caches,
-	$archive_reports
+	$use_discard_caches,        $archive_reports
   )
   = @PGBuild::conf{
 	qw(build_root target animal aux_path trigger_exclude
@@ -660,14 +659,14 @@ if ($extra_config && $extra_config->{DEFAULT})
 
 if ($use_discard_caches && ($branch eq 'HEAD' || $branch ge 'REL_14'))
 {
-    if (!exists $extra_config->{$branch})
-    {
+	if (!exists $extra_config->{$branch})
+	{
 		$extra_config->{$branch} = ["debug_discard_caches = 1"];
-    }
-    else
-    {
+	}
+	else
+	{
 		push(@{ $extra_config->{$branch} }, "debug_discard_caches = 1");
-    }
+	}
 }
 
 if ($extra_config && $extra_config->{$branch})
@@ -1363,11 +1362,10 @@ sub initdb
 
 	if ($use_discard_caches && ($branch eq 'HEAD' || $branch ge 'REL_14'))
 	{
-	    $initdbopts .= " --discard-caches";
+		$initdbopts .= " --discard-caches";
 	}
 
-	@initout =
-	  run_log(qq{"bin/initdb" $initdbopts data-$locale});
+	@initout = run_log(qq{"bin/initdb" $initdbopts data-$locale});
 
 	my $status = $? >> 8;
 
@@ -2397,14 +2395,14 @@ sub configure
 	}
 	if ($use_discard_caches && $branch ne 'HEAD' && $branch lt 'REL_14')
 	{
-	    if (defined $env->{CPPFLAGS})
-	    {
+		if (defined $env->{CPPFLAGS})
+		{
 			$env->{CPPFLAGS} .= " -DCLOBBER_CACHE_ALWAYS";
-	    }
-	    else
-	    {
+		}
+		else
+		{
 			$env->{CPPFLAGS} = "-DCLOBBER_CACHE_ALWAYS";
-	    }
+		}
 	}
 
 	my $envstr = "";
