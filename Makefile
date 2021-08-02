@@ -36,7 +36,7 @@ tag:
 	sed -i -e "s/VERSION = '[^']*';/VERSION = 'REL_$(REL)';/" $(ALLFILES)
 	git commit -a -m 'Mark Release '$(REL)
 	git tag -m 'Release $(REL)' REL_$(CREL)
-	@echo Now do: git push --tags origin master
+	@echo Now do: git push --tags origin main
 
 release:
 	@test -n "$(REL)" || (echo Missing REL && exit 1)
