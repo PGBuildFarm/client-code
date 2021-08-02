@@ -22,7 +22,7 @@ use File::Path;
 use File::Copy;
 use File::Temp qw(tempfile);
 
-use vars qw($VERSION); $VERSION = 'REL_12';
+use vars qw($VERSION); $VERSION = 'REL_13';
 
 ## no critic (ProhibitAutomaticExportation)
 use Exporter qw(import);
