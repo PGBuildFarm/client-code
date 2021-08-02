@@ -360,7 +360,12 @@ if ($conf{using_msvc})
 
 	require "PGBuild/VSenv.pm";    ## no critic (RequireBarewordIncludes)
 
+	# ancestor of vcvarsall.bat script we will use
 	my $VSdir = "c:/Program Files (x86)/Microsoft Visual Studio/2019";
+
+	# the more specific you are here the quicker the search will be
+	# e.g.
+	# $VSdir = "$VSdir/BuildTools/VC/Auxiliary/Build";
 
 	my $vsenv = PGBuild::VSenv::getenv($VSdir, 'x64');
 
