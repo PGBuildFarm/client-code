@@ -473,7 +473,7 @@ use Fcntl qw(:flock);
 use File::Find;
 use File::Basename;
 
-use PGBuild::Utils;
+use PGBuild::Utils qw(:DEFAULT $devnull);
 use PGBuild::Options;
 
 sub new
