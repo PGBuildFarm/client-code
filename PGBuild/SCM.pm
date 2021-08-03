@@ -505,7 +505,7 @@ sub new
 	$self->{skip_git_default_check} = $conf->{skip_git_default_check} || 0;
 	if (!$self->{skip_git_default_check})
 	{
-		run_log(qq[git ls-remote --symref $self->{gitrepo} HEAD]);
+		system("git ls-remote --symref $self->{gitrepo} HEAD > $devnull 2>&1");
 		if ($?)
 		{
 			my $gversion = `git --version`;
