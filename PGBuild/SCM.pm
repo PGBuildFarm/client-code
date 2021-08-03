@@ -510,7 +510,7 @@ sub new
 		{
 			my $gversion = `git --version`;
 			chomp $gversion;
-			print "$gversion too old to for automatic default branch update\.";
+			print "$gversion too old to for automatic default branch update\n";
 			$self->{skip_git_default_check} = "detected by SCM module";
 		}
 	}
