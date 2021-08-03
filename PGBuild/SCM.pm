@@ -503,6 +503,17 @@ sub new
 	}
 	$self->{target} = $target;
 	$self->{skip_git_default_check} = $conf->{skip_git_default_check} || 0;
+	if (!$self->{skip_git_default_check})
+	{
+		run_log(qq[git ls-remote --symref $self->{gitrepo} HEAD]);
+		if ($?)
+		{
+			my $gversion = `git --version`;
+			chomp $gversion;
+			print "$gversion too old to for automatic default branch update\.";
+			$self->{skip_git_default_check} = "detected by SCM module";
+		}
+	}
 	return bless $self, $class;
 }
 
@@ -720,16 +731,22 @@ sub _create_or_update_mirror
 
 	my $gitserver = $self->{gitrepo};
 
+	my $skip_version_check = $self->{skip_git_default_check};
+
 	my @gitlog;
 	my $status;
 	if (-d $self->{mirror})
 	{
+		# do we need --prune-tags here? I'm not sure. Only very modern versions
+		# of git have --prune-tags, so for now we'll leave it out.
+		# see https://git-scm.com/docs/git-fetch/2.25.1 for a discussion
+		# of different ways of saying it
 		@gitlog =
 		  run_log(
-			qq{git --git-dir="$self->{mirror}" fetch --prune --prune-tags});
+			qq{git --git-dir="$self->{mirror}" fetch --prune});
 		$status = $self->{ignore_mirror_failure} ? 0 : $? >> 8;
 
-		if (!$status)
+		if (!$status && !$skip_version_check)
 		{
 			# make sure we have the same idea of the default branch name
 			# as upstream
