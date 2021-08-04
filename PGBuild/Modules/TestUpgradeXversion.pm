@@ -33,7 +33,7 @@ use File::Temp qw(tempfile);
 use strict;
 use warnings;
 
-use vars qw($VERSION); $VERSION = 'REL_13';
+use vars qw($VERSION); $VERSION = 'REL_13.1';
 
 my $hooks = {
 
