@@ -505,12 +505,25 @@ sub new
 	$self->{skip_git_default_check} = $conf->{skip_git_default_check} || 0;
 	if (!$self->{skip_git_default_check})
 	{
-		system("git ls-remote --symref $self->{gitrepo} HEAD > $devnull 2>&1");
+		# check is we can run "git ls-remote --symref" If not, we can't run
+		# the default branch name update code.
+		# try to test against a known local git repo.
+		my $repo = $self->{gitrepo};
+		if (-d  $self->{mirror})
+		{
+			$repo = $self->{mirror};
+		}
+		elsif (-d "$self->{build_root}/HEAD/pgsql/.git")
+		{
+			$repo = "$self->{build_root}/HEAD/pgsql"
+		}
+		system(qq{git ls-remote --symref "$repo" HEAD > $devnull 2>&1});
 		if ($?)
 		{
 			my $gversion = `git --version`;
 			chomp $gversion;
-			print "$gversion too old to for automatic default branch update\n";
+			print "$gversion too old for automatic default branch update\n"
+			  if $verbose;
 			$self->{skip_git_default_check} = "detected by SCM module";
 		}
 	}
@@ -731,7 +744,7 @@ sub _create_or_update_mirror
 
 	my $gitserver = $self->{gitrepo};
 
-	my $skip_version_check = $self->{skip_git_default_check};
+	my $skip_default_name_check = $self->{skip_git_default_check};
 
 	my @gitlog;
 	my $status;
@@ -746,7 +759,7 @@ sub _create_or_update_mirror
 			qq{git --git-dir="$self->{mirror}" fetch --prune});
 		$status = $self->{ignore_mirror_failure} ? 0 : $? >> 8;
 
-		if (!$status && !$skip_version_check)
+		if (!$status && !$skip_default_name_check)
 		{
 			# make sure we have the same idea of the default branch name
 			# as upstream
