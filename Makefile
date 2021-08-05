@@ -33,7 +33,7 @@ CREL := $(if $(REL),$(strip $(subst .,_, $(REL))),YOU_NEED_A_RELEASE)
 
 tag:
 	@test -n "$(REL)" || (echo Missing REL && exit 1)
-	sed -i -e "s/VERSION = '[^']*';/VERSION = 'REL_$(REL)';/" $(ALLFILES)
+	sed -i -e "s/VERSION = '[^']*';/VERSION = 'REL_$(CREL)';/" $(ALLFILES)
 	git commit -a -m 'Mark Release '$(REL)
 	git tag -m 'Release $(REL)' REL_$(CREL)
 	@echo Now do: git push --tags origin main
