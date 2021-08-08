@@ -505,11 +505,11 @@ sub new
 	$self->{skip_git_default_check} = $conf->{skip_git_default_check} || 0;
 	if (!$self->{skip_git_default_check})
 	{
-		# check is we can run "git ls-remote --symref" If not, we can't run
+		# check if we can run "git ls-remote --symref" If not, we can't run
 		# the default branch name update code.
 		# try to test against a known local git repo.
 		my $repo = $self->{gitrepo};
-		if (-d  $self->{mirror})
+		if (exists $self->{mirror} && -d $self->{mirror})
 		{
 			$repo = $self->{mirror};
 		}
