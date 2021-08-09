@@ -774,7 +774,12 @@ sub _create_or_update_mirror
 				$ref =~ s/\s+HEAD.*//;
 				system(
 					qq{git --git-dir="$self->{mirror}" symbolic-ref HEAD $ref});
+				# failure here is local, thus not an ignore-mirror-failure
 				$status = $? >> 8;
+			}
+			elsif ($self->{ignore_mirror_failure})
+			{
+				$status = 0;
 			}
 		}
 
@@ -787,6 +792,7 @@ sub _create_or_update_mirror
 			my @gclog = run_log(qq{git --git-dir="$self->{mirror}" gc});
 			push(@gitlog, "----- mirror garbage collection -----\n", @gclog);
 			set_last("$target.mirror.gc");
+			# this is also local, so not covered by ignore-mirror-failure
 			$status = $? >> 8;
 		}
 	}
