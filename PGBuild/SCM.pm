@@ -1047,9 +1047,9 @@ sub _update_target
 		$rbranch =~ s!.*/!!;
 	}
 
-	my @pulllog =
-	  run_log("git fetch --prune && git reset --hard origin/$rbranch");
-	push(@gitlog, @checklog, @colog, @pulllog);
+	my @pulllog = run_log("git fetch --prune");
+	my @pull2 = $? ? () : run_log("git reset --hard origin/$rbranch");
+	push(@gitlog, @checklog, @colog, @pulllog,@pull2);
 
 	chdir "..";
 
