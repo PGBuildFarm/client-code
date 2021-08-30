@@ -99,7 +99,7 @@ sub standard_option_list
 	my @result = ();
 	foreach my $k (keys %standard_options)
 	{
-		(my $nicekey = $k) =~ s/[=:].*//;
+		(my $nicekey = $k) =~ s/[=:!].*//;
 		my $vref = $standard_options{$k};
 		$vref = \$orig_verbose if $nicekey eq 'verbose';
 		next
