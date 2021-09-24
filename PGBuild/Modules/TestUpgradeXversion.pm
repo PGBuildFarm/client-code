@@ -689,9 +689,29 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		return if $?;
 	}
 
-	system( qq{diff -I "^-- " -u "$upgrade_loc/origin-$oversion.sql" }
-		  . qq{"$upgrade_loc/converted-$oversion-to-$this_branch.sql" }
-		  . qq{> "$upgrade_loc/dumpdiff-$oversion" 2>&1});
+	foreach my $dump ("$upgrade_loc/origin-$oversion.sql",
+					 "$upgrade_loc/converted-$oversion-to-$this_branch.sql")
+	{
+		# Change trigger definitions to say ... EXECUTE FUNCTION ...
+
+		my $contents = file_contents($dump);
+
+		# would like to use lookbehind here but perl complains
+		# so do it this way
+		$contents =~ s/
+                         (^CREATE\sTRIGGER\s.*?)
+                         \sEXECUTE\sPROCEDURE
+                      /$1 EXECUTE FUNCTION/mgx;
+		open(my $dh, '>', "$dump.fixed") || die "opening $dump.fixed";
+		print $dh $contents;
+		close($dh);
+	}
+
+	system( qq{diff -I "^\$" -I "SET default_table_access_method = heap;" }
+		. qq{ -I "^SET default_toast_compression = 'pglz';\$" -I "^-- " }
+		. qq{-u "$upgrade_loc/origin-$oversion.sql.fixed" }
+		. qq{"$upgrade_loc/converted-$oversion-to-$this_branch.sql.fixed" }
+		. qq{> "$upgrade_loc/dumpdiff-$oversion" 2>&1});
 
 	# diff exits with status 1 if files differ
 	return if $? >> 8 > 1;
@@ -699,15 +719,24 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	open(my $diffile, '<', "$upgrade_loc/dumpdiff-$oversion")
 	  || die "opening $upgrade_loc/dumpdiff-$oversion: $!";
 	my $difflines = 0;
-	$difflines++ while <$diffile>;
+	while (<$diffile>)
+	{
+		$difflines++ if /^[+-]/;
+	}
 	close($diffile);
 
-	# If the versions match we expect a possible handful of diffs,
-	# generally from reordering of larg object output.
-	# If not we heuristically allow up to 2700 lines of diffs
+	# If the versions match we require that there be no diff lines.
+	# In the past we have seen a handful of diffs from reordering of
+	# large object output, but that appears to have disppeared.
+	# If the versions don't match we heuristically allow more lines of diffs
+	# based on observed differences. For versions from 9.6 on, that's
+	# not very many lines, though.
 
-	if (   ($oversion ne $this_branch && $difflines < 2700)
-		|| ($oversion eq $this_branch) && $difflines < 50)
+	if (   ($oversion eq $this_branch && $difflines == 0)
+	    || ($oversion ne $this_branch && $oversion ge 'REL9_6_STABLE'
+			  && $difflines < 80)
+		|| ($oversion ne $this_branch && $oversion lt 'REL9_6_STABLE'
+			  && $difflines < 700) )
 	{
 		return 1;
 	}
@@ -719,7 +748,6 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 sub installcheck
 {
-
 	# this is called after base installcheck has run, which in turn
 	# is after both base install and base contrib install have run,
 	# so we have everything we should need.
