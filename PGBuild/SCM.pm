@@ -754,10 +754,16 @@ sub _create_or_update_mirror
 		# of git have --prune-tags, so for now we'll leave it out.
 		# see https://git-scm.com/docs/git-fetch/2.25.1 for a discussion
 		# of different ways of saying it
-		@gitlog =
-		  run_log(
-			qq{git --git-dir="$self->{mirror}" fetch --prune});
-		$status = $self->{ignore_mirror_failure} ? 0 : $? >> 8;
+		@gitlog = run_log(qq{git --git-dir="$self->{mirror}" fetch --prune});
+		if ($self->{ignore_mirror_failure})
+		{
+			print "Git  mirror failure (ignored)\n", @gitlog if $? && $verbose;
+			$status = 0;
+		}
+		else
+		{
+			$status =  $? >> 8;
+		}
 
 		if (!$status && !$skip_default_name_check)
 		{
@@ -779,6 +785,8 @@ sub _create_or_update_mirror
 			}
 			elsif ($self->{ignore_mirror_failure})
 			{
+				print "Git  mirror ls-remote failure (ignored)\n", @remote_def
+				  if $verbose;
 				$status = 0;
 			}
 		}
