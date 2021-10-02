@@ -46,6 +46,8 @@ sub setup
 	my $conf      = shift;    # ref to the whole config object
 	my $pgsql     = shift;    # postgres build dir
 
+	return if -d "$buildroot/$branch/pgsql/src/bin/pg_upgrade/t";
+
 	die
 	  "overly long build root $buildroot will cause upgrade problems - try something shorter than 46 chars"
 	  if (length($buildroot) > 46);
