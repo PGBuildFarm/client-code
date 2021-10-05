@@ -54,7 +54,7 @@ sub run_web_txn
 	require MIME::Base64;
 	import MIME::Base64;
 	require Digest::SHA;
-	import Digest::SHA qw(sha256_hex);
+	import Digest::SHA qw(hmac_sha256_hex);
 	require Storable;
 	import Storable qw(nfreeze);
 
@@ -147,7 +147,6 @@ sub run_web_txn
 	  . "changed_since_success=$changed_since_success&"
 	  . "branch=$branch&res=$status&stage=$stage&animal=$animal&ts=$ts"
 	  . "&log=$log_data&conf=$confsum";
-	my $sig = '.256.' . sha256_hex($content, $secret);
 
 	$content .= "&frozen_sconf=$frozen_sconf";
 
@@ -155,6 +154,8 @@ sub run_web_txn
 	{
 		$content .= "&logtar=$tardata";
 	}
+
+	my $sig = '.256h.' . hmac_sha256_hex($content, $secret);
 
 	my $ua = LWP::UserAgent->new;
 	$ua->agent("Postgres Build Farm Reporter");
