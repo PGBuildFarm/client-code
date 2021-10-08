@@ -1857,7 +1857,7 @@ sub run_tap_test
 	{
 		$pflags =
 		  $ENV{PROVE_FLAGS}
-		  ? "PROVE_FLAGS=$ENV{PROVE_FLAGS}"
+		  ? qq[PROVE_FLAGS="$ENV{PROVE_FLAGS}"]
 		  : "";
 	}
 
