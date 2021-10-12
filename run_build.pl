@@ -2242,7 +2242,7 @@ sub find_typedefs
 		# its directory is our current cwd
 
 		return unless (-f $_ && /^.*\.[chly]\z/);
-		my @lines;
+
 		my $src = file_contents($_);
 
 		# strip C comments
