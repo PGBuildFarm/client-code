@@ -579,47 +579,85 @@ sub log_id
 	return;
 }
 
-# exclude Windows for now - need to make sure how to do symlinks
-# portably there
-# early versions don't have mklink
 
-# memo: test if symlinks are available:
-# msys: `cmd //c "mklink 2>&1"`  produces 'Creates a symbolic link'
-# native windows: just use `mklink 2>&1` for same test
-# use "mklink /d newname oldname", omit /d if it's not a directory
-# need to use full paths - mklink isn't very smart
+# test if symlinks are available:
+# For directories we could use junctions via "mklink /j"
+# (c.f. TextUpgradeXVersion.pm) but there is no equivalent for plain files
+# which we need here. Windows currently forbids using non-junction mklink
+# except by administrative users, which is both stupid and sad.
+
+# It can be fixed by setting a security policy for the user.
+# Local Group Policy Editor: Launch gpedit.msc, navigate to
+#   Computer Configuration - Windows Settings - Security Settings -
+#   Local Policies - User Rights Assignment
+# and add the account(s) to the list named Create symbolic links.
+# See https://github.com/git-for-windows/git/wiki/Symbolic-Links
 
 sub have_symlink
 {
-	return 1 unless $^O eq 'msys' || $^O eq 'MSWin32';
-	## no critic (ProhibitUnreachableCode)
-	return 0;    # until we get windows symlinks working
-	my $cmd = $^O eq 'msys' ? 'cmd //c "mklink 2>&1"' : 'mklink 2>&1';
-	my $out = `$cmd`;
-	return 1 if $out =~ /Creates a symbolic link/;
-	return 0;
+	my $self = shift;
+	$self->{have_symlink} = 1 unless $^O eq 'msys' || $^O eq 'MSWin32';
+	return $self->{have_symlink} if exists $self->{have_symlink};
+	if ($^O eq 'msys')
+	{
+		my $symlink_exists = eval { symlink("",""); 1 };
+		unless ($symlink_exists)
+		{
+			$self->{have_symlink} = 0;
+			return 0;
+		}
+		local $ENV{MSYS} = "winsymlinks:nativestrict";
+		open (my $tg, ">", "tg.txt") || die "opening tg.txt: $1";
+		print $tg "boo!\n";
+		close $tg;
+		unless (symlink "tg.txt", "lnk.txt")
+		{
+			$self->{have_symlink} = 0;
+			return 0;
+		}
+		my $ok = -l "lnk.txt" && -f "lnk.txt";
+		my $txt = file_contents("lnk.txt");
+		$ok &&= $txt eq "boo!\n";
+		unlink "lnk.txt","tg.txt";
+		$self->{have_symlink} = $ok;
+		return $ok;
+	}
+	else
+	{
+		# MSWin32
+		open (my $tg, ">", "tg.txt") || return 0;
+		print $tg "boo!\n";
+		close $tg;
+		system(qq{mklink "lnk.txt" "tg.txt" >nul 2>&1});
+		my $txt = file_contents("lnk.txt");
+		my $ok = $txt eq "boo!\n";
+		unlink "lnk.txt","tg.txt";
+		$self->{have_symlink} = $ok;
+		return $ok;
+	}
+	return 0; # keep perl critic happy
 }
 
 sub make_symlink
 {
+	# assumes we have a working symlink (see above)
 	# note: unix and windows do link/target in the opposite order
 	my $target    = shift;
 	my $link      = shift;
-	my $dirswitch = -d $target ? "/d" : "";
-	if ($^O eq 'msys')
+	if ($^O eq 'MSWin32')
 	{
-		system("cmd //c 'mklink $dirswitch $link $target'");
-	}
-	elsif ($0 eq 'MSWin32')
-	{
-		system("mklink $dirswitch $link $target");
+		my $dirswitch = -d $target ? "/d" : "";
+		system(qq{mklink $dirswitch "$link" "$target" >nul 2>&1});
 	}
 	else
 	{
-		system(qq{ln -s $target $link});
+		# set env for MSYS, harmless for everyone else
+		local $ENV{MSYS} = "winsymlinks:nativestrict";
+		# msys2 perl is smart enough to check if the target is a directory
+		# and set up the right type of symlink
+		symlink $target, $link;
 	}
 	return;
-
 }
 
 sub _check_default_branch
@@ -901,8 +939,9 @@ sub _setup_new_workdir
 	chdir $target;
 	mkdir ".git";
 	mkdir ".git/logs";
-	my @links = qw (config refs logs/refs objects info hooks
-	  packed-refs remotes rr-cache svn);
+	# skip qw(remotes rr-cache svn). They shouldn't exist on the linked-to
+	# directory, regardless of what git-new-workdir thinks
+	my @links = qw (config refs logs/refs objects info hooks packed-refs);
 	foreach my $link (@links)
 	{
 		make_symlink("$head/$target/.git/$link", ".git/$link");
@@ -1092,7 +1131,7 @@ sub checkout
 	if (   $self->{use_workdirs}
 		&& !defined($self->{reference})
 		&& -d '../HEAD/'
-		&& have_symlink())
+		&& $self->have_symlink())
 	{
 		open($lockfile, ">", "../HEAD/checkout.LCK")
 		  || die "opening checkout lockfile: $!";
@@ -1116,7 +1155,7 @@ sub checkout
 	elsif ($branch ne 'HEAD'
 		&& $self->{use_workdirs}
 		&& !defined($self->{reference})
-		&& have_symlink())
+		&& $self->have_symlink())
 	{
 		# not sure how this plays with --reference, so for now I'm excluding
 		# that, too
