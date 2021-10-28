@@ -46,9 +46,14 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	git_ignore_mirror_failure => 1,      # ignore failures in fetching to mirror
 	git_gc_hours => 7 * 24,    # garbage collect once a week, 0/undef to disable
 
-	# use symlinked git repo from non-HEAD branches,
-	# like git-new-workdir does
+	# use symlinked git repo from non-HEAD branches, like git-new-workdir does
+	# Ony supported on Windows if the user has "Create Symbolic Links"
+	# privilege. See
+	# https://github.com/git-for-windows/git/wiki/Symbolic-Links
 	git_use_workdirs => 1,
+
+	# remove work trees between runs, saves disk space
+	rm_worktrees => 1,
 
 	# check if the default git branch name has changed
 	skip_git_default_check => undef,

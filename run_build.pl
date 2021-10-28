@@ -564,7 +564,6 @@ END
 	# success.
 
 	if (   $have_lock
-		&& !-d "$pgsql"
 		&& $PGBuild::conf{rm_worktrees}
 		&& !$from_source)
 	{
