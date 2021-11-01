@@ -638,7 +638,32 @@ sub have_symlink
 	return 0; # keep perl critic happy
 }
 
-sub make_symlink
+
+# the argument here should be a symbolic link and point to a plain file
+# returns:
+#    nosuchfile - link is missing
+#    notsym     - it's not a symlink
+#    dangling   - pointed to file is missing or not a plain file
+#    ok         - all good
+sub _test_file_symlink
+{
+	my $file = shift;
+	return 'nosuchfile' unless -e $file;
+	if ($^O eq 'MSWin32')
+	{
+		my $dirout = `dir "$file"`;
+		return 'notsym' unless $dirout =~ /<SYMLINK>.*\[(.*)\]/;
+		$file = $1;
+	}
+	else
+	{
+		return 'notsym' unless -l $file;
+	}
+	return 'dangling' unless -f $file;
+	return 'ok';
+}
+
+sub _make_symlink
 {
 	# assumes we have a working symlink (see above)
 	# note: unix and windows do link/target in the opposite order
@@ -944,7 +969,7 @@ sub _setup_new_workdir
 	my @links = qw (config refs logs/refs objects info hooks packed-refs);
 	foreach my $link (@links)
 	{
-		make_symlink("$head/$target/.git/$link", ".git/$link");
+		_make_symlink("$head/$target/.git/$link", ".git/$link");
 	}
 	copy("$head/$target/.git/HEAD", ".git/HEAD");
 
@@ -1039,7 +1064,7 @@ sub _update_target
 	my @branches = `git branch 2>&1`;    # too trivial for run_log
 	unless (grep { /^\* bf_$branch$/ } @branches)
 	{
-		if (-l ".git/config" && -f ".git/config")
+		if (_test_file_symlink(".git/config") eq 'ok')
 		{
 			# if it's a symlinked workdir, and the config link isn't into
 			# thin air, it's likely that the HEAD has been refreshed, so
@@ -1101,7 +1126,8 @@ sub _update_target
 	chdir "..";
 
 	# run gc from the parent so we find and set the status file correctly
-	if (!-l "$target/.git/config" && $self->{gchours})
+	if (_test_file_symlink("$target/.git/config") !~ /ok|dangling/  &&
+		$self->{gchours})
 	{
 		my $last_gc = find_last("$target.gc") || 0;
 		if (time - $last_gc > $self->{gchours} * 3600)
