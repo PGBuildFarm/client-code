@@ -233,7 +233,13 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	config_env => {
 
 		# comment out if not using ccache
+		# ccache is known to cause issues sometimes on msys2
 		CC => 'ccache gcc',
+
+		# If using vpath builds, this makes it use true symbolic links
+		# on Msys2. Only use if the user has Create Symbolic Links privilege
+		# See https://github.com/git-for-windows/git/wiki/Symbolic-Links
+		# MSYS => 'winsymlinks:nativestrict',
 
 		# In the rare event that you need to tell configure where the prove
 		# program lives instead of letting it work it out you do it here.
