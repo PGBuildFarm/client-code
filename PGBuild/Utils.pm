@@ -206,6 +206,8 @@ sub get_stack_trace
 	my $bindir = shift;
 	my $pgdata = shift;
 
+	return () unless -d $pgdata;
+
 	my @cores;
 
 	if (-e "$pgdata/postgresql.conf")
