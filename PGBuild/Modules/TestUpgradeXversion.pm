@@ -428,33 +428,20 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 			"$upgrade_loc/$oversion-copy.log",                     1
 		);
 		return if $?;
-
-		run_psql(
-			"$other_branch/inst/bin/psql",
-			"-e",
-			"drop function if exists oldstyle_length(integer, text)",
-			"regression",
-			"$upgrade_loc/$oversion-copy.log",
-			1
-		);
-		return if $?;
 	}
 
-	# some regression functions gone from release 11 on
-	if (   ($this_branch ge 'REL_11_STABLE' || $this_branch eq 'HEAD')
-		&& ($oversion lt 'REL_11_STABLE' && $oversion ne 'HEAD'))
+	# Use the in-core SQL script to clean up or update any objects that
+	# would cause an upgrade failure for a cross-version test.  Note that
+	# this script is able to adapt to the old version it is run on.
+	my $upgrade_adapt_script = "$self->{pgsql}/src/bin/pg_upgrade/upgrade_adapt.sql";
+	if (-e $upgrade_adapt_script)
 	{
-		my $missing_funcs = q{drop function if exists public.boxarea(box);
-                              drop function if exists public.funny_dup17();
-                            };
-		$missing_funcs =~ s/\n//g;
-
-		run_psql("$other_branch/inst/bin/psql", "-e", $missing_funcs,
-			"regression", "$upgrade_loc/$oversion-copy.log", 1);
+		system( qq{psql -X -e -f "$upgrade_adapt_script" regression }
+			  . qq{> "$upgrade_loc/$oversion-upgrade_adapt.log" 2>&1 });
 		return if $?;
 	}
 
-	# user table OIDS and abstime+friends are gone from release 12 on
+	# user table OIDS are gone from release 12 on
 	if (   ($this_branch gt 'REL_11_STABLE' || $this_branch eq 'HEAD')
 		&& ($oversion le 'REL_11_STABLE' && $oversion ne 'HEAD'))
 	{
@@ -476,7 +463,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
               END LOOP;
            END; $stmt$;
         };
-		foreach my $oiddb ("regression", "contrib_regression_btree_gist")
+		foreach my $oiddb ("contrib_regression_btree_gist")
 		{
 			next unless $dbnames{$oiddb};
 			run_psql("$other_branch/inst/bin/psql", "-e", $nooid_stmt,
@@ -497,36 +484,13 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 			);
 			return if $?;
 		}
-
-		if ($oversion lt 'REL9_3_STABLE')
-		{
-			run_psql(
-				"$other_branch/inst/bin/psql",
-				"-e",
-				"drop table if exists abstime_tbl, reltime_tbl, tinterval_tbl",
-				"regression",
-				"$upgrade_loc/$oversion-copy.log",
-				1
-			);
-			return if $?;
-		}
 	}
 
 	# stuff not supported from release 14
 	if (   ($this_branch gt 'REL_13_STABLE' || $this_branch eq 'HEAD')
 		&& ($oversion le 'REL_13_STABLE' && $oversion ne 'HEAD'))
 	{
-		my $prstmt = join(';',
-			'drop operator if exists #@# (bigint,NONE)',
-			'drop operator if exists #%# (bigint,NONE)',
-			'drop operator if exists !=- (bigint,NONE)',
-			'drop operator if exists #@%# (bigint,NONE)');
-
-		run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
-			"regression", "$upgrade_loc/$oversion-copy.log", 1);
-		return if $?;
-
-		$prstmt = "drop function if exists public.putenv(text)";
+		my $prstmt = "drop function if exists public.putenv(text)";
 
 		my $regrdb =
 		  $oversion le "REL9_4_STABLE"
@@ -537,34 +501,6 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		{
 			run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
 				"$regrdb", "$upgrade_loc/$oversion-copy.log", 1);
-			return if $?;
-		}
-
-		if ($oversion le 'REL9_4_STABLE')
-		{
-			# this is fixed in 9.5 and later
-			$prstmt = join(';',
-				'drop operator @#@ (NONE, bigint)',
-				'CREATE OPERATOR @#@ ('
-				  . 'PROCEDURE = factorial, '
-				  . 'RIGHTARG = bigint )');
-			run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
-				"regression", "$upgrade_loc/$oversion-copy.log", 1);
-			return if $?;
-		}
-
-		if ($oversion le 'REL9_4_STABLE')
-		{
-			# this is fixed in 9.5 and later
-			$prstmt = join(';',
-				'drop aggregate if exists public.array_cat_accum(anyarray)',
-				'CREATE AGGREGATE array_larger_accum (anyarray) ' . ' ( '
-				  . '   sfunc = array_larger, '
-				  . '   stype = anyarray, '
-				  . '   initcond = $${}$$ '
-				  . '  ) ');
-			run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
-				"regression", "$upgrade_loc/$oversion-copy.log", 1);
 			return if $?;
 		}
 	}
