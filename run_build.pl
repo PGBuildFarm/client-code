@@ -1376,7 +1376,10 @@ sub initdb
 
 		if (!$using_msvc && $Config{osname} !~ /msys|MSWin/)
 		{
-			my $param = "unix_socket_directories";
+			my $param =
+			  $branch eq 'REL9_2_STABLE'
+			  ? "unix_socket_directory"
+			  : "unix_socket_directories";
 			print $handle "$param = '$tmpdir'\n";
 			print $handle "listen_addresses = ''\n";
 		}
