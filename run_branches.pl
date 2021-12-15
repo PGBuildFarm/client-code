@@ -146,10 +146,11 @@ elsif ((ref $branches_to_build) =~ /Regexp/i)
 	$ENV{BF_CONF_BRANCHES} = join(',', "(found by regexp)", @branches);
 	chdir $here;
 }
-elsif ($branches_to_build =~ /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
+elsif ($branches_to_build =~ /^(ALL|OLD|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
 {
 
 	$ENV{BF_CONF_BRANCHES} = $branches_to_build;
+	my $match = $1;
 	my $latest = $2;
 
 	# Need to set the path here so we make sure we pick up the right perl.
@@ -161,6 +162,8 @@ elsif ($branches_to_build =~ /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
 	$ENV{PATH} = $PGBuild::conf{build_env}->{PATH}
 	  if ($PGBuild::conf{build_env}->{PATH});
 	(my $url = $PGBuild::conf{target}) =~ s/cgi-bin.*/branches_of_interest.txt/;
+	$url =~ s/branches_of_interest/old_branches_of_interest/
+	  if $match eq 'OLD';
 	my $branches_of_interest;
 	## no critic (ValuesAndExpressions::ProhibitMismatchedOperators)
 	# perlcritic gets confused by version comparisons - this usage is
