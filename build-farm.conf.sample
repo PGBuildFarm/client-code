@@ -280,7 +280,8 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		  --with-ldap
 		  --with-libxml
 		  --with-libxslt
-		  )
+		 ),
+		# could also add for example --enable-tap-tests
 	],
 
 	# per-branch contents of extra config for check stages.
@@ -404,6 +405,7 @@ if ($conf{using_msvc})
 		xslt              => undef,            # --with-libxslt=<path>,
 		iconv             => undef,            # path to iconv library
 		zlib              => undef,            # --with-zlib=<path>
+		tap_tests         => undef,            # --enable-tap-tests
 	};
 
 }
