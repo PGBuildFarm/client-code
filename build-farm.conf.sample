@@ -60,9 +60,8 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 
 	scmrepo => undef,   # default is community repo for either type
 	scm_url => undef,   # webref for diffs on server - use default for community
-	                    # git_reference => undef, # for --reference on git repo
-	                    # cvsmethod => 'update', # or 'export'
-	use_git_cvsserver => undef,    # or 'true' if repo is a git cvsserver
+
+	# git_reference => undef, # for --reference on git repo
 
 	# external commands and control
 	make      => 'make',  # or gmake if required. can include path if necessary.
