@@ -891,8 +891,6 @@ sub _create_or_update_mirror
 
 sub _setup_new_head
 {
-	print "recloning HEAD\n";
-
 	# only called when HEAD has disappeared from under a workdir (or it never
 	# existed)
 
@@ -918,10 +916,6 @@ sub _setup_new_head
 	{
 		my $savedir = getcwd();
 		chdir "$head/$target";
-
-		print "Status: ", getcwd(), "\n";
-		system("git branch");
-		print "\n";
 
 		# we're on a fresh clone so the current branch should be the
 		# upstream default
