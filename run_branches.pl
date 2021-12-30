@@ -146,7 +146,7 @@ elsif ((ref $branches_to_build) =~ /Regexp/i)
 	$ENV{BF_CONF_BRANCHES} = join(',', "(found by regexp)", @branches);
 	chdir $here;
 }
-elsif ($branches_to_build =~ /^(ALL|OLD|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
+elsif ($branches_to_build =~ /^(ALL|STABLE|OLD|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
 {
 
 	$ENV{BF_CONF_BRANCHES} = $branches_to_build;
@@ -207,10 +207,13 @@ elsif ($branches_to_build =~ /^(ALL|OLD|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/
 	die "getting branches of interest ($url)" unless $branches_of_interest;
 	$ENV{PATH} = $save_path;
 	push(@branches, $_) foreach (split(/\s+/, $branches_of_interest));
+	# assumes that branches_of_interest is in order, oldest through to HEAD
 	splice(@branches, 0, -2)
 	  if $branches_to_build eq 'HEAD_PLUS_LATEST';
 	splice(@branches, 0, 0 - ($latest + 1))
 	  if $branches_to_build =~ /^HEAD_PLUS_LATEST\d$/;
+	splice (@branches, -1)
+	  if ($branches_to_build eq 'STABLE');
 }
 
 @branches = apply_throttle(@branches);

@@ -328,6 +328,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		branches_to_build => 'ALL',
 
 		# or 'HEAD_PLUS_LATEST' or 'HEAD_PLUS_LATEST2'
+		# or 'STABLE' (i.e. live branches other than  HEAD)
 		# or [qw( HEAD RELx_y_STABLE etc )]
 
 		# set this if running multiple animals to have them coordinated
