@@ -1640,10 +1640,11 @@ sub make_contrib_install_check
 	my $locale = shift;
 	return unless step_wanted('contrib-install-check');
 	my @checklog;
+	# skip TAP tests - they are called elsewhere
 	unless ($using_msvc)
 	{
 		@checklog =
-		  run_log("cd $pgsql/contrib && $make USE_MODULE_DB=1 installcheck");
+		  run_log("cd $pgsql/contrib && $make USE_MODULE_DB=1 TAP_TESTS= installcheck");
 	}
 	else
 	{
