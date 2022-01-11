@@ -612,6 +612,7 @@ sub have_symlink
 		close $tg;
 		unless (symlink "tg.txt", "lnk.txt")
 		{
+			unlink "lnk.txt","tg.txt";
 			$self->{have_symlink} = 0;
 			return 0;
 		}
@@ -651,6 +652,7 @@ sub _test_file_symlink
 	return 'nosuchfile' unless -e $file;
 	if ($^O eq 'MSWin32')
 	{
+		$file =~ s!/!\\!g; # `dir` doesn't like forward slash paths
 		my $dirout = `dir "$file"`;
 		return 'notsym' unless $dirout =~ /<SYMLINK>.*\[(.*)\]/;
 		$file = $1;
