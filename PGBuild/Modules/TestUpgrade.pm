@@ -139,6 +139,7 @@ sub check
          $self->{pgsql}/src/bin/pg_upgrade/*.log
          $self->{pgsql}/src/bin/pg_upgrade/log/*
          $self->{pgsql}/src/bin/pg_upgrade/tmp_check/*/*.diffs
+         $self->{pgsql}/src/bin/pg_upgrade/tmp_check/data/pg_upgrade_output.d/log/*
          $self->{pgsql}/src/test/regress/*.diffs"
 	);
 	$log->add_log($_) foreach (@logfiles);
