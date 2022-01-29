@@ -2,6 +2,15 @@
 
 package PGBuild::VSenv;
 
+=comment
+
+Copyright (c) 2003-2022, Andrew Dunstan
+
+See accompanying License file for license details
+
+=cut
+
+
 use strict;
 use warnings;
 

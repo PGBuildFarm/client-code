@@ -4,7 +4,7 @@
 
 =comment
 
-Copyright (c) 2003-2021, Andrew Dunstan
+Copyright (c) 2003-2022, Andrew Dunstan
 
 See accompanying License file for license details
 
