@@ -19,7 +19,10 @@ PERLFILES = run_build.pl run_web_txn.pl run_branches.pl \
 	PGBuild/Modules/TestCollateLinuxUTF8.pm \
 	PGBuild/Modules/TestSepgsql.pm \
 	PGBuild/Modules/TestUpgradeXversion.pm \
-	PGBuild/Modules/TestICU.pm
+	PGBuild/Modules/TestICU.pm \
+	PGBuild/Modules/CheckHeaders.pm \
+	PGBuild/Modules/CheckPerl.pm \
+	PGBuild/Modules/TestMyTap.pm
 
 OTHERFILES = License README
 
