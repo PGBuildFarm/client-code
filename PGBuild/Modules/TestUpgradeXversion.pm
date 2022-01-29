@@ -690,7 +690,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 
 	foreach my $dump ("$upgrade_loc/origin-$oversion.sql",
-					 "$upgrade_loc/converted-$oversion-to-$this_branch.sql")
+		"$upgrade_loc/converted-$oversion-to-$this_branch.sql")
 	{
 		# Change trigger definitions to say ... EXECUTE FUNCTION ...
 
@@ -708,10 +708,10 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 
 	system( qq{diff -I "^\$" -I "SET default_table_access_method = heap;" }
-		. qq{ -I "^SET default_toast_compression = 'pglz';\$" -I "^-- " }
-		. qq{-u "$upgrade_loc/origin-$oversion.sql.fixed" }
-		. qq{"$upgrade_loc/converted-$oversion-to-$this_branch.sql.fixed" }
-		. qq{> "$upgrade_loc/dumpdiff-$oversion" 2>&1});
+		  . qq{ -I "^SET default_toast_compression = 'pglz';\$" -I "^-- " }
+		  . qq{-u "$upgrade_loc/origin-$oversion.sql.fixed" }
+		  . qq{"$upgrade_loc/converted-$oversion-to-$this_branch.sql.fixed" }
+		  . qq{> "$upgrade_loc/dumpdiff-$oversion" 2>&1});
 
 	# diff exits with status 1 if files differ
 	return if $? >> 8 > 1;
@@ -732,11 +732,15 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	# based on observed differences. For versions from 9.6 on, that's
 	# not very many lines, though.
 
-	if (   ($oversion eq $this_branch && $difflines == 0)
-	    || ($oversion ne $this_branch && $oversion ge 'REL9_6_STABLE'
-			  && $difflines < 80)
-		|| ($oversion ne $this_branch && $oversion lt 'REL9_6_STABLE'
-			  && $difflines < 700) )
+	if (
+		($oversion eq $this_branch && $difflines == 0)
+		|| (   $oversion ne $this_branch
+			&& $oversion ge 'REL9_6_STABLE'
+			&& $difflines < 80)
+		|| (   $oversion ne $this_branch
+			&& $oversion lt 'REL9_6_STABLE'
+			&& $difflines < 700)
+	  )
 	{
 		return 1;
 	}

@@ -279,7 +279,8 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		  --with-ldap
 		  --with-libxml
 		  --with-libxslt
-		 ),
+		  ),
+
 		# could also add for example --enable-tap-tests
 	],
 

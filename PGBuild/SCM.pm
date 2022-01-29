@@ -515,7 +515,7 @@ sub new
 		}
 		elsif (-d "$self->{build_root}/HEAD/pgsql/.git")
 		{
-			$repo = "$self->{build_root}/HEAD/pgsql"
+			$repo = "$self->{build_root}/HEAD/pgsql";
 		}
 		system(qq{git ls-remote --symref "$repo" HEAD > $devnull 2>&1});
 		if ($?)
@@ -600,43 +600,43 @@ sub have_symlink
 	return $self->{have_symlink} if exists $self->{have_symlink};
 	if ($^O eq 'msys')
 	{
-		my $symlink_exists = eval { symlink("",""); 1 };
+		my $symlink_exists = eval { symlink("", ""); 1 };
 		unless ($symlink_exists)
 		{
 			$self->{have_symlink} = 0;
 			return 0;
 		}
 		local $ENV{MSYS} = "winsymlinks:nativestrict";
-		open (my $tg, ">", "tg.txt") || die "opening tg.txt: $1";
+		open(my $tg, ">", "tg.txt") || die "opening tg.txt: $1";
 		print $tg "boo!\n";
 		close $tg;
 		unless (symlink "tg.txt", "lnk.txt")
 		{
-			unlink "lnk.txt","tg.txt";
+			unlink "lnk.txt", "tg.txt";
 			$self->{have_symlink} = 0;
 			return 0;
 		}
 		my $ok = -l "lnk.txt" && -f "lnk.txt";
 		my $txt = file_contents("lnk.txt");
 		$ok &&= $txt eq "boo!\n";
-		unlink "lnk.txt","tg.txt";
+		unlink "lnk.txt", "tg.txt";
 		$self->{have_symlink} = $ok;
 		return $ok;
 	}
 	else
 	{
 		# MSWin32
-		open (my $tg, ">", "tg.txt") || return 0;
+		open(my $tg, ">", "tg.txt") || return 0;
 		print $tg "boo!\n";
 		close $tg;
 		system(qq{mklink "lnk.txt" "tg.txt" >nul 2>&1});
 		my $txt = file_contents("lnk.txt");
-		my $ok = $txt eq "boo!\n";
-		unlink "lnk.txt","tg.txt";
+		my $ok  = $txt eq "boo!\n";
+		unlink "lnk.txt", "tg.txt";
 		$self->{have_symlink} = $ok;
 		return $ok;
 	}
-	return 0; # keep perl critic happy
+	return 0;    # keep perl critic happy
 }
 
 
@@ -652,7 +652,7 @@ sub _test_file_symlink
 	return 'nosuchfile' unless -e $file;
 	if ($^O eq 'MSWin32')
 	{
-		$file =~ s!/!\\!g; # `dir` doesn't like forward slash paths
+		$file =~ s!/!\\!g;    # `dir` doesn't like forward slash paths
 		my $dirout = `dir "$file"`;
 		return 'notsym' unless $dirout =~ /<SYMLINK>.*\[(.*)\]/;
 		$file = $1;
@@ -669,8 +669,8 @@ sub _make_symlink
 {
 	# assumes we have a working symlink (see above)
 	# note: unix and windows do link/target in the opposite order
-	my $target    = shift;
-	my $link      = shift;
+	my $target = shift;
+	my $link   = shift;
 	if ($^O eq 'MSWin32')
 	{
 		my $dirswitch = -d $target ? "/d" : "";
@@ -680,6 +680,7 @@ sub _make_symlink
 	{
 		# set env for MSYS, harmless for everyone else
 		local $ENV{MSYS} = "winsymlinks:nativestrict";
+
 		# msys2 perl is smart enough to check if the target is a directory
 		# and set up the right type of symlink
 		symlink $target, $link;
@@ -827,7 +828,7 @@ sub _create_or_update_mirror
 		}
 		else
 		{
-			$status =  $? >> 8;
+			$status = $? >> 8;
 		}
 
 		if (!$status && !$skip_default_name_check)
@@ -845,6 +846,7 @@ sub _create_or_update_mirror
 				$ref =~ s/\s+HEAD.*//;
 				system(
 					qq{git --git-dir="$self->{mirror}" symbolic-ref HEAD $ref});
+
 				# failure here is local, thus not an ignore-mirror-failure
 				$status = $? >> 8;
 			}
@@ -865,6 +867,7 @@ sub _create_or_update_mirror
 			my @gclog = run_log(qq{git --git-dir="$self->{mirror}" gc});
 			push(@gitlog, "----- mirror garbage collection -----\n", @gclog);
 			set_last("$target.mirror.gc");
+
 			# this is also local, so not covered by ignore-mirror-failure
 			$status = $? >> 8;
 		}
@@ -960,6 +963,7 @@ sub _setup_new_workdir
 	chdir $target;
 	mkdir ".git";
 	mkdir ".git/logs";
+
 	# skip qw(remotes rr-cache svn). They shouldn't exist on the linked-to
 	# directory, regardless of what git-new-workdir thinks
 	my @links = qw (config refs logs/refs objects info hooks packed-refs);
@@ -1117,13 +1121,13 @@ sub _update_target
 
 	my @pulllog = run_log("git fetch --prune");
 	my @pull2 = $? ? () : run_log("git reset --hard origin/$rbranch");
-	push(@gitlog, @checklog, @colog, @pulllog,@pull2);
+	push(@gitlog, @checklog, @colog, @pulllog, @pull2);
 
 	chdir "..";
 
 	# run gc from the parent so we find and set the status file correctly
-	if (_test_file_symlink("$target/.git/config") !~ /ok|dangling/  &&
-		$self->{gchours})
+	if (_test_file_symlink("$target/.git/config") !~ /ok|dangling/
+		&& $self->{gchours})
 	{
 		my $last_gc = find_last("$target.gc") || 0;
 		if (time - $last_gc > $self->{gchours} * 3600)

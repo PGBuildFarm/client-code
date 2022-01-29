@@ -53,27 +53,30 @@ sub setup
 
 sub build
 {
-	my $self = shift;
+	my $self  = shift;
 	my $pgsql = $self->{pgsql};
-	my $make = $self->{bfconf}->{make};
-	
+	my $make  = $self->{bfconf}->{make};
+
 	return unless step_wanted('headers-check');
 
 	print time_str(), "checking headers ...\n" if $verbose;
 
 	my @hcheck = run_log("cd $pgsql && $make -s headerscheck");
 	my $status = $? >> 8;
-	
-	my @cppcheck = run_log("cd $pgsql && $make CXXFLAGS='-fsyntax-only -Wall -Wno-register' -s cpluspluscheck");
+
+	my @cppcheck = run_log(
+		"cd $pgsql && $make CXXFLAGS='-fsyntax-only -Wall -Wno-register' -s cpluspluscheck"
+	);
 	$status ||= $? >> 8;
+
 	# output means we have errors
-	$status ||= (@hcheck > 0 || @cppcheck > 0);  
+	$status ||= (@hcheck > 0 || @cppcheck > 0);
 
-	unshift (@hcheck, "headerscheck:\n");
-	unshift (@cppcheck, "cpluspluscheck:\n");
+	unshift(@hcheck,   "headerscheck:\n");
+	unshift(@cppcheck, "cpluspluscheck:\n");
 
-	push (@hcheck,@cppcheck);
-	
+	push(@hcheck, @cppcheck);
+
 	writelog("check-headers", \@hcheck);
 	print @hcheck if ($verbose > 1);
 	send_result("headers-check", $status, \@hcheck) if $status;
