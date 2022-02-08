@@ -606,7 +606,6 @@ sub have_symlink
 			$self->{have_symlink} = 0;
 			return 0;
 		}
-		local $ENV{MSYS} = "winsymlinks:nativestrict";
 		open(my $tg, ">", "tg.txt") || die "opening tg.txt: $1";
 		print $tg "boo!\n";
 		close $tg;
@@ -617,7 +616,7 @@ sub have_symlink
 			return 0;
 		}
 		my $ok = -l "lnk.txt" && -f "lnk.txt";
-		my $txt = file_contents("lnk.txt");
+		my $txt = $ok ? file_contents("lnk.txt") : "";
 		$ok &&= $txt eq "boo!\n";
 		unlink "lnk.txt", "tg.txt";
 		$self->{have_symlink} = $ok;
@@ -630,7 +629,7 @@ sub have_symlink
 		print $tg "boo!\n";
 		close $tg;
 		system(qq{mklink "lnk.txt" "tg.txt" >nul 2>&1});
-		my $txt = file_contents("lnk.txt");
+		my $txt = -e "lnk.txt" ? file_contents("lnk.txt") : "" ;
 		my $ok  = $txt eq "boo!\n";
 		unlink "lnk.txt", "tg.txt";
 		$self->{have_symlink} = $ok;
@@ -678,9 +677,6 @@ sub _make_symlink
 	}
 	else
 	{
-		# set env for MSYS, harmless for everyone else
-		local $ENV{MSYS} = "winsymlinks:nativestrict";
-
 		# msys2 perl is smart enough to check if the target is a directory
 		# and set up the right type of symlink
 		symlink $target, $link;
