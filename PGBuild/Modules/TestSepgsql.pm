@@ -151,6 +151,7 @@ sub locale_end
 	open(my $handle, ">>", "inst/sepgsql/postgresql.conf")
 	  || die "opening inst/sepgsql/postgresql.conf: $!";
 	my $param = "unix_socket_directories";
+	print $handle "\n# Configuration added by buildfarm client\n\n";
 	print $handle "$param = '$tmpdir'\n";
 	print $handle "listen_addresses = ''\n";
 	print $handle "shared_preload_libraries = 'sepgsql'\n";

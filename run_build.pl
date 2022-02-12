@@ -1374,6 +1374,8 @@ sub initdb
 		open($handle, ">>", "$installdir/data-$locale/postgresql.conf")
 		  || die "opening $installdir/data-$locale/postgresql.conf: $!";
 
+		print $handle "\n# Configuration added by buildfarm client\n\n";
+
 		if (!$using_msvc && $Config{osname} !~ /msys|MSWin/)
 		{
 			my $param =

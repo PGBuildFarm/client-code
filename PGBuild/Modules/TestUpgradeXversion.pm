@@ -393,6 +393,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		my $param = "unix_socket_directories";
 		$param = "unix_socket_directory"
 		  if $oversion ne 'HEAD' && $oversion lt 'REL9_3_STABLE';
+		print $opgconf "\n# Configuration added by buildfarm client\n\n";
 		print $opgconf "$param = '$tmpdir'\n";
 		close($opgconf);
 	}
@@ -604,6 +605,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		my $tmp_param = "unix_socket_directories";
 		$tmp_param = "unix_socket_directory"
 		  if $this_branch ne 'HEAD' && $this_branch lt 'REL9_3_STABLE';
+		print $pgconf "\n# Configuration added by buildfarm client\n\n";
 		print $pgconf "listen_addresses = ''\n";
 		print $pgconf "$tmp_param = '$tmpdir'\n";
 		close($pgconf);
@@ -614,6 +616,8 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		my $handle;
 		open($handle, ">>", "$installdir/$oversion-upgrade/postgresql.conf")
 		  || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
+		print $handle "\n# Configuration added by buildfarm client\n\n"
+		  if ($self->{bfconf}->{using_msvc} || $^O eq 'msys');
 		print $handle "shared_preload_libraries = 'dummy_seclabel'\n";
 		close $handle;
 	}
