@@ -119,7 +119,7 @@ $branches_to_build = $explicit_branches if @{$explicit_branches};
 
 unless (((ref $branches_to_build) eq 'ARRAY' && @{$branches_to_build})
 	|| (ref $branches_to_build) =~ /Regexp/i
-	|| $branches_to_build =~ /^(ALL|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST\d)$/)
+	|| $branches_to_build =~ /^(ALL|OLD|STABLE|HEAD_PLUS_LATEST(\d?))$/)
 {
 	die "no branches_to_build specified in $buildconf";
 }
