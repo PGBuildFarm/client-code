@@ -33,13 +33,15 @@ BEGIN
 my @invocation_args = (@ARGV);
 
 my $buildconf = "build-farm.conf";    # default value
-my ($os_version, $compiler_version, $help);
+my ($os_version, $compiler_version, $owner_name, $owner_email, $help);
 
 GetOptions(
 	'config=s'           => \$buildconf,
 	'help'               => \$help,
 	'os-version=s'       => \$os_version,
 	'compiler-version=s' => \$compiler_version,
+	'owner-name=s'       => \$owner_name,
+	'owner-email=s'      => \$owner_email,
 ) || usage("bad command line");
 
 usage("No extra args allowed")
@@ -49,7 +51,7 @@ usage()
   if $help;
 
 usage("must specify at least one item to change")
-  unless ($os_version or $compiler_version);
+  unless ($os_version or $compiler_version or $owner_name or $owner_email);
 
 # dummy branch in case it's used by the config file
 our ($branch) = 'HEAD';
@@ -74,13 +76,15 @@ unless ($upgrade_target)
 # see when we calculate the signature
 
 do { $_ ||= ""; $_ = encode_base64($_, ""); tr/+=/$@/; }
-  foreach ($os_version, $compiler_version);
+  foreach ($os_version, $compiler_version, $owner_name, $owner_email);
 
 my $ts = time;
 
 my $content = "animal=$animal\&ts=$ts";
 $content .= "\&new_os=$os_version"             if $os_version;
 $content .= "\&new_compiler=$compiler_version" if $compiler_version;
+$content .= "\&new_owner=$owner_name"          if $owner_name;
+$content .= "\&new_email=$owner_email"         if $owner_email;
 
 my $sig = sha1_hex($content, $secret);
 
@@ -129,6 +133,8 @@ where option is one or more of
   --config=path                 /path/to/buildfarm.conf
   --os-version=version          new operating system version
   --compiler-version=version    new compiler version
+  --owner-name=name             new owner name
+  --owner-email=emailaddr       new owner email address
   --help                        get this message
 EOH
 
