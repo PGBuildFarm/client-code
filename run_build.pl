@@ -1977,7 +1977,8 @@ sub run_misc_tests
 	  ? $config_opts->{openssl}
 	  : (grep { $_ eq '--with-openssl' } @$config_opts);
 
-	foreach my $testdir (glob("$pgsql/src/test/modules/*"))
+	foreach my $testdir (glob("$pgsql/src/test/modules/*
+                               $pgsql/src/interfaces/*"))
 	{
 		my $testname = basename($testdir);
 		next if $testname =~ /ssl/ && !$using_ssl;
