@@ -837,8 +837,8 @@ sub _create_or_update_mirror
 			$status = $? >> 8;
 			if (!$status)
 			{
-				my $ref = (grep { m!^ref: .*\s+HEAD! } @remote_def)[0];
-				$ref =~ s/^ref: //;
+				my $ref = (grep { m!ref: .*\s+HEAD! } @remote_def)[0];
+				$ref =~ s/.*?ref: //;
 				$ref =~ s/\s+HEAD.*//;
 				system(
 					qq{git --git-dir="$self->{mirror}" symbolic-ref HEAD $ref});
