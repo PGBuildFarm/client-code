@@ -403,6 +403,8 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	my $sconfig = `$other_branch/inst/bin/pg_config --configure`;
 	my $sport = $sconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
 
+	unlink "$other_branch/inst/dump-$this_branch.log";
+
 	system( qq{"$other_branch/inst/bin/pg_ctl" -D }
 		  . qq{"$other_branch/inst/$upgrade_test" -o -F -l }
 		  . qq{"$other_branch/inst/dump-$this_branch.log" -w start }

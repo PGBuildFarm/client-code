@@ -1096,7 +1096,8 @@ sub _update_target
 		print "Repo is not clean:\n", @gitstat
 		  if ($verbose);
 		chdir '..';
-		push(@gitlog, "===========", @gitstat);
+		push(@gitlog, "===========\n") if @gitlog;
+		push(@gitlog, @gitstat);
 		send_result("$target-Git-Dirty", 99, \@gitlog);
 	}
 
@@ -1216,7 +1217,7 @@ sub checkout
 	send_result("$target-Git", $status, \@gitlog) if ($status);
 	unless ($nosend && $nostatus)
 	{
-		push(@gitlog, "===========", @gitstat);
+		push(@gitlog, "===========\n", @gitstat);
 		send_result("$target-Git-Dirty", 99, \@gitlog)
 		  if (@gitstat);
 	}
