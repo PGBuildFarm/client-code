@@ -119,7 +119,7 @@ sub build
 		  src/backend/catalog
 		  src/backend/utils/mb/Unicode
 		  src/bin/pg_rewind
-		  src/test/ssl
+		  src/test/ssl/t
 		  src/tools/msvc/dummylib);
 		do { s/^/-I/; }
 		  foreach @includes;
