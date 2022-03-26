@@ -63,7 +63,7 @@ sub setup
 
 	my $scmconf = {
 		scm             => 'git',
-		scmrepo         => 'git://github.com/pg-redis-fdw/redis_fdw.git',
+		scmrepo         => 'https://github.com/pg-redis-fdw/redis_fdw.git',
 		git_reference   => undef,
 		git_keep_mirror => 'true',
 		git_ignore_mirror_failure => 'true',

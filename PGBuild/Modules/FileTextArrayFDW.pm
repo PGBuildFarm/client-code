@@ -64,7 +64,7 @@ sub setup
 
 	my $scmconf = {
 		scm             => 'git',
-		scmrepo         => 'git://github.com/adunstan/file_text_array_fdw.git',
+		scmrepo         => 'https://github.com/adunstan/file_text_array_fdw.git',
 		git_reference   => undef,
 		git_keep_mirror => 'true',
 		git_ignore_mirror_failure => 'true',
