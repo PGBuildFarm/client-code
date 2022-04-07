@@ -72,6 +72,12 @@ sub build
 	# output means we have errors
 	$status ||= (@hcheck > 0 || @cppcheck > 0);
 
+	# transform Unicode type quotes to Ascii quotes
+	foreach (@hcheck, @cppcheck)
+	{
+		s/\o{342}\o{200}(\o{230}|\o{231})/'/g;
+	}
+
 	unshift(@hcheck,   "headerscheck:\n");
 	unshift(@cppcheck, "cpluspluscheck:\n");
 
