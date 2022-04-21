@@ -29,6 +29,7 @@ BEGIN
 	  $skip_steps $only_steps $find_typedefs
 	  $nosend $nostatus $verbose @config_set $schedule $tests
 	  $check_warnings $delay_check $show_error_log
+	  $avoid_ts_collisions
 	);
 }
 
@@ -46,6 +47,7 @@ our (
 	$skip_steps, $only_steps,     $find_typedefs,     $nosend,
 	$nostatus,   $verbose,        @config_set,        $schedule,
 	$tests,      $check_warnings, $delay_check,       $show_error_log,
+	$avoid_ts_collisions,
 );
 
 my (%standard_options);
@@ -71,6 +73,7 @@ my (%standard_options);
 	'check-warnings!'     => \$check_warnings,      # allow --nocheck-warnings
 	'delay-check'         => \$delay_check,
 	'show-error-log'      => \$show_error_log,
+	'avoid-ts-collisions' => \$avoid_ts_collisions,
 );
 
 $buildconf = "build-farm.conf";                     # default value
@@ -88,9 +91,11 @@ sub fetch_options
 	$orig_verbose = $verbose;
 	$verbose = 1 if (defined($verbose) && $verbose == 0);
 	$verbose ||= 0;  # stop complaints about undefined var in numeric comparison
-	                 # work around fact that modern perl doesn't put .
-	                 # in the search path any more
+
+	# work around fact that modern perl doesn't put . in the search path
+	# any more
 	$buildconf = "./$buildconf" if (-f $buildconf && $buildconf !~ m!/!);
+
 	return;
 }
 

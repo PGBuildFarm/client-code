@@ -539,6 +539,24 @@ unless ($using_msvc)
 # conflicts with other parallel runs
 use vars qw($now);
 BEGIN { $now = time; }
+# unless --avoid-ts-collisions is in use
+if ($avoid_ts_collisions)
+{
+	# In this mode ensure that concurrent independent runs for the same animal
+	# on different branches get slightly different snapshot timestamps,
+	# to keep the server happy.
+	# Not needed if running with run_branches.pl, as it already does this
+	# for parallel runs.
+	open (my $tslock, ">", "$buildroot/$animal.ts.LCK") ||
+	  die "opening tslock $!";
+	# this is a blocking lock, so only one run at a time can get past here.
+	die "acquiring lock on $buildroot/$animal.ts.LCK"
+	  unless flock($tslock, LOCK_EX);
+	$now = time;
+	sleep 2;
+	# release the lock;
+	close($tslock);
+}
 
 my $dbstarted;
 
