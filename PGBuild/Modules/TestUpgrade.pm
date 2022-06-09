@@ -18,6 +18,7 @@ use PGBuild::SCM;
 use PGBuild::Utils qw(:DEFAULT $steps_completed);
 
 use File::Basename;
+use File::Find;
 
 use strict;
 use warnings;
@@ -139,9 +140,18 @@ sub check
          $self->{pgsql}/src/bin/pg_upgrade/*.log
          $self->{pgsql}/src/bin/pg_upgrade/log/*
          $self->{pgsql}/src/bin/pg_upgrade/tmp_check/*/*.diffs
-         $self->{pgsql}/src/bin/pg_upgrade/tmp_check/data/pg_upgrade_output.d/log/*
          $self->{pgsql}/src/test/regress/*.diffs"
 	);
+
+	# Extra location of logs, changed as per Postgres 15~ with multiple
+	# levels of subdirectories.
+	find(
+		sub {
+			push @logfiles, $File::Find::name
+				if $File::Find::name =~ m/.*\.log/;
+		},
+		"$self->{pgsql}/src/bin/pg_upgrade/tmp_check/data/pg_upgrade_output.d/");
+
 	$log->add_log($_) foreach (@logfiles);
 
 	my $status = $? >> 8;
