@@ -727,12 +727,13 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 				{
 					push @updatedbs, '-d',$1;
 				}
-				elsif ($upd =~ /^\\connect.*\s"dbname='(.*)'"$/)
+				elsif ($upd =~ /^\\connect.*dbname='(.*)'"$/)
 				{
 					push @updatedbs, '-d',qq{"$1"};
 				}
 			}
 			my $dbstr = join(' ',@updatedbs);
+			# print "running amcheck again ...\n";
 			system("pg_amcheck $dbstr --install-missing"
 				   . qq{> "$upgrade_loc/$oversion-amcheck-2.log" 2>&1 });
 			return if $?;
@@ -808,7 +809,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		($oversion eq $this_branch && $difflines == 0)
 		|| (   $oversion ne $this_branch
 			&& $oversion ge 'REL9_6_STABLE'
-			&& $difflines < 80)
+			&& $difflines < 90)
 		|| (   $oversion ne $this_branch
 			&& $oversion lt 'REL9_6_STABLE'
 			&& $difflines < 700)
@@ -921,7 +922,8 @@ sub installcheck
 		  PGBuild::Log->new("xversion-upgrade-$oversion-$this_branch");
 
 		foreach my $log (glob("$upgrade_loc/*$oversion*"),
-			glob("$installdir/${oversion}-pg_upgrade*"))
+						 glob("$installdir/${oversion}-pg_upgrade*"),
+						 glob("$installdir/${oversion}-20*T*.*/*"))
 		{
 			next if $log =~ /\.custom$/;
 			my $bn = basename $log;
