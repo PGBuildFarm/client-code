@@ -733,7 +733,6 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 				}
 			}
 			my $dbstr = join(' ',@updatedbs);
-			# print "running amcheck again ...\n";
 			system("pg_amcheck $dbstr --install-missing"
 				   . qq{> "$upgrade_loc/$oversion-amcheck-2.log" 2>&1 });
 			return if $?;
