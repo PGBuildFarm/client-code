@@ -8,7 +8,7 @@ ALLPERLFILES = $(shell find . -path ./sandbox -prune -o -path ./*root -prune -o 
 # these are the explicitly selected perl files that will go in a 
 # release tarball
 PERLFILES = run_build.pl run_web_txn.pl run_branches.pl \
-	update_personality.pl setnotes.pl \
+	update_personality.pl setnotes.pl clear_alerts.pl \
 	build-farm.conf.sample  \
 	PGBuild/SCM.pm PGBuild/Options.pm PGBuild/WebTxn.pm PGBuild/Utils.pm \
 	PGBuild/Log.pm PGBuild/VSenv.pm \
