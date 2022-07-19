@@ -625,6 +625,13 @@ sub have_symlink
 	else
 	{
 		# MSWin32
+
+		# even if symlinks are working it appears that even recent versions
+		# of windows git are unable to handle them, so just don't use them here
+		$self->{have_symlink} = 0;
+		return 0;
+
+		# if the above were not true we'd do this:
 		open(my $tg, ">", "tg.txt") || return 0;
 		print $tg "boo!\n";
 		close $tg;
