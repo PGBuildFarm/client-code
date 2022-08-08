@@ -17,7 +17,7 @@ use Fcntl qw(:flock :seek);
 use File::Spec;
 use File::Basename;
 use File::Path;
-use Cwd qw(getcwd);
+use Cwd qw(abs_path getcwd);
 use POSIX ':sys_wait_h';
 
 use FindBin;
@@ -92,7 +92,8 @@ die "from-source cannot be used with run_branches,pl"
   if ($from_source || $from_source_clean);
 
 
-my $buildroot  = $PGBuild::conf{build_root};
+my $buildroot  = $PGBuild::conf{build_root} ||
+  abs_path(dirname(__FILE__)) . "/buildroot";;
 my $using_msvc = $PGBuild::conf{using_msvc};
 
 exit 0 if -e "$buildroot/$animal.inhibit-runs";
