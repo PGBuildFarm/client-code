@@ -34,14 +34,22 @@ my @invocation_args = (@ARGV);
 
 my $buildconf = "build-farm.conf";    # default value
 my ($help);
+my ($enable,$disable);
 
 GetOptions(
 	'config=s'           => \$buildconf,
 	'help'               => \$help,
+	'enable'             => \$enable,
+	'disable'            => \$disable,
 ) || usage("bad command line");
 
 usage("No extra args allowed")
   if @_;
+
+usage("Only one of --enable and --disable allowed")
+  if (defined $enable && defined $disable);
+
+my $enable_op = $enable || 0; # default is disable
 
 usage()
   if $help;
@@ -57,11 +65,12 @@ require $buildconf;
 my ($target, $animal, $secret, $upgrade_target) =
   @PGBuild::conf{qw(target animal secret upgrade_target)};
 
-$target =~ s/pgstatus.pl/clear_alerts.pl/;
+$target =~ s/pgstatus.pl/manage_alerts.pl/;
 
 my $ts = time;
 
 my $content = "animal=$animal\&ts=$ts";
+$content = "$content\&op=enable" if $enable_op;
 
 my $sig = sha1_hex($content, $secret);
 
@@ -96,6 +105,15 @@ unless ($response->is_success)
 	exit 1;
 }
 
+if ($enable_op)
+{
+	print "Alerts enabled\n";
+}
+else
+{
+	print "Alerts disabled\n";
+}
+
 exit(0);
 
 #######################################################################
@@ -105,10 +123,12 @@ sub usage
 	my $opt_message = shift;
 	print "$opt_message\n" if $opt_message;
 	print <<'EOH';
-clear_alerts.pl [ option ... ]
+manage_alerts.pl [ option ... ]
 where option is one or more of
   --config=path                 /path/to/buildfarm.conf
   --help                        get this message
+  --disable                     disable alerts (default)
+  --enable                      enable_alerts
 EOH
 
 	exit defined($opt_message) + 0;
