@@ -632,6 +632,7 @@ sub have_symlink
 		return 0;
 
 		# if the above were not true we'd do this:
+		## no critic (ControlStructures::ProhibitUnreachableCode)
 		open(my $tg, ">", "tg.txt") || return 0;
 		print $tg "boo!\n";
 		close $tg;
