@@ -158,7 +158,7 @@ sub installcheck
 	my @log    = run_log("cd $self->{where} && $cmd");
 	my $status = $? >> 8;
 
-	my @logs = glob("$self->{where}/tmp_check/log/*");
+	my @logs = glob("$self->{where}/tmp_check/log/* $self->{where}/log/*");
 	my $log  = PGBuild::Log->new("$testset-installcheck");
 	$log->add_log($_) foreach @logs;
 	push(@log, $log->log_string);

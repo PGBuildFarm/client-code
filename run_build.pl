@@ -1910,7 +1910,7 @@ sub run_tap_test
 
 	my $log = PGBuild::Log->new("$captest$captarget");
 
-	my @logs = glob("$dir/tmp_check/log/*");
+	my @logs = glob("$dir/tmp_check/log/* $dir/log/*");
 
 	$log->add_log($_) foreach (@logs);
 
