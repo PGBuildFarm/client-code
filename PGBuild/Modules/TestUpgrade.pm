@@ -72,7 +72,7 @@ sub check
 
 	# rerun this check in case rm_worktrees is being used, in which case it
 	# will fail in the setup step because the code isn't yet checked out
-	return if -d "$self->{buildroot}/$self->{branch}/pgsql/src/bin/pg_upgrade/t";
+	return if -d "$self->{buildroot}/$self->{pgbranch}/pgsql/src/bin/pg_upgrade/t";
 
 	return unless step_wanted('pg_upgrade-check');
 
