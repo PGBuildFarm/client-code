@@ -24,7 +24,7 @@ use Cwd;
 use strict;
 use warnings;
 
-use vars qw($VERSION); $VERSION = 'REL_14';
+our($VERSION); $VERSION = 'REL_14';
 
 my $hooks = {
 	'build'      => \&build,

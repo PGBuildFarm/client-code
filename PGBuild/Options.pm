@@ -15,9 +15,9 @@ use strict;
 use warnings;
 use Getopt::Long;
 
-use vars qw($VERSION); $VERSION = 'REL_14';
+our($VERSION); $VERSION = 'REL_14';
 
-use vars qw(@option_list);
+our (@option_list);
 
 my $orig_verbose;
 

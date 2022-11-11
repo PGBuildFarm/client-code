@@ -35,7 +35,7 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
-use vars qw($VERSION); $VERSION = 'REL_14';
+our($VERSION); $VERSION = 'REL_14';
 
 use Config;
 use Fcntl qw(:flock :seek);
@@ -67,7 +67,7 @@ BEGIN
 
 # save a copy of the original enviroment for reporting
 # save it early to reduce the risk of prior mangling
-use vars qw($orig_env);
+our($orig_env);
 
 BEGIN
 {
@@ -144,7 +144,7 @@ if ($only_steps =~ /\S/)
 	%only_steps = map { $_ => 1 } split(/\s+/, $only_steps);
 }
 
-use vars qw($branch);
+our($branch);
 my $explicit_branch    = shift;
 my $from_source_branch = '';
 if ($from_source || $from_source_clean)
@@ -254,7 +254,7 @@ if (ref($force_every) eq 'HASH')
 
 my $config_opts = $PGBuild::conf{config_opts};
 
-use vars qw($buildport);
+our($buildport);
 
 if (exists $PGBuild::conf{base_port})
 {
@@ -537,7 +537,7 @@ unless ($using_msvc)
 # the time we take the snapshot, sorta, really the start of the run
 # take this value as early as possible to lower the risk of
 # conflicts with other parallel runs
-use vars qw($now);
+our($now);
 BEGIN { $now = time; }
 # unless --avoid-ts-collisions is in use
 if ($avoid_ts_collisions)

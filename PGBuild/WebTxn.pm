@@ -16,10 +16,7 @@ needed on older Msys installations (i.e. things running perl < 5.8).
 use strict;
 use warnings;
 
-use vars qw($VERSION); $VERSION = 'REL_14';
-
-use vars qw($changed_this_run $changed_since_success $branch $status $stage
-  $animal $ts $log_data $confsum $target $verbose $secret);
+our($VERSION); $VERSION = 'REL_14';
 
 BEGIN
 {
@@ -75,6 +72,11 @@ sub run_web_txn
 	open($txdhandle, '<', "$txfname") or die "opening $txfname: $!";
 	my $txdata = <$txdhandle>;
 	close($txdhandle);
+
+	# variables we're going to read from $txdata
+	my ($changed_this_run, $changed_since_success, $branch, $status, $stage,
+		$animal, $ts, $log_data, $confsum, $target, $secret);
+	my ($verbose) ;  ## no critic (ProhibitUnusedVariables)
 
 	eval $txdata;    ## no critic (ProhibitStringyEval)
 	if ($@)

@@ -11,7 +11,7 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
-use vars qw($VERSION); $VERSION = 'REL_14';
+our($VERSION); $VERSION = 'REL_14';
 
 use Fcntl qw(:flock :seek);
 use File::Spec;
@@ -76,7 +76,7 @@ die "need one of --run-all, --run-one, --run_parallel "
   unless ($run_all || $run_one || $run_parallel);
 
 # set up a "branch" variable for processing the config file
-use vars qw($branch);
+our($branch);
 $branch = 'global';
 
 #
@@ -339,7 +339,7 @@ sub check_max
 sub parallel_child
 {
 	my $plockdir = shift;
-	my $branch   = shift;
+	my $brnch   = shift;
 
 	# grab the global parallel lock. Wait if necessary
 	# only keep this for a very short time, just enough
@@ -352,8 +352,8 @@ sub parallel_child
 	}
 
 	# the running lock will be released when the child exits;
-	open(my $plock, ">", "$plockdir/$animal.$branch.running.LCK")
-	  || die "opening parallel running lock for $animal:$branch";
+	open(my $plock, ">", "$plockdir/$animal.$brnch.running.LCK")
+	  || die "opening parallel running lock for $animal:$brnch";
 	if (!flock($plock, LOCK_EX | LOCK_NB))
 	{
 		print STDERR "Unable to get parallel running lock. Exiting.\n";
@@ -362,7 +362,7 @@ sub parallel_child
 
 	# release the global lock
 	close($glock);
-	return run_branch($branch);
+	return run_branch($brnch);
 }
 
 
@@ -381,8 +381,8 @@ sub run_parallel
 	{
 		if (check_max($plockdir, $max_parallel))
 		{
-			my $branch = shift @pbranches;
-			spawn(\&parallel_child, $plockdir, $branch);
+			my $brnch = shift @pbranches;
+			spawn(\&parallel_child, $plockdir, $brnch);
 		}
 
 		# no need to do more if there are no more branches
@@ -412,8 +412,8 @@ sub run_parallel
 
 sub run_branch
 {
-	my $branch = shift;
-	my @args = ($run_build, PGBuild::Options::standard_option_list(), $branch);
+	my $brnch = shift;
+	my @args = ($run_build, PGBuild::Options::standard_option_list(), $brnch);
 
 	# On cygwin, explicitly use perl from the path (and not this perl,
 	# so don't use $^X)
