@@ -42,7 +42,8 @@ allow = once
 [-InputOutput::RequireBriefOpen]
 
 # from perl-critic-more - don't require use of exceptions
-[-ErrorHandling::RequireUseOfExceptions ]
+# not everywhere has perl-critic-more available
+# [-ErrorHandling::RequireUseOfExceptions ]
 
 # don't require unpacking @_ (even though we do in most cases)
 [-Subroutines::RequireArgUnpacking]
