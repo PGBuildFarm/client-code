@@ -19,6 +19,7 @@ use File::Basename;
 use File::Path;
 use Cwd qw(abs_path getcwd);
 use POSIX ':sys_wait_h';
+use JSON::PP;
 
 use FindBin;
 use lib $FindBin::RealBin;
@@ -125,6 +126,7 @@ unless (((ref $branches_to_build) eq 'ARRAY' && @{$branches_to_build})
 	die "no branches_to_build specified in $buildconf";
 }
 
+my %branch_gitrefs;
 my @branches;
 if ((ref $branches_to_build) eq 'ARRAY')
 {
@@ -163,7 +165,7 @@ elsif ($branches_to_build =~
 	my $save_path = $ENV{PATH};
 	$ENV{PATH} = $PGBuild::conf{build_env}->{PATH}
 	  if ($PGBuild::conf{build_env}->{PATH});
-	(my $url = $PGBuild::conf{target}) =~ s/cgi-bin.*/branches_of_interest.txt/;
+	(my $url = $PGBuild::conf{target}) =~ s/cgi-bin.*/branches_of_interest.json/;
 	$url =~ s/branches_of_interest/old_branches_of_interest/
 	  if $match eq 'OLD';
 	my $branches_of_interest;
@@ -208,7 +210,15 @@ elsif ($branches_to_build =~
 	}
 	die "getting branches of interest ($url)" unless $branches_of_interest;
 	$ENV{PATH} = $save_path;
-	push(@branches, $_) foreach (split(/\s+/, $branches_of_interest));
+
+	my $gitrefs = decode_json($branches_of_interest);
+
+	foreach my $gr (@$gitrefs)
+	{
+		my ($br,$ref) = each %$gr;
+		push(@branches, $br);
+		$branch_gitrefs{$br} = $ref;
+	}
 
 	# assumes that branches_of_interest is in order, oldest through to HEAD
 	splice(@branches, 0, -2)
@@ -413,6 +423,26 @@ sub run_parallel
 sub run_branch
 {
 	my $brnch = shift;
+
+	my $gitref = $branch_gitrefs{$brnch};
+	if ($gitref &&
+		-e "$buildroot/$brnch/$animal.lastrun-logs/githead.log" &&
+		! $PGBuild::Options::forcerun &&
+		! -e "$buildroot/$brnch/$animal.force-one-run")
+	{
+		# skip the run if the last thing we built is what the server says is
+		# is the latest commit.
+		my $last_gitref =
+		  file_contents("$buildroot/$brnch/$animal.lastrun-logs/githead.log");
+		if (index($last_gitref, $gitref) == 0)
+		{
+			local ($|) = 1;
+			print "@{[scalar(localtime())]}: $animal:$brnch is up to date.\n"
+			  if ($verbose);
+			return 0;
+		}
+	}
+
 	my @args = ($run_build, PGBuild::Options::standard_option_list(), $brnch);
 
 	# On cygwin, explicitly use perl from the path (and not this perl,
