@@ -229,7 +229,7 @@ elsif ($branches_to_build =~
 	  if ($branches_to_build eq 'STABLE');
 }
 
-@branches = apply_throttle(@branches);
+@branches = apply_filters(@branches);
 
 my $global_lock_dir = $PGBuild::conf{global}->{global_lock_dir}
   || $PGBuild::conf{global_lock_dir}    # legacy support
@@ -424,25 +424,6 @@ sub run_branch
 {
 	my $brnch = shift;
 
-	my $gitref = $branch_gitrefs{$brnch};
-	if ($gitref &&
-		-e "$buildroot/$brnch/$animal.lastrun-logs/githead.log" &&
-		! $PGBuild::Options::forcerun &&
-		! -e "$buildroot/$brnch/$animal.force-one-run")
-	{
-		# skip the run if the last thing we built is what the server says is
-		# is the latest commit.
-		my $last_gitref =
-		  file_contents("$buildroot/$brnch/$animal.lastrun-logs/githead.log");
-		if (index($last_gitref, $gitref) == 0)
-		{
-			local ($|) = 1;
-			print "@{[scalar(localtime())]}: $animal:$brnch is up to date.\n"
-			  if ($verbose);
-			return 0;
-		}
-	}
-
 	my @args = ($run_build, PGBuild::Options::standard_option_list(), $brnch);
 
 	# On cygwin, explicitly use perl from the path (and not this perl,
@@ -479,9 +460,36 @@ sub find_last_status
 	return $ts + 0;
 }
 
-sub apply_throttle
+sub apply_filters
 {
-	my @thrbranches = @_;
+	my @filt_branches = @_;
+	my @thrbranches;
+
+	# remove up to date branches unless they are forced
+	foreach my $brnch (@filt_branches)
+	{
+		my $gitref = $branch_gitrefs{$brnch};
+		my $up_to_date = 0;
+		if ($gitref &&
+			-e "$buildroot/$brnch/$animal.lastrun-logs/githead.log" &&
+			! $PGBuild::Options::forcerun &&
+			! -e "$buildroot/$brnch/$animal.force-one-run")
+		{
+			# skip the run if the last thing we built is what the server says is
+			# is the latest commit.
+			my $last_gitref =
+			  file_contents("$buildroot/$brnch/$animal.lastrun-logs/githead.log");
+			if (index($last_gitref, $gitref) == 0)
+			{
+				print "@{[scalar(localtime())]}: $animal:$brnch is up to date.\n"
+				  if ($verbose);
+				$up_to_date = 1;
+			}
+		}
+		push(@thrbranches, $brnch) unless $up_to_date;
+	}
+
+	# apply a throttle if configured
 	return @thrbranches unless exists $PGBuild::conf{throttle};
 	my @result;
 	my %throttle = %{ $PGBuild::conf{throttle} };
