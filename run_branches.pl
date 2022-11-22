@@ -113,6 +113,31 @@ mkpath $buildroot unless -d $buildroot;
 
 die "$buildroot does not exist or is not a directory" unless -d $buildroot;
 
+my $global_lock_dir = $PGBuild::conf{global}->{global_lock_dir}
+  || $PGBuild::conf{global_lock_dir}    # legacy support
+  || $PGBuild::conf{build_root}         # default
+  || '';
+
+unless ($global_lock_dir && -d $global_lock_dir)
+{
+	die "no global lock directory: $global_lock_dir";
+}
+
+# acquire the lock
+
+my $lockfile;
+
+my $lockfilename = "$global_lock_dir/GLOBAL.lck";
+
+open($lockfile, ">", "$lockfilename") || die "opening lockfile: $!";
+
+if (!flock($lockfile, LOCK_EX | LOCK_NB))
+{
+	print "Another process holds the lock on " . "$lockfilename. Exiting.\n"
+	  if ($verbose);
+	exit(0);
+}
+
 my $branches_to_build = $PGBuild::conf{global}->{branches_to_build}
   || $PGBuild::conf{branches_to_build};    # legacy support
 
@@ -124,6 +149,12 @@ unless (((ref $branches_to_build) eq 'ARRAY' && @{$branches_to_build})
 	|| $branches_to_build =~ /^(ALL|OLD|STABLE|HEAD_PLUS_LATEST(\d?))$/)
 {
 	die "no branches_to_build specified in $buildconf";
+}
+
+if (-e "$buildroot/$animal.force-one-run")
+{
+	$PGBuild::Options::forcerun = 1;
+	unlink "$buildroot/$animal.force-one-run";
 }
 
 my %branch_gitrefs;
@@ -230,37 +261,6 @@ elsif ($branches_to_build =~
 }
 
 @branches = apply_filters(@branches);
-
-my $global_lock_dir = $PGBuild::conf{global}->{global_lock_dir}
-  || $PGBuild::conf{global_lock_dir}    # legacy support
-  || $PGBuild::conf{build_root}         # default
-  || '';
-
-unless ($global_lock_dir && -d $global_lock_dir)
-{
-	die "no global lock directory: $global_lock_dir";
-}
-
-# acquire the lock
-
-my $lockfile;
-
-my $lockfilename = "$global_lock_dir/GLOBAL.lck";
-
-open($lockfile, ">", "$lockfilename") || die "opening lockfile: $!";
-
-if (!flock($lockfile, LOCK_EX | LOCK_NB))
-{
-	print "Another process holds the lock on " . "$lockfilename. Exiting.\n"
-	  if ($verbose);
-	exit(0);
-}
-
-if (-e "$buildroot/$animal.force-one-run")
-{
-	$PGBuild::Options::forcerun = 1;
-	unlink "$buildroot/$animal.force-one-run";
-}
 
 if ($run_parallel)
 {
