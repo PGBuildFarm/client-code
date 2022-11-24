@@ -585,6 +585,18 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		}
 	}
 
+	# can't upgrade aclitem in user tables from pre 16 to 16+
+	if (   ($this_branch gt 'REL_15_STABLE' || $this_branch eq 'HEAD')
+		&& ($oversion le 'REL_15_STABLE' && $oversion ne 'HEAD'))
+	{
+		my $prstmt = "alter table if exists public.tab_core_types
+                      drop column if exists aclitem";
+
+		run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
+			"regression", "$upgrade_loc/$oversion-copy.log", 1);
+		return if $?;
+	}
+
 	my $extra_digits = "";
 
 	if (   $oversion ne 'HEAD'
