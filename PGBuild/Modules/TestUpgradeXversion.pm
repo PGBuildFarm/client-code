@@ -667,6 +667,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		  . qq{>> "$upgrade_loc/$oversion-upgrade.log" 2>&1});
 
 	foreach my $upgradelog (glob("$installdir/pg_upgrade*
+                                  $installdir/*.txt
                                   $new_data/pg_upgrade_output.d/*"))
 	{
 		my $bl = basename $upgradelog;
@@ -941,7 +942,7 @@ sub installcheck
 			next if $log =~ /\.custom$/;
 			my $bn = basename $log;
 			next if $bn =~ /^(origin|converted)/;
-			$testlog->add_log($log) if -s $log || $bn =~ /dumpdiff/;
+			$testlog->add_log($log) if (-s $log) || $bn =~ /dumpdiff/;
 		}
 		push(@testout, $testlog->log_string);
 
