@@ -232,12 +232,14 @@ sub save_for_testing
 
 	return if $?;
 
+	my $can_symlink = eval { symlink "",""; 1 }; # can fail on windows
+
 	foreach my $idir (qw(bin lib include share))
 	{
-		if ($self->{bfconf}->{using_msvc})
+		if ($self->{bfconf}->{using_msvc} || ! $can_symlink)
 		{
 			system(
-				qq{mklink /J "$installdir/$idir" "$savebin/$idir" >> "$upgrade_loc/save.log" 2>&1}
+				qq{cmd /c mklink /J "$installdir/$idir" "$savebin/$idir" >> "$upgrade_loc/save.log" 2>&1}
 			);
 		}
 		else
