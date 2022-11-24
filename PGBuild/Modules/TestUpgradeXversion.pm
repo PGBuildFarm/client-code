@@ -747,10 +747,13 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 					push @updatedbs, '-d',qq{"$1"};
 				}
 			}
-			my $dbstr = join(' ',@updatedbs);
-			system("pg_amcheck $dbstr --install-missing"
-				   . qq{> "$upgrade_loc/$oversion-amcheck-2.log" 2>&1 });
-			return if $?;
+			if (@updatedbs)
+			{
+				my $dbstr = join(' ',@updatedbs);
+				system("pg_amcheck $dbstr --install-missing"
+					   . qq{> "$upgrade_loc/$oversion-amcheck-2.log" 2>&1 });
+				return if $?;
+			}
 		}
 	}
 
