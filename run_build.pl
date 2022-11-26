@@ -284,6 +284,7 @@ $logdirname = "lastrun-logs";
 if ($from_source || $from_source_clean)
 {
 	$from_source ||= $from_source_clean;
+	die "source directory $from_source does not exist" unless -d $from_source;
 	$from_source = abs_path($from_source)
 	  unless File::Spec->file_name_is_absolute($from_source);
 
