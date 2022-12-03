@@ -13,6 +13,9 @@ use warnings;
 
 our($VERSION); $VERSION = 'REL_14';
 
+# minimum version supported
+use v5.14; ## no critic (ProhibitVersionStrings)
+
 use Fcntl qw(:flock :seek);
 use File::Spec;
 use File::Basename;
