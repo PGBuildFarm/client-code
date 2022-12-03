@@ -13,8 +13,10 @@ See accompanying License file for license details
 # part of postgresql buildfarm suite.
 #
 #
-# The comments below now only apply to older Msys installations (where
-# the native SDK perl version is < 5.8).
+# The comments blow now only apply to installations that can't run the web
+# transaction using the perl used for the scripts. Mostly this is msys
+# perls lacking LWP::Protocol::https.
+#
 # All other installations now do not need to set aux_path, nor should this
 # script be called.
 #

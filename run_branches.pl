@@ -20,6 +20,7 @@ use File::Path;
 use Cwd qw(abs_path getcwd);
 use POSIX ':sys_wait_h';
 use JSON::PP;
+use LWP::UserAgent;
 
 use FindBin;
 use lib $FindBin::RealBin;
@@ -36,16 +37,6 @@ use PGBuild::Options;
 use PGBuild::Utils qw(:DEFAULT $send_result_routine
   $st_prefix $logdirname $branch_root);
 use PGBuild::SCM;
-
-# older msys is ging to use a different perl to run LWP, so we can't absolutely
-# require this module there
-BEGIN
-{
-	## no critic (ValuesAndExpressions::ProhibitMismatchedOperators)
-	# perlcritic gets confused by version comparisons - this usage is
-	# sanctioned by perldoc perlvar
-	require LWP::UserAgent if $^O ne 'msys' || $^V ge v5.8.0;
-}
 
 $send_result_routine = \&send_res;
 
@@ -200,9 +191,6 @@ elsif ($branches_to_build =~
 	$url =~ s/branches_of_interest/old_branches_of_interest/
 	  if $match eq 'OLD';
 	my $branches_of_interest;
-	## no critic (ValuesAndExpressions::ProhibitMismatchedOperators)
-	# perlcritic gets confused by version comparisons - this usage is
-	# sanctioned by perldoc perlvar
 
 	my $have_msys_https = $url !~ /^https:/;  # if not needed, assume it's there
 
@@ -211,7 +199,7 @@ elsif ($branches_to_build =~
 		eval { require LWP::Protocol::https; };
 		$have_msys_https = 1 unless $@;
 	}
-	if ($^O eq 'msys' && ($^V lt v5.8.0 || !$have_msys_https))
+	if ($^O eq 'msys' && !$have_msys_https)
 	{
 		# msys: use perl in PATH if necessary
 		$branches_of_interest = `perl -MLWP::Simple -e "getprint(q{$url})"`;

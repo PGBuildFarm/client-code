@@ -9,58 +9,24 @@ See accompanying License file for license details
 
 Most of this code is imported from the older standalone script run_web_txn.pl
 which is now just a shell that calls the function below. It is now only
-needed on older Msys installations (i.e. things running perl < 5.8).
+needed on certain Msys installations.
 
 =cut
 
 use strict;
 use warnings;
 
+use LWP;
+use HTTP::Request::Common;
+use MIME::Base64;
+use Digest::SHA qw(hmac_sha256_hex);
+use JSON::PP;
+
 our($VERSION); $VERSION = 'REL_14';
-
-BEGIN
-{
-	## no critic (ValuesAndExpressions::ProhibitMismatchedOperators)
-	# perlcritic gets confused by version comparisons - this usage is
-	# sanctioned by perldoc perlvar
-
-	# see below for why we can't always make these compile time requirements
-	if (defined($^V) && $^V ge v5.8.0)
-	{
-		require LWP;
-		require HTTP::Request::Common;
-		require MIME::Base64;
-		require Digest::SHA;
-		require Storable;
-	}
-}
 
 sub run_web_txn
 {
-
 	my $lrname = shift || 'lastrun-logs';
-
-	# make these runtime imports so they are loaded by the perl that's running
-	# the procedure. On older Msys it won't be the same as the one that's
-	# running run_build.pl.
-
-	require LWP;
-	import LWP;
-	require HTTP::Request::Common;
-	import HTTP::Request::Common;
-	require MIME::Base64;
-	import MIME::Base64;
-	require Digest::SHA;
-	import Digest::SHA qw(hmac_sha256_hex);
-	require Storable;
-	import Storable qw(nfreeze);
-
-	# not a hard requirement so we only try this at runtime
-	# A number of perl installations won't have JSON::PP installed, although
-	# since it's pure perl installing it should be fairly simple.
-	my $json_available;
-	eval { require JSON::PP; import JSON::PP; };
-	$json_available = 1 unless $@;
 
 	# avoid using the Utils file handling here so we don't introduce an
 	# additional dependency. It might be OK to use but it might not,
@@ -117,7 +83,9 @@ sub run_web_txn
 
 	# very modern Storable modules choke on regexes
 	# the server has no need of them anyway, so just chop them out
-	# they are still there in the text version used for reporting
+	# they are still there in the text version used for reporting.
+	# Note: we still do this even though we don't use Storable any more
+	# on the client, because the server uses Storable.
 	foreach my $k (keys %$Script_Config)
 	{
 		delete $Script_Config->{$k}
@@ -128,13 +96,7 @@ sub run_web_txn
 		delete $Script_Config->{global}->{branches_to_build};
 	}
 
-	# if we have an available json encoder from JSON::PP then use it and
-	# send json. Otherwise fall back to sending a serialized blob made with
-	# Storable's nfreeze. The server knows how to tell the difference.
-	my $frozen_sconf =
-	  $json_available
-	  ? encode_json($Script_Config)
-	  : nfreeze($Script_Config);
+	my $frozen_sconf = encode_json($Script_Config);
 
 	# make the base64 data escape-proof; = is probably ok but no harm done
 	# this ensures that what is seen at the other end is EXACTLY what we
