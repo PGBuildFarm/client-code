@@ -11,10 +11,10 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
-our($VERSION); $VERSION = 'REL_14';
+our ($VERSION); $VERSION = 'REL_14';
 
 # minimum version supported
-use v5.14; ## no critic (ProhibitVersionStrings)
+use v5.14;    ## no critic (ProhibitVersionStrings)
 
 use Fcntl qw(:flock :seek);
 use File::Spec;
@@ -71,7 +71,7 @@ die "need one of --run-all, --run-one, --run_parallel "
   unless ($run_all || $run_one || $run_parallel);
 
 # set up a "branch" variable for processing the config file
-our($branch);
+our ($branch);
 $branch = 'global';
 
 #
@@ -87,8 +87,8 @@ die "from-source cannot be used with run_branches,pl"
   if ($from_source || $from_source_clean);
 
 
-my $buildroot  = $PGBuild::conf{build_root} ||
-  abs_path(dirname(__FILE__)) . "/buildroot";;
+my $buildroot = $PGBuild::conf{build_root}
+  || abs_path(dirname(__FILE__)) . "/buildroot";
 my $using_msvc = $PGBuild::conf{using_msvc};
 
 exit 0 if -e "$buildroot/$animal.inhibit-runs";
@@ -190,7 +190,8 @@ elsif ($branches_to_build =~
 	my $save_path = $ENV{PATH};
 	$ENV{PATH} = $PGBuild::conf{build_env}->{PATH}
 	  if ($PGBuild::conf{build_env}->{PATH});
-	(my $url = $PGBuild::conf{target}) =~ s/cgi-bin.*/branches_of_interest.json/;
+	(my $url = $PGBuild::conf{target}) =~
+	  s/cgi-bin.*/branches_of_interest.json/;
 	$url =~ s/branches_of_interest/old_branches_of_interest/
 	  if $match eq 'OLD';
 	my $branches_of_interest;
@@ -237,7 +238,7 @@ elsif ($branches_to_build =~
 
 	foreach my $gr (@$gitrefs)
 	{
-		my ($br,$ref) = each %$gr;
+		my ($br, $ref) = each %$gr;
 		push(@branches, $br);
 		$branch_gitrefs{$br} = $ref;
 	}
@@ -340,7 +341,7 @@ sub check_max
 sub parallel_child
 {
 	my $plockdir = shift;
-	my $brnch   = shift;
+	my $brnch    = shift;
 
 	# grab the global parallel lock. Wait if necessary
 	# only keep this for a very short time, just enough
@@ -459,20 +460,22 @@ sub apply_filters
 	# remove up to date branches unless they are forced
 	foreach my $brnch (@filt_branches)
 	{
-		my $gitref = $branch_gitrefs{$brnch};
+		my $gitref     = $branch_gitrefs{$brnch};
 		my $up_to_date = 0;
-		if ($gitref &&
-			-e "$buildroot/$brnch/$animal.lastrun-logs/githead.log" &&
-			! $PGBuild::Options::forcerun &&
-			! -e "$buildroot/$brnch/$animal.force-one-run")
+		if (   $gitref
+			&& -e "$buildroot/$brnch/$animal.lastrun-logs/githead.log"
+			&& !$PGBuild::Options::forcerun
+			&& !-e "$buildroot/$brnch/$animal.force-one-run")
 		{
 			# skip the run if the last thing we built is what the server says is
 			# is the latest commit.
 			my $last_gitref =
-			  file_contents("$buildroot/$brnch/$animal.lastrun-logs/githead.log");
+			  file_contents(
+				"$buildroot/$brnch/$animal.lastrun-logs/githead.log");
 			if (index($last_gitref, $gitref) == 0)
 			{
-				print "@{[scalar(localtime())]}: $animal:$brnch is up to date.\n"
+				print
+				  "@{[scalar(localtime())]}: $animal:$brnch is up to date.\n"
 				  if ($verbose);
 				$up_to_date = 1;
 			}

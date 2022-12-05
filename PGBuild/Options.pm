@@ -15,7 +15,7 @@ use strict;
 use warnings;
 use Getopt::Long;
 
-our($VERSION); $VERSION = 'REL_14';
+our ($VERSION); $VERSION = 'REL_14';
 
 our (@option_list);
 
@@ -42,12 +42,13 @@ our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 @EXPORT_OK   = ();
 
 our (
-	$forcerun,   $buildconf,      $keepall,           $help,
-	$quiet,      $from_source,    $from_source_clean, $testmode,
-	$skip_steps, $only_steps,     $find_typedefs,     $nosend,
-	$nostatus,   $verbose,        @config_set,        $schedule,
-	$tests,      $check_warnings, $delay_check,       $show_error_log,
-	$avoid_ts_collisions,
+	$forcerun,          $buildconf,      $keepall,
+	$help,              $quiet,          $from_source,
+	$from_source_clean, $testmode,       $skip_steps,
+	$only_steps,        $find_typedefs,  $nosend,
+	$nostatus,          $verbose,        @config_set,
+	$schedule,          $tests,          $check_warnings,
+	$delay_check,       $show_error_log, $avoid_ts_collisions,
 );
 
 my (%standard_options);
@@ -59,7 +60,7 @@ my (%standard_options);
 	'from-source-clean=s' => \$from_source_clean,
 	'force'               => \$forcerun,
 	'find-typedefs'       => \$find_typedefs,
-	'keepall!'            => \$keepall,             # allow --no-keepall
+	'keepall!'            => \$keepall,               # allow --no-keepall
 	'verbose:i'           => \$verbose,
 	'nostatus'            => \$nostatus,
 	'test'                => \$testmode,
@@ -70,13 +71,13 @@ my (%standard_options);
 	'config-set=s'        => \@config_set,
 	'schedule=s'          => \$schedule,
 	'tests=s'             => \$tests,
-	'check-warnings!'     => \$check_warnings,      # allow --nocheck-warnings
+	'check-warnings!'     => \$check_warnings,        # allow --nocheck-warnings
 	'delay-check'         => \$delay_check,
 	'show-error-log'      => \$show_error_log,
 	'avoid-ts-collisions' => \$avoid_ts_collisions,
 );
 
-$buildconf = "build-farm.conf";                     # default value
+$buildconf = "build-farm.conf";                       # default value
 
 # extra options can be used by a wrapper program, such as
 # the one that will do the global lock and election, and it will

@@ -25,7 +25,7 @@ use warnings;
 # strip required namespace from package name
 (my $MODULE = __PACKAGE__) =~ s/PGBuild::Modules:://;
 
-our($VERSION); $VERSION = 'REL_14';
+our ($VERSION); $VERSION = 'REL_14';
 
 my $hooks = {
 	'checkout'     => \&checkout,
@@ -63,10 +63,10 @@ sub setup
 	bless($self, $class);
 
 	my $scmconf = {
-		scm             => 'git',
-		scmrepo         => 'https://github.com/adunstan/file_text_array_fdw.git',
-		git_reference   => undef,
-		git_keep_mirror => 'true',
+		scm           => 'git',
+		scmrepo       => 'https://github.com/adunstan/file_text_array_fdw.git',
+		git_reference => undef,
+		git_keep_mirror           => 'true',
 		git_ignore_mirror_failure => 'true',
 		build_root                => $self->{buildroot},
 	};

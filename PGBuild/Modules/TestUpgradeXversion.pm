@@ -33,7 +33,7 @@ use File::Temp qw(tempfile);
 use strict;
 use warnings;
 
-our($VERSION); $VERSION = 'REL_14';
+our ($VERSION); $VERSION = 'REL_14';
 
 my $hooks = {
 
@@ -232,11 +232,11 @@ sub save_for_testing
 
 	return if $?;
 
-	my $can_symlink = eval { symlink "",""; 1 }; # can fail on windows
+	my $can_symlink = eval { symlink "", ""; 1 };    # can fail on windows
 
 	foreach my $idir (qw(bin lib include share))
 	{
-		if ($self->{bfconf}->{using_msvc} || ! $can_symlink)
+		if ($self->{bfconf}->{using_msvc} || !$can_symlink)
 		{
 			system(
 				qq{cmd /c mklink /J "$installdir/$idir" "$savebin/$idir" >> "$upgrade_loc/save.log" 2>&1}
@@ -428,12 +428,9 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	if ($this_branch gt 'REL9_6_STABLE' || $this_branch eq 'HEAD')
 	{
 		run_psql(
-			"$other_branch/inst/bin/psql",
-			"-e",
-			"drop database if exists contrib_regression_tsearch2",
-			"postgres",
-			"$upgrade_loc/$oversion-copy.log",
-			1
+			"$other_branch/inst/bin/psql",                         "-e",
+			"drop database if exists contrib_regression_tsearch2", "postgres",
+			"$upgrade_loc/$oversion-copy.log",                     1
 		);
 		return if $?;
 
@@ -466,9 +463,11 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	if ($dbnames{contrib_regression_test_extensions})
 	{
 		my $noext7 = "drop extension if exists test_ext7";
-		run_psql("$other_branch/inst/bin/psql", "-e", $noext7,
-				 "contrib_regression_test_extensions",
-				 "$upgrade_loc/$oversion-copy.log", 1);
+		run_psql(
+			"$other_branch/inst/bin/psql", "-e", $noext7,
+			"contrib_regression_test_extensions",
+			"$upgrade_loc/$oversion-copy.log", 1
+		);
 		return if $?;
 	}
 
@@ -666,9 +665,13 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		  . qq{--new-bindir="$installdir/bin" }
 		  . qq{>> "$upgrade_loc/$oversion-upgrade.log" 2>&1});
 
-	foreach my $upgradelog (glob("$installdir/pg_upgrade*
+	foreach my $upgradelog (
+		glob(
+			"$installdir/pg_upgrade*
                                   $installdir/*.txt
-                                  $new_data/pg_upgrade_output.d/*"))
+                                  $new_data/pg_upgrade_output.d/*"
+		)
+	  )
 	{
 		my $bl = basename $upgradelog;
 		rename $upgradelog, "$installdir/$oversion-$bl";
@@ -709,24 +712,28 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	if ($this_branch ge 'REL_14_STABLE' || $this_branch eq 'HEAD')
 	{
 		# force amcheck extension update before running pg_amcheck
-		if ($dbnames{contrib_regression_amcheck} &&
-			($this_branch ne $oversion))
+		if ($dbnames{contrib_regression_amcheck}
+			&& ($this_branch ne $oversion))
 		{
 			local $ENV{PG_OPTIONS} = '--client-min-messages=warning';
-			run_psql("psql","","alter extension amcheck update",
-					 "contrib_regression_amcheck",
-					 "$upgrade_loc/amcheck-update.log");
+			run_psql(
+				"psql",
+				"",
+				"alter extension amcheck update",
+				"contrib_regression_amcheck",
+				"$upgrade_loc/amcheck-update.log"
+			);
 			return if $?;
 		}
-		system("pg_amcheck --all --install-missing"
-			   . qq{> "$upgrade_loc/$oversion-amcheck-1.log" 2>&1 });
+		system( "pg_amcheck --all --install-missing"
+			  . qq{> "$upgrade_loc/$oversion-amcheck-1.log" 2>&1 });
 		return if $?;
 	}
 
 	if (-e "$installdir/update_extensions.sql")
 	{
-		system (qq(psql -X -e -f "$installdir/update_extensions.sql" postgres)
-				 . qq{> "$upgrade_loc/$oversion-update_extensions.log" 2>&1});
+		system( qq(psql -X -e -f "$installdir/update_extensions.sql" postgres)
+			  . qq{> "$upgrade_loc/$oversion-update_extensions.log" 2>&1});
 		return if $?;
 
 		# rerun amcheck after updating extensions
@@ -740,18 +747,18 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 			{
 				if ($upd =~ /^\\connect (\w+)$/)
 				{
-					push @updatedbs, '-d',$1;
+					push @updatedbs, '-d', $1;
 				}
 				elsif ($upd =~ /^\\connect.*dbname='(.*)'"$/)
 				{
-					push @updatedbs, '-d',qq{"$1"};
+					push @updatedbs, '-d', qq{"$1"};
 				}
 			}
 			if (@updatedbs)
 			{
-				my $dbstr = join(' ',@updatedbs);
-				system("pg_amcheck $dbstr --install-missing"
-					   . qq{> "$upgrade_loc/$oversion-amcheck-2.log" 2>&1 });
+				my $dbstr = join(' ', @updatedbs);
+				system( "pg_amcheck $dbstr --install-missing"
+					  . qq{> "$upgrade_loc/$oversion-amcheck-2.log" 2>&1 });
 				return if $?;
 			}
 		}
@@ -938,9 +945,11 @@ sub installcheck
 		my $testlog =
 		  PGBuild::Log->new("xversion-upgrade-$oversion-$this_branch");
 
-		foreach my $log (glob("$upgrade_loc/*$oversion*"),
-						 glob("$installdir/${oversion}-pg_upgrade*"),
-						 glob("$installdir/${oversion}-20*T*.*/*"))
+		foreach my $log (
+			glob("$upgrade_loc/*$oversion*"),
+			glob("$installdir/${oversion}-pg_upgrade*"),
+			glob("$installdir/${oversion}-20*T*.*/*")
+		  )
 		{
 			next if $log =~ /\.custom$/;
 			my $bn = basename $log;

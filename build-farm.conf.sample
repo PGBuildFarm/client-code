@@ -15,7 +15,7 @@ use strict;
 
 use warnings FATAL => 'qw';
 
-our(%conf);
+our (%conf);
 
 # our($VERSION); $VERSION = 'REL_14';
 

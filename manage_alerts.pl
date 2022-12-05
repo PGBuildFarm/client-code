@@ -11,7 +11,7 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
-our($VERSION); $VERSION = 'REL_14';
+our ($VERSION); $VERSION = 'REL_14';
 
 use LWP;
 use HTTP::Request::Common;
@@ -34,13 +34,13 @@ my @invocation_args = (@ARGV);
 
 my $buildconf = "build-farm.conf";    # default value
 my ($help);
-my ($enable,$disable);
+my ($enable, $disable);
 
 GetOptions(
-	'config=s'           => \$buildconf,
-	'help'               => \$help,
-	'enable'             => \$enable,
-	'disable'            => \$disable,
+	'config=s' => \$buildconf,
+	'help'     => \$help,
+	'enable'   => \$enable,
+	'disable'  => \$disable,
 ) || usage("bad command line");
 
 usage("No extra args allowed")
@@ -49,7 +49,7 @@ usage("No extra args allowed")
 usage("Only one of --enable and --disable allowed")
   if (defined $enable && defined $disable);
 
-my $enable_op = $enable || 0; # default is disable
+my $enable_op = $enable || 0;    # default is disable
 
 usage()
   if $help;

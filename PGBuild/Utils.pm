@@ -22,7 +22,7 @@ use File::Path;
 use File::Copy;
 use File::Temp qw(tempfile);
 
-our($VERSION); $VERSION = 'REL_14';
+our ($VERSION); $VERSION = 'REL_14';
 
 ## no critic (ProhibitAutomaticExportation)
 use Exporter qw(import);
@@ -40,9 +40,10 @@ our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 );
 
 my %module_hooks;
-our ($core_file_glob, $st_prefix, $logdirname, $branch_root,
-	 $steps_completed, %skip_steps, %only_steps, $tmpdir,
-	 $send_result_routine, $devnull, $log_file_marker, $ts_prefix,
+our (
+	$core_file_glob,      $st_prefix,  $logdirname,      $branch_root,
+	$steps_completed,     %skip_steps, %only_steps,      $tmpdir,
+	$send_result_routine, $devnull,    $log_file_marker, $ts_prefix,
 );
 
 my $saved;    # have we already saved the binaries

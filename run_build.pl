@@ -35,10 +35,10 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
-our($VERSION); $VERSION = 'REL_14';
+our ($VERSION); $VERSION = 'REL_14';
 
 # minimum version supported
-use v5.14;     ## no critic (ProhibitVersionStrings)
+use v5.14;    ## no critic (ProhibitVersionStrings)
 use Config;
 use Fcntl qw(:flock :seek);
 use File::Path;
@@ -69,7 +69,7 @@ BEGIN
 
 # save a copy of the original enviroment for reporting
 # save it early to reduce the risk of prior mangling
-our($orig_env);
+our ($orig_env);
 
 BEGIN
 {
@@ -146,7 +146,7 @@ if ($only_steps =~ /\S/)
 	%only_steps = map { $_ => 1 } split(/\s+/, $only_steps);
 }
 
-our($branch);
+our ($branch);
 my $explicit_branch    = shift;
 my $from_source_branch = '';
 if ($from_source || $from_source_clean)
@@ -256,7 +256,7 @@ if (ref($force_every) eq 'HASH')
 
 my $config_opts = $PGBuild::conf{config_opts};
 
-our($buildport);
+our ($buildport);
 
 if (exists $PGBuild::conf{base_port})
 {
@@ -531,8 +531,9 @@ unless ($using_msvc)
 # the time we take the snapshot, sorta, really the start of the run
 # take this value as early as possible to lower the risk of
 # conflicts with other parallel runs
-our($now);
+our ($now);
 BEGIN { $now = time; }
+
 # unless --avoid-ts-collisions is in use
 if ($avoid_ts_collisions)
 {
@@ -541,13 +542,15 @@ if ($avoid_ts_collisions)
 	# to keep the server happy.
 	# Not needed if running with run_branches.pl, as it already does this
 	# for parallel runs.
-	open (my $tslock, ">", "$buildroot/$animal.ts.LCK") ||
-	  die "opening tslock $!";
+	open(my $tslock, ">", "$buildroot/$animal.ts.LCK")
+	  || die "opening tslock $!";
+
 	# this is a blocking lock, so only one run at a time can get past here.
 	die "acquiring lock on $buildroot/$animal.ts.LCK"
 	  unless flock($tslock, LOCK_EX);
 	$now = time;
 	sleep 2;
+
 	# release the lock;
 	close($tslock);
 }
@@ -1989,8 +1992,12 @@ sub run_misc_tests
 	  ? $config_opts->{openssl}
 	  : (grep { $_ eq '--with-openssl' } @$config_opts);
 
-	foreach my $testdir (glob("$pgsql/src/test/modules/*
-                               $pgsql/src/interfaces/*"))
+	foreach my $testdir (
+		glob(
+			"$pgsql/src/test/modules/*
+                               $pgsql/src/interfaces/*"
+		)
+	  )
 	{
 		my $testname = basename($testdir);
 		next if $testname =~ /ssl/ && !$using_ssl;
@@ -2726,7 +2733,7 @@ sub get_script_config_dump
 	$conf->{module_versions} = \%versions;
 	$conf->{skip_steps}      = join(" ", keys %skip_steps) if %skip_steps;
 	$conf->{only_steps}      = join(" ", keys %only_steps) if %only_steps;
-	no warnings qw(once); # silence old perls about following line
+	no warnings qw(once);    # silence old perls about following line
 	local $Data::Dumper::Sortkeys = 1;
 	return Data::Dumper->Dump([$conf], ['Script_Config']);
 }

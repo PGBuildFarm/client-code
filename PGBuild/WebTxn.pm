@@ -22,7 +22,7 @@ use MIME::Base64;
 use Digest::SHA qw(hmac_sha256_hex);
 use JSON::PP;
 
-our($VERSION); $VERSION = 'REL_14';
+our ($VERSION); $VERSION = 'REL_14';
 
 sub run_web_txn
 {
@@ -42,9 +42,9 @@ sub run_web_txn
 	# variables we're going to read from $txdata
 	my ($changed_this_run, $changed_since_success, $branch, $status, $stage,
 		$animal, $ts, $log_data, $confsum, $target, $secret);
-	my ($verbose) ;  ## no critic (ProhibitUnusedVariables)
+	my ($verbose);    ## no critic (ProhibitUnusedVariables)
 
-	eval $txdata;    ## no critic (ProhibitStringyEval)
+	eval $txdata;     ## no critic (ProhibitStringyEval)
 	if ($@)
 	{
 		warn $@;

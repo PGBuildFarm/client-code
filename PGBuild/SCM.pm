@@ -18,7 +18,7 @@ package PGBuild::SCM;
 use strict;
 use warnings;
 
-our($VERSION); $VERSION = 'REL_14';
+our ($VERSION); $VERSION = 'REL_14';
 
 # factory function to return the right subclass
 sub new
@@ -637,8 +637,8 @@ sub have_symlink
 		print $tg "boo!\n";
 		close $tg;
 		system(qq{mklink "lnk.txt" "tg.txt" >nul 2>&1});
-		my $txt = -e "lnk.txt" ? file_contents("lnk.txt") : "" ;
-		my $ok  = $txt eq "boo!\n";
+		my $txt = -e "lnk.txt" ? file_contents("lnk.txt") : "";
+		my $ok = $txt eq "boo!\n";
 		unlink "lnk.txt", "tg.txt";
 		$self->{have_symlink} = $ok;
 		return $ok;
