@@ -360,7 +360,9 @@ unless ($nosend)
 	}
 }
 
-die "cannot run as root/Administrator" unless ($using_msvc or $> > 0);
+# MSWin32 perl always says 0 for $>, and running as admin there should be ok
+die "cannot run as root/Administrator"
+  unless ($^O eq 'MSWin32' or $> > 0);
 
 $devnull = $using_msvc ? "nul" : "/dev/null";
 
