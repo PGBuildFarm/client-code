@@ -74,6 +74,9 @@ sub setup
 	my $where = $self->{scm}->get_build_path();
 	$self->{where} = $where;
 
+	# clean up anything left from an aborted run
+	rmtree($where);
+
 	# for each instance you create, do:
 	register_module_hooks($self, $hooks);
 	return;
