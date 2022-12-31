@@ -22,7 +22,7 @@ use warnings;
 # strip required namespace from package name
 (my $MODULE = __PACKAGE__) =~ s/PGBuild::Modules:://;
 
-our ($VERSION); $VERSION = 'REL_14';
+our ($VERSION); $VERSION = 'REL_15';
 
 my $hooks = {
 	'checkout'     => \&checkout,

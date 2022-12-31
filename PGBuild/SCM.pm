@@ -18,7 +18,7 @@ package PGBuild::SCM;
 use strict;
 use warnings;
 
-our ($VERSION); $VERSION = 'REL_14';
+our ($VERSION); $VERSION = 'REL_15';
 
 # factory function to return the right subclass
 sub new

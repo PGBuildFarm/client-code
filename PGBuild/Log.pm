@@ -11,7 +11,7 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
-our ($VERSION); $VERSION = 'REL_14';
+our ($VERSION); $VERSION = 'REL_15';
 
 # provide a Log object for a step
 
