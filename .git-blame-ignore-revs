@@ -1,0 +1,95 @@
+# As of git 2.23, git-blame supports ignoring specific commits.  This is useful
+# with commits that make bulk formatting changes without truly changing any
+# code.
+#
+# This file lists ignorable perltidy related commits. Probably don't want to
+# ignore anything else
+#
+# You can use the ignore list file by running:
+#
+# $ git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# Add new entries by adding the output of the following to the top of the file:
+#
+# $ git log --pretty=format:"%H # %cd%n# %s" $PGINDENTGITHASH -1 --date=iso
+
+b6a07245fe1e720a0ce0fd175c5fc136d2831efb # 2022-12-05 08:21:31 -0500
+# perltidy run
+e0c9560c6e33d21a24f5565765c3ae0641571117 # 2022-01-29 10:09:12 -0500
+# perltidy run
+d5ffd8113797e2d397c34b90d99dbf3dce97f243 # 2021-08-02 15:45:54 -0400
+# perltidy run
+fefff0caaed0a7266fc93906bbca450685b1262e # 2021-06-22 10:46:31 -0400
+# perltidy run
+e6340b53de676ce231a439de08347563de8388dc # 2021-02-01 15:01:48 -0500
+# perltidy run
+42a73e7a61c1d6cd3e4358d677f162ca57b577a0 # 2019-09-23 12:08:57 -0400
+# perltidy run
+85d77098664dd0d8dbe493bad744e9092c8cdc77 # 2019-04-04 14:25:45 -0400
+# perltidy
+df44abe9dcc7882b9e2856f8365563d5bb549e6a # 2019-02-27 13:17:23 -0500
+# perltidy
+85e74affeb546a43347d1699dfdc20dec67df226 # 2019-02-19 09:04:42 -0500
+# perltidy run
+c6d1d6d9f3638bcf2e6d5cd4854279eb20baa3b0 # 2018-11-12 13:41:27 -0500
+# perltidy run
+bbe7befdc2b9d304c5034ba9eba74e36e1f016a6 # 2018-07-08 12:51:29 -0400
+# perl tidy
+57e57819a899226869f014ecdaee5f541a40a15b # 2018-05-20 08:44:50 -0400
+# perltidy
+a96f0c43bbd69cb5df950e4db92ff18b699ef44b # 2018-05-07 12:37:25 -0400
+# perltidy run following perlcritic changes
+cefd61933527bfb15ddb89e2fc7915ce3e788952 # 2018-05-07 11:24:32 -0400
+# perltidy run to keep perlcritic happy
+6f23bf16824b5eb004a74940348f81aa53a6f2c4 # 2018-03-25 19:27:57 -0400
+# perltidy
+61b6f80b4b2775d664932d9ffe2caa3cd73ce466 # 2018-01-17 09:49:09 -0500
+# perltidy
+85270f596fe2b46e74186b8a03aa777776bb9f00 # 2018-01-05 07:21:03 -0500
+# perltidy
+95616cfeddde27ef1d4fdb14721f948da611e7f5 # 2018-01-04 08:37:22 -0500
+# perltidy run
+91d2bc8e98052a596dbfd3e4220cc4646033a9aa # 2017-12-19 08:39:06 -0500
+# perltidy run
+f387fb0f24c5dccb36a9d5325b21ba06dd617123 # 2017-10-03 10:12:52 -0400
+# perltidy run
+576220096ba7e27c7c5a8db98f164deeae5784d9 # 2017-06-12 14:38:13 -0400
+# perltidy run
+c63c20717deeb2275083fa286deaa06a4444df14 # 2017-04-19 08:31:52 -0400
+# perltidy run
+2b8111e467f0592c3e93537cdb14ba22246d3ea6 # 2017-04-10 20:02:19 -0400
+# perltidy run
+9554cda7497b2156beee1738168f9b757ccdcb70 # 2016-10-11 20:06:18 -0400
+# perltidy run
+ca1c3317a1957fd220a0bb69138b964045a905d7 # 2016-02-12 12:19:04 -0500
+# perl tidy run
+3814181b8675290be827507671787ea06679aa24 # 2015-11-21 10:11:44 -0500
+# perltidy
+d604aa2ea0e4d0f10e4aa47f59fe4d214ec19f11 # 2015-06-02 11:08:16 -0400
+# perltidy
+a6a210ad86825b3af40f28af1e579ec9c3ca672e # 2015-06-02 10:09:12 -0400
+# perltidy
+94447aa5964ee71addad7acf88e564bdbd4b9757 # 2015-04-16 19:43:03 -0400
+# perltidy try 2
+fb435dc67bd84e40fd494ab692549237f19df8a6 # 2015-04-16 19:40:48 -0400
+# perltidy
+4bc82a6de037f995d5a2a0def899f1ec28a80d5f # 2014-12-16 15:36:57 -0500
+# perltidy
+3be75d683459b26a161da7cc3b63adec0c30f754 # 2014-06-18 11:00:16 -0400
+# perltidy run
+94c1fb9fd55a52e8dd38ed7721e2ff9b8e547dff # 2014-04-05 17:15:07 -0400
+# perltidy run
+75d733819af5cb030f3cda6259b0bedc29afecd8 # 2014-03-23 16:11:06 -0400
+# perltidy run
+ddcf12d1c4d39910d810dc0ef6bd43dff0add064 # 2013-07-15 13:37:36 -0400
+# perltidy run
+930790b13db03e7a345e58c5205b60e3fc06b7ce # 2013-06-14 08:59:57 -0400
+# perltidy run
+8a6cf6529aa0d6e75eef235d56db7f4d2f44bf86 # 2013-02-15 12:57:55 -0500
+# perltidy run
+32bce0c09aedb150ad20ed55cb3e1eef7e1f9872 # 2013-01-11 11:12:45 -0500
+# perltidy run
+a96b4e44697ba401df7fa168d2154a944f03c083 # 2012-09-29 10:27:45 -0400
+# perltidy run
+c5a72c9d71d6ef716fa54fcf4f61d17f9c1c23fa # 2012-09-25 13:27:01 -0400
+# perltidy run
