@@ -49,11 +49,12 @@ sub branch_last_sort;
 my $run_build;
 ($run_build = $0) =~ s/run_branches/run_build/;
 
-my ($run_all, $run_one, $run_parallel);
+my ($run_all, $run_one, $run_parallel, $check_for_work) = (0,0,0,0);
 my %extra_options = (
 	'run-all'      => \$run_all,
 	'run-one'      => \$run_one,
 	'run-parallel' => \$run_parallel,
+	'check-for-work' => \$check_for_work,
 );
 
 # process the command line
@@ -62,13 +63,16 @@ PGBuild::Options::fetch_options(%extra_options);
 # any arguments left are explicit branches
 my $explicit_branches = [@ARGV];
 
-die "only one of --run-all, --run-one and --run_parallel permitted"
-  if ( ($run_all && $run_one)
-	|| ($run_all && $run_parallel)
-	|| ($run_one && $run_parallel));
-
-die "need one of --run-all, --run-one, --run_parallel "
-  unless ($run_all || $run_one || $run_parallel);
+my $mode_sum = ($run_all + $run_one + $run_parallel + $check_for_work);
+my $mode_string = "--run-all, --run-one, --run_parallel, check-for-work";
+if ($mode_sum > 1)
+{
+	die "only one of $mode_string permitted";
+}
+elsif (! $mode_sum)
+{
+	die "need one of $mode_string";
+}
 
 # set up a "branch" variable for processing the config file
 our ($branch);
@@ -123,13 +127,17 @@ my $lockfile;
 
 my $lockfilename = "$global_lock_dir/GLOBAL.lck";
 
-open($lockfile, ">", "$lockfilename") || die "opening lockfile: $!";
-
-if (!flock($lockfile, LOCK_EX | LOCK_NB))
+unless ($check_for_work)
 {
-	print "Another process holds the lock on " . "$lockfilename. Exiting.\n"
-	  if ($verbose);
-	exit(0);
+	# no lock needed if we're not going to do anything
+	open($lockfile, ">", "$lockfilename") || die "opening lockfile: $!";
+
+	if (!flock($lockfile, LOCK_EX | LOCK_NB))
+	{
+		print "Another process holds the lock on " . "$lockfilename. Exiting.\n"
+		  if ($verbose);
+		exit(0);
+	}
 }
 
 my $branches_to_build = $PGBuild::conf{global}->{branches_to_build}
@@ -145,7 +153,7 @@ unless (((ref $branches_to_build) eq 'ARRAY' && @{$branches_to_build})
 	die "no branches_to_build specified in $buildconf";
 }
 
-if (-e "$buildroot/$animal.force-one-run")
+if (-e "$buildroot/$animal.force-one-run" && ! $check_for_work)
 {
 	$PGBuild::Options::forcerun = 1;
 	unlink "$buildroot/$animal.force-one-run";
@@ -160,6 +168,8 @@ if ((ref $branches_to_build) eq 'ARRAY')
 }
 elsif ((ref $branches_to_build) =~ /Regexp/i)
 {
+	die "Can't check for work with regexp branches_to_build"
+	  if ($check_for_work);
 	chdir $buildroot || die "chdir to $buildroot: $!";
 	mkdir 'HEAD' unless -d 'HEAD';
 	chdir 'HEAD' || die "chdir to HEAD: $!";
@@ -253,6 +263,12 @@ elsif ($branches_to_build =~
 }
 
 @branches = apply_filters(@branches);
+
+if ($check_for_work)
+{
+	print (@branches ? "yes\n" : "no\n") if $verbose;
+	exit (scalar(@branches) == 0); # 1 = no work, 0 = work to do
+}
 
 if ($run_parallel)
 {
@@ -476,7 +492,7 @@ sub apply_filters
 			{
 				print
 				  "@{[scalar(localtime())]}: $animal:$brnch is up to date.\n"
-				  if ($verbose);
+				  if ($verbose && ! $check_for_work);
 				$up_to_date = 1;
 			}
 		}
