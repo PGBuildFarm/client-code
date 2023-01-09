@@ -165,6 +165,10 @@ if ((ref $branches_to_build) eq 'ARRAY')
 {
 	@branches = @{$branches_to_build};
 	$ENV{BF_CONF_BRANCHES} = join(',', @branches);
+	# here we don't set the branches from the branches_of_interest but we
+	# fetch it (unless told not to) so we can filter using that data.
+	get_branches_of_interest('CURRENT')
+	  unless $PGBuild::conf{global}->{no_precheck};
 }
 elsif ((ref $branches_to_build) =~ /Regexp/i)
 {
@@ -187,10 +191,73 @@ elsif ((ref $branches_to_build) =~ /Regexp/i)
 elsif ($branches_to_build =~
 	/^(ALL|STABLE|OLD|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
 {
-
 	$ENV{BF_CONF_BRANCHES} = $branches_to_build;
 	my $match  = $1;
 	my $latest = $2;
+
+	@branches = get_branches_of_interest($match);
+
+	# assumes that branches_of_interest is in order, oldest through to HEAD
+	splice(@branches, 0, -2)
+	  if $branches_to_build eq 'HEAD_PLUS_LATEST';
+	splice(@branches, 0, 0 - ($latest + 1))
+	  if $branches_to_build =~ /^HEAD_PLUS_LATEST\d$/;
+	splice(@branches, -1)
+	  if ($branches_to_build eq 'STABLE');
+}
+
+@branches = apply_filters(@branches);
+
+if ($check_for_work)
+{
+	print (@branches ? "yes\n" : "no\n") if $verbose;
+	exit (scalar(@branches) == 0); # 1 = no work, 0 = work to do
+}
+
+if ($run_parallel)
+{
+	# TestSepgsql uses shared resources in multiple phases, so making it
+	# parallel-safe is hard. For now just disallow it.
+	my $has_sepgsql = grep { $_ eq 'TestSepgsql' } @{ $PGBuild::conf{modules} };
+	if ($has_sepgsql)
+	{
+		print STDERR "cannot run in parallel mode with TestSepgsql module.";
+		exit 1;
+	}
+	run_parallel(@branches);
+}
+elsif ($run_all)
+{
+	foreach my $brnch (@branches)
+	{
+		run_branch($brnch);
+	}
+}
+elsif ($run_one)
+{
+	# sort the branches by the order in which they last did actual work
+	# then try running them in that order until one does some work
+
+	%branch_last = map { $_ => find_last_status($_) } @branches;
+	foreach my $brnch (sort branch_last_sort @branches)
+	{
+		run_branch($brnch);
+		my $new_status = find_last_status($brnch);
+		last if $new_status != $branch_last{$brnch};
+	}
+}
+
+# clean up the lockfile when we're done.
+close $lockfile;
+unlink $lockfilename;
+
+exit 0;
+
+##########################################################
+
+sub get_branches_of_interest
+{
+	my $which = shift;
 
 	# Need to set the path here so we make sure we pick up the right perl.
 	# It has to be the perl that the build script would choose
@@ -203,7 +270,7 @@ elsif ($branches_to_build =~
 	(my $url = $PGBuild::conf{target}) =~
 	  s/cgi-bin.*/branches_of_interest.json/;
 	$url =~ s/branches_of_interest/old_branches_of_interest/
-	  if $match eq 'OLD';
+	  if $which eq 'OLD';
 	my $branches_of_interest;
 
 	my $have_msys_https = $url !~ /^https:/;  # if not needed, assume it's there
@@ -246,71 +313,16 @@ elsif ($branches_to_build =~
 
 	my $gitrefs = decode_json($branches_of_interest);
 
+	my @fbranches;
 	foreach my $gr (@$gitrefs)
 	{
 		my ($br, $ref) = each %$gr;
-		push(@branches, $br);
+		push(@fbranches, $br);
 		$branch_gitrefs{$br} = $ref;
 	}
-
-	# assumes that branches_of_interest is in order, oldest through to HEAD
-	splice(@branches, 0, -2)
-	  if $branches_to_build eq 'HEAD_PLUS_LATEST';
-	splice(@branches, 0, 0 - ($latest + 1))
-	  if $branches_to_build =~ /^HEAD_PLUS_LATEST\d$/;
-	splice(@branches, -1)
-	  if ($branches_to_build eq 'STABLE');
+	return @fbranches;
 }
 
-@branches = apply_filters(@branches);
-
-if ($check_for_work)
-{
-	print (@branches ? "yes\n" : "no\n") if $verbose;
-	exit (scalar(@branches) == 0); # 1 = no work, 0 = work to do
-}
-
-if ($run_parallel)
-{
-	# TestSepgsql uses shared resources in multiple phases, so making it
-	# parallel-safe is hard. For now just disallow it.
-	my $has_sepgsql = grep { $_ eq 'TestSepgsql' } @{ $PGBuild::conf{modules} };
-	if ($has_sepgsql)
-	{
-		print STDERR "cannot run in parallel mode with TestSepgsql module.";
-		exit 1;
-	}
-	run_parallel(@branches);
-}
-elsif ($run_all)
-{
-	foreach my $brnch (@branches)
-	{
-		run_branch($brnch);
-	}
-}
-elsif ($run_one)
-{
-
-	# sort the branches by the order in which they last did actual work
-	# then try running them in that order until one does some work
-
-	%branch_last = map { $_ => find_last_status($_) } @branches;
-	foreach my $brnch (sort branch_last_sort @branches)
-	{
-		run_branch($brnch);
-		my $new_status = find_last_status($brnch);
-		last if $new_status != $branch_last{$brnch};
-	}
-}
-
-# clean up the lockfile when we're done.
-close $lockfile;
-unlink $lockfilename;
-
-exit 0;
-
-##########################################################
 
 sub check_max
 {
