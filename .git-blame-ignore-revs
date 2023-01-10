@@ -11,7 +11,7 @@
 #
 # Add new entries by adding the output of the following to the top of the file:
 #
-# $ git log --pretty=format:"%H # %cd%n# %s" $PGINDENTGITHASH -1 --date=iso
+# $ git log --pretty=format:"%H # %cd%n# %s" $PERLTIDYGITHASH -1 --date=iso
 
 b6a07245fe1e720a0ce0fd175c5fc136d2831efb # 2022-12-05 08:21:31 -0500
 # perltidy run
