@@ -33,6 +33,8 @@ BEGIN
 	unshift(@INC, $ENV{BFLIB}) if $ENV{BFLIB};
 }
 
+my $now = time;
+
 my $orig_dir = getcwd();
 unshift @INC, $orig_dir;
 
@@ -490,6 +492,21 @@ sub apply_filters
 	{
 		my $gitref     = $branch_gitrefs{$brnch};
 		my $up_to_date = 0;
+		my $force_every = $PGBuild::conf{force_every};
+		if (ref($force_every) eq 'HASH')
+		{
+			$force_every = $force_every->{$brnch} || $force_every->{default};
+		}
+		if ($force_every)
+		{
+			my $ts = find_last_status($brnch);
+			if ($ts + ($force_every * 3600) < $now)
+			{
+				push(@thrbranches, $brnch);
+				next;
+			}
+		}
+
 		if (   $gitref
 			&& -e "$buildroot/$brnch/$animal.lastrun-logs/githead.log"
 			&& !$PGBuild::Options::forcerun
