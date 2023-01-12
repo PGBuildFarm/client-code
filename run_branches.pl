@@ -137,7 +137,7 @@ unless ($check_for_work)
 	if (!flock($lockfile, LOCK_EX | LOCK_NB))
 	{
 		print "Another process holds the lock on " . "$lockfilename. Exiting.\n"
-		  if ($verbose);
+		  if ($verbose > 1);
 		exit(0);
 	}
 }
@@ -325,7 +325,6 @@ sub get_branches_of_interest
 	return @fbranches;
 }
 
-
 sub check_max
 {
 	my $plockdir = shift;
@@ -396,7 +395,6 @@ sub parallel_child
 	close($glock);
 	return run_branch($brnch);
 }
-
 
 sub run_parallel
 {

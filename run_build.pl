@@ -481,7 +481,7 @@ elsif (!flock($lockfile, LOCK_EX | LOCK_NB))
 {
 	print "Another process holds the lock on "
 	  . "$buildroot/$branch/builder.LCK. Exiting.\n"
-	  if ($verbose);
+	  if ($verbose > 1);
 	exit(0);
 }
 
