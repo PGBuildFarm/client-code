@@ -948,9 +948,11 @@ sub installcheck
 		foreach my $log (
 			glob("$upgrade_loc/*$oversion*"),
 			glob("$installdir/${oversion}-pg_upgrade*"),
-			glob("$installdir/${oversion}-20*T*.*/*")
+			glob("$installdir/${oversion}-20*T*.*/*"),
+			glob("$installdir/${oversion}-20*T*.*/log/*")
 		  )
 		{
+			next unless -f $log;
 			next if $log =~ /\.custom$/;
 			my $bn = basename $log;
 			next if $bn =~ /^(origin|converted)/;
