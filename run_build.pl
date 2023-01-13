@@ -802,7 +802,7 @@ elsif (!$from_source)
 	# if no build required do nothing
 	if ($last_status && !@filtered_files && !$modules_need_run)
 	{
-		$scm->log_id(); # update the githead.log for up-to-date checks
+		$scm->log_id();    # update the githead.log for up-to-date checks
 		print time_str(),
 		  "No build required: last status = ", scalar(gmtime($last_status)),
 		  " GMT, current snapshot = ", scalar(gmtime($current_snap)), " GMT,",

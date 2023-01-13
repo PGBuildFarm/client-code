@@ -51,11 +51,11 @@ sub branch_last_sort;
 my $run_build;
 ($run_build = $0) =~ s/run_branches/run_build/;
 
-my ($run_all, $run_one, $run_parallel, $check_for_work) = (0,0,0,0);
+my ($run_all, $run_one, $run_parallel, $check_for_work) = (0, 0, 0, 0);
 my %extra_options = (
-	'run-all'      => \$run_all,
-	'run-one'      => \$run_one,
-	'run-parallel' => \$run_parallel,
+	'run-all'        => \$run_all,
+	'run-one'        => \$run_one,
+	'run-parallel'   => \$run_parallel,
 	'check-for-work' => \$check_for_work,
 );
 
@@ -65,13 +65,13 @@ PGBuild::Options::fetch_options(%extra_options);
 # any arguments left are explicit branches
 my $explicit_branches = [@ARGV];
 
-my $mode_sum = ($run_all + $run_one + $run_parallel + $check_for_work);
+my $mode_sum    = ($run_all + $run_one + $run_parallel + $check_for_work);
 my $mode_string = "--run-all, --run-one, --run_parallel, check-for-work";
 if ($mode_sum > 1)
 {
 	die "only one of $mode_string permitted";
 }
-elsif (! $mode_sum)
+elsif (!$mode_sum)
 {
 	die "need one of $mode_string";
 }
@@ -136,7 +136,8 @@ unless ($check_for_work)
 
 	if (!flock($lockfile, LOCK_EX | LOCK_NB))
 	{
-		print "Another process holds the lock on " . "$lockfilename. Exiting.\n"
+		print "Another process holds the lock on "
+		  . "$lockfilename. Exiting.\n"
 		  if ($verbose > 1);
 		exit(0);
 	}
@@ -155,7 +156,7 @@ unless (((ref $branches_to_build) eq 'ARRAY' && @{$branches_to_build})
 	die "no branches_to_build specified in $buildconf";
 }
 
-if (-e "$buildroot/$animal.force-one-run" && ! $check_for_work)
+if (-e "$buildroot/$animal.force-one-run" && !$check_for_work)
 {
 	$PGBuild::Options::forcerun = 1;
 	unlink "$buildroot/$animal.force-one-run";
@@ -167,6 +168,7 @@ if ((ref $branches_to_build) eq 'ARRAY')
 {
 	@branches = @{$branches_to_build};
 	$ENV{BF_CONF_BRANCHES} = join(',', @branches);
+
 	# here we don't set the branches from the branches_of_interest but we
 	# fetch it (unless told not to) so we can filter using that data.
 	get_branches_of_interest('CURRENT')
@@ -212,8 +214,8 @@ elsif ($branches_to_build =~
 
 if ($check_for_work)
 {
-	print (@branches ? "yes\n" : "no\n") if $verbose;
-	exit (scalar(@branches) == 0); # 1 = no work, 0 = work to do
+	print(@branches ? "yes\n" : "no\n") if $verbose;
+	exit(scalar(@branches) == 0);    # 1 = no work, 0 = work to do
 }
 
 if ($run_parallel)
@@ -488,8 +490,8 @@ sub apply_filters
 	# remove up to date branches unless they are forced
 	foreach my $brnch (@filt_branches)
 	{
-		my $gitref     = $branch_gitrefs{$brnch};
-		my $up_to_date = 0;
+		my $gitref      = $branch_gitrefs{$brnch};
+		my $up_to_date  = 0;
 		my $force_every = $PGBuild::conf{force_every};
 		if (ref($force_every) eq 'HASH')
 		{
@@ -519,7 +521,7 @@ sub apply_filters
 			{
 				print
 				  "@{[scalar(localtime())]}: $animal:$brnch is up to date.\n"
-				  if ($verbose && ! $check_for_work);
+				  if ($verbose && !$check_for_work);
 				$up_to_date = 1;
 			}
 		}
