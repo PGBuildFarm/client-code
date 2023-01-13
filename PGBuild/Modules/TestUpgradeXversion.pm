@@ -586,12 +586,17 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		}
 	}
 
-	# can't upgrade aclitem in user tables from pre 16 to 16+
+	# stuff not supported from release 16
 	if (   ($this_branch gt 'REL_15_STABLE' || $this_branch eq 'HEAD')
 		&& ($oversion le 'REL_15_STABLE' && $oversion ne 'HEAD'))
 	{
-		my $prstmt = "alter table if exists public.tab_core_types
-                      drop column if exists aclitem";
+		# Can't upgrade aclitem in user tables from pre 16 to 16+.
+		# Also can't handle child tables with newly-generated columns.
+		my $prstmt = join(';',
+						  'alter table if exists public.tab_core_types
+						  drop column if exists aclitem',
+						  'drop table if exists public.gtest_normal_child',
+						  'drop table if exists public.gtest_normal_child2');
 
 		run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
 			"regression", "$upgrade_loc/$oversion-copy.log", 1);
