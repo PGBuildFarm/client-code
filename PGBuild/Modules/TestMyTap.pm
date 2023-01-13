@@ -20,7 +20,7 @@ use PGBuild::Utils qw(:DEFAULT $steps_completed);
 use strict;
 use warnings;
 
-our ($VERSION); $VERSION = 'REL_15';
+our ($VERSION); $VERSION = 'REL_16';
 
 my $hooks = {
 	'checkout'     => \&checkout,
