@@ -2186,7 +2186,32 @@ sub find_typedefs
 		next if $bin =~ m!bin/(ipcclean|pltcl_)!;
 		next unless -f $bin;
 		next if -l $bin;    # ignore symlinks to plain files (e.g. postmaster)
-		if (@err == 1)      # Linux and sometimes windows
+		if ($using_osx)
+		{
+			# no run_log due to redirections.
+			@dumpout =
+			  `dwarfdump $bin 2>/dev/null | egrep -A2 TAG_typedef 2>/dev/null`;
+			foreach (@dumpout)
+			{
+				## no critic (RegularExpressions::ProhibitCaptureWithoutTest)
+				@flds = split;
+				if (@flds == 3)
+				{
+					# old format
+					next unless ($flds[0] eq "AT_name(");
+					next unless ($flds[1] =~ m/^"(.*)"$/);
+					$syms{$1} = 1;
+				}
+				elsif (@flds == 2)
+				{
+					# new format
+					next unless ($flds[0] eq "DW_AT_name");
+					next unless ($flds[1] =~ m/^\("(.*)"\)$/);
+					$syms{$1} = 1;
+				}
+			}
+		}
+		elsif (@err == 1)   # Linux and sometimes windows
 		{
 			my $cmd = "$objdump -Wi $bin 2>/dev/null | "
 			  . "egrep -A3 DW_TAG_typedef 2>/dev/null";
@@ -2215,31 +2240,6 @@ sub find_typedefs
 				next unless (1 < @flds);
 				next if ($flds[0] ne 'DW_AT_name');
 				$syms{ $flds[-1] } = 1;
-			}
-		}
-		elsif ($using_osx)
-		{
-			# no run_log due to redirections.
-			@dumpout =
-			  `dwarfdump $bin 2>/dev/null | egrep -A2 TAG_typedef 2>/dev/null`;
-			foreach (@dumpout)
-			{
-				## no critic (RegularExpressions::ProhibitCaptureWithoutTest)
-				@flds = split;
-				if (@flds == 3)
-				{
-					# old format
-					next unless ($flds[0] eq "AT_name(");
-					next unless ($flds[1] =~ m/^"(.*)"$/);
-					$syms{$1} = 1;
-				}
-				elsif (@flds == 2)
-				{
-					# new format
-					next unless ($flds[0] eq "DW_AT_name");
-					next unless ($flds[1] =~ m/^\("(.*)"\)$/);
-					$syms{$1} = 1;
-				}
 			}
 		}
 		else
