@@ -323,31 +323,6 @@ sub save_for_testing
 		return if $?;
 	}
 
-	if ($this_branch ne 'HEAD' && $this_branch le 'REL9_4_STABLE')
-	{
-		my $opsql = 'drop operator if exists public.=> (bigint, NONE)';
-
-		# syntax is illegal in 9.5 and later, and it shouldn't
-		# be possible for it to exist there anyway.
-		# quoting the operator can also fail,  so it's left unquoted.
-		run_psql("$installdir/bin/psql", "-e", $opsql, "regression",
-			"$upgrade_loc/fix.log", 1);
-		return if $?;
-	}
-
-	# remove dbs of modules known to cause pg_upgrade to fail
-	# anything not builtin and incompatible should clean up its own db
-	# e.g. jsonb_set_lax
-
-	foreach my $bad_module ("test_ddl_deparse")
-	{
-		my $dsql = "drop database if exists contrib_regression_$bad_module";
-
-		run_psql("$installdir/bin/psql", "-e", $dsql,
-			"postgres", "$upgrade_loc/fix.log", 1);
-		return if $?;
-	}
-
 	# use a different logfile here to get around windows sharing issue
 	system( qq{"$installdir/bin/pg_ctl" -D "$installdir/data-C" -w stop }
 		  . qq{>> "$upgrade_loc/ctl2.log" 2>&1});
@@ -374,6 +349,21 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	print time_str(), "checking upgrade from $oversion to $this_branch ...\n"
 	  if $verbose;
+
+	# load helper module from source tree
+	unshift(@INC, "$self->{buildroot}/$this_branch/pgsql/src/test/perl");
+	require PostgreSQL::Test::AdjustUpgrade;
+	PostgreSQL::Test::AdjustUpgrade->import;
+	shift(@INC);
+
+	# if $oversion isn't HEAD, convert it into a PostgreSQL::Version object
+	my $old_version = $oversion;
+	if ($old_version ne 'HEAD')
+	{
+		$old_version =~ s/REL_?(\d+(?:_\d+)?)_STABLE/$1/;
+		$old_version =~ s/_/./;
+		$old_version = PostgreSQL::Version->new($old_version);
+	}
 
 	rmtree "$other_branch/inst/$upgrade_test";
 	copydir(
@@ -414,6 +404,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	return if $?;
 
+	# collect names of databases present in old installation.
 	my $sql = 'select datname from pg_database';
 
 	run_psql("psql", "-A -t", $sql, "postgres",
@@ -425,186 +416,22 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	do { s/\r$//; $dbnames{$_} = 1; }
 	  foreach @dbnames;
 
-	if ($this_branch gt 'REL9_6_STABLE' || $this_branch eq 'HEAD')
+	if ($oversion ne $this_branch)
 	{
-		run_psql(
-			"$other_branch/inst/bin/psql",                         "-e",
-			"drop database if exists contrib_regression_tsearch2", "postgres",
-			"$upgrade_loc/$oversion-copy.log",                     1
-		);
-		return if $?;
+		# obtain and execute commands needed to make old database upgradable.
+		my $adjust_cmds = adjust_database_contents($old_version, %dbnames);
 
-		run_psql(
-			"$other_branch/inst/bin/psql",
-			"-e",
-			"drop function if exists oldstyle_length(integer, text)",
-			"regression",
-			"$upgrade_loc/$oversion-copy.log",
-			1
-		);
-		return if $?;
-	}
-
-	# some regression functions gone from release 11 on
-	if (   ($this_branch ge 'REL_11_STABLE' || $this_branch eq 'HEAD')
-		&& ($oversion lt 'REL_11_STABLE' && $oversion ne 'HEAD'))
-	{
-		my $missing_funcs = q{drop function if exists public.boxarea(box);
-                              drop function if exists public.funny_dup17();
-                            };
-		$missing_funcs =~ s/\n//g;
-
-		run_psql("$other_branch/inst/bin/psql", "-e", $missing_funcs,
-			"regression", "$upgrade_loc/$oversion-copy.log", 1);
-		return if $?;
-	}
-
-	# avoid version number issues with test_ext7
-	if ($dbnames{contrib_regression_test_extensions})
-	{
-		my $noext7 = "drop extension if exists test_ext7";
-		run_psql(
-			"$other_branch/inst/bin/psql", "-e", $noext7,
-			"contrib_regression_test_extensions",
-			"$upgrade_loc/$oversion-copy.log", 1
-		);
-		return if $?;
-	}
-
-	# user table OIDS and abstime+friends are gone from release 12 on
-	if (   ($this_branch gt 'REL_11_STABLE' || $this_branch eq 'HEAD')
-		&& ($oversion le 'REL_11_STABLE' && $oversion ne 'HEAD'))
-	{
-		my $nooid_stmt = q{
-           DO $stmt$
-           DECLARE
-              rec text;
-           BEGIN
-              FOR rec in
-                 select oid::regclass::text
-                 from pg_class
-                 where relname !~ '^pg_'
-                    and relhasoids
-                    and relkind in ('r','m')
-                 order by 1
-              LOOP
-                 execute 'ALTER TABLE ' || rec || ' SET WITHOUT OIDS';
-                 RAISE NOTICE 'removing oids from table %', rec;
-              END LOOP;
-           END; $stmt$;
-        };
-		foreach my $oiddb ("regression", "contrib_regression_btree_gist")
+		foreach my $updb (keys %$adjust_cmds)
 		{
-			next unless $dbnames{$oiddb};
-			run_psql("$other_branch/inst/bin/psql", "-e", $nooid_stmt,
-				"$oiddb", "$upgrade_loc/$oversion-copy.log", 1);
-			return if $?;
-		}
+			my $upcmds = join(";\n", @{ $adjust_cmds->{$updb} });
 
-		if (   $oversion ge 'REL_10_STABLE'
-			&& $dbnames{'contrib_regression_postgres_fdw'})
-		{
-			run_psql(
-				"$other_branch/inst/bin/psql",
-				"-e",
-				"drop foreign table if exists ft_pg_type",
-				"contrib_regression_postgres_fdw",
-				"$upgrade_loc/$oversion-copy.log",
-				1
-			);
-			return if $?;
-		}
-
-		if ($oversion lt 'REL9_3_STABLE')
-		{
-			run_psql(
-				"$other_branch/inst/bin/psql",
-				"-e",
-				"drop table if exists abstime_tbl, reltime_tbl, tinterval_tbl",
-				"regression",
-				"$upgrade_loc/$oversion-copy.log",
-				1
-			);
+			run_psql("$other_branch/inst/bin/psql", "-e -v ON_ERROR_STOP=1",
+				$upcmds, $updb, "$upgrade_loc/$oversion-fix.log", 1);
 			return if $?;
 		}
 	}
 
-	# stuff not supported from release 14
-	if (   ($this_branch gt 'REL_13_STABLE' || $this_branch eq 'HEAD')
-		&& ($oversion le 'REL_13_STABLE' && $oversion ne 'HEAD'))
-	{
-		my $prstmt = join(';',
-			'drop operator if exists #@# (bigint,NONE)',
-			'drop operator if exists #%# (bigint,NONE)',
-			'drop operator if exists !=- (bigint,NONE)',
-			'drop operator if exists #@%# (bigint,NONE)');
-
-		run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
-			"regression", "$upgrade_loc/$oversion-copy.log", 1);
-		return if $?;
-
-		$prstmt = "drop function if exists public.putenv(text)";
-
-		my $regrdb =
-		  $oversion le "REL9_4_STABLE"
-		  ? "contrib_regression"
-		  : "contrib_regression_dblink";
-
-		if ($dbnames{$regrdb})
-		{
-			run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
-				"$regrdb", "$upgrade_loc/$oversion-copy.log", 1);
-			return if $?;
-		}
-
-		if ($oversion le 'REL9_4_STABLE')
-		{
-			# this is fixed in 9.5 and later
-			$prstmt = join(';',
-				'drop operator @#@ (NONE, bigint)',
-				'CREATE OPERATOR @#@ ('
-				  . 'PROCEDURE = factorial, '
-				  . 'RIGHTARG = bigint )');
-			run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
-				"regression", "$upgrade_loc/$oversion-copy.log", 1);
-			return if $?;
-		}
-
-		if ($oversion le 'REL9_4_STABLE')
-		{
-			# this is fixed in 9.5 and later
-			$prstmt = join(';',
-				'drop aggregate if exists public.array_cat_accum(anyarray)',
-				'CREATE AGGREGATE array_larger_accum (anyarray) ' . ' ( '
-				  . '   sfunc = array_larger, '
-				  . '   stype = anyarray, '
-				  . '   initcond = $${}$$ '
-				  . '  ) ');
-			run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
-				"regression", "$upgrade_loc/$oversion-copy.log", 1);
-			return if $?;
-		}
-	}
-
-	# stuff not supported from release 16
-	if (   ($this_branch gt 'REL_15_STABLE' || $this_branch eq 'HEAD')
-		&& ($oversion le 'REL_15_STABLE' && $oversion ne 'HEAD'))
-	{
-		# Can't upgrade aclitem in user tables from pre 16 to 16+.
-		# Also can't handle child tables with newly-generated columns.
-		my $prstmt = join(
-			';',
-			'alter table if exists public.tab_core_types' .
-			'  drop column if exists aclitem',
-			'drop table if exists public.gtest_normal_child',
-			'drop table if exists public.gtest_normal_child2',
-		   );
-
-		run_psql("$other_branch/inst/bin/psql", "-e", $prstmt,
-			"regression", "$upgrade_loc/$oversion-copy.log", 1);
-		return if $?;
-	}
-
+	# perform a dump from the old database for comparison purposes.
 	my $extra_digits = "";
 
 	if (   $oversion ne 'HEAD'
@@ -793,65 +620,40 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		return if $?;
 	}
 
-	foreach my $dump ("$upgrade_loc/origin-$oversion.sql",
-		"$upgrade_loc/converted-$oversion-to-$this_branch.sql")
+	# Slurp the pg_dump output files, and filter them if not same version.
+	my $olddumpfile = "$upgrade_loc/origin-$oversion.sql";
+	my $olddump     = file_contents($olddumpfile);
+
+	$olddump = adjust_old_dumpfile($old_version, $olddump)
+	  if ($oversion ne $this_branch);
+
+	my $newdumpfile = "$upgrade_loc/converted-$oversion-to-$this_branch.sql";
+	my $newdump     = file_contents($newdumpfile);
+
+	$newdump = adjust_new_dumpfile($old_version, $newdump)
+	  if ($oversion ne $this_branch);
+
+	# Always write out the filtered files, to aid in diagnosing filter bugs.
+	open(my $odh, '>', "$olddumpfile.fixed")
+	  || die "opening $olddumpfile.fixed: $!";
+	print $odh $olddump;
+	close($odh);
+	open(my $ndh, '>', "$newdumpfile.fixed")
+	  || die "opening $newdumpfile.fixed: $!";
+	print $ndh $newdump;
+	close($ndh);
+
+	# Are the results the same?
+	if ($olddump ne $newdump)
 	{
-		# Change trigger definitions to say ... EXECUTE FUNCTION ...
+		# Trouble, so run diff to show the problem.
+		system( qq{diff -u "$olddumpfile.fixed" "$newdumpfile.fixed" }
+			  . qq{> "$upgrade_loc/dumpdiff-$oversion" 2>&1});
 
-		my $contents = file_contents($dump);
-
-		# would like to use lookbehind here but perl complains
-		# so do it this way
-		$contents =~ s/
-                         (^CREATE\sTRIGGER\s.*?)
-                         \sEXECUTE\sPROCEDURE
-                      /$1 EXECUTE FUNCTION/mgx;
-		open(my $dh, '>', "$dump.fixed") || die "opening $dump.fixed";
-		print $dh $contents;
-		close($dh);
-	}
-
-	system( qq{diff -I "^\$" -I "SET default_table_access_method = heap;" }
-		  . qq{ -I "^SET default_toast_compression = 'pglz';\$" -I "^-- " }
-		  . qq{-u "$upgrade_loc/origin-$oversion.sql.fixed" }
-		  . qq{"$upgrade_loc/converted-$oversion-to-$this_branch.sql.fixed" }
-		  . qq{> "$upgrade_loc/dumpdiff-$oversion" 2>&1});
-
-	# diff exits with status 1 if files differ
-	return if $? >> 8 > 1;
-
-	open(my $diffile, '<', "$upgrade_loc/dumpdiff-$oversion")
-	  || die "opening $upgrade_loc/dumpdiff-$oversion: $!";
-	my $difflines = 0;
-	while (<$diffile>)
-	{
-		$difflines++ if /^[+-]/;
-	}
-	close($diffile);
-
-	# If the versions match we require that there be no diff lines.
-	# In the past we have seen a handful of diffs from reordering of
-	# large object output, but that appears to have disppeared.
-	# If the versions don't match we heuristically allow more lines of diffs
-	# based on observed differences. For versions from 9.6 on, that's
-	# not very many lines, though.
-
-	if (
-		($oversion eq $this_branch && $difflines == 0)
-		|| (   $oversion ne $this_branch
-			&& $oversion ge 'REL9_6_STABLE'
-			&& $difflines < 90)
-		|| (   $oversion ne $this_branch
-			&& $oversion lt 'REL9_6_STABLE'
-			&& $difflines < 700)
-	  )
-	{
-		return 1;
-	}
-	else
-	{
 		return;
 	}
+
+	return 1;
 }
 
 sub installcheck
