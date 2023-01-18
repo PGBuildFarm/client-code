@@ -717,6 +717,9 @@ sub installcheck
 	send_result('XversionUpgradeSave', $status, \@saveout) if $status;
 	$steps_completed .= " XVersionUpgradeSave";
 
+	# in saveonly mode our work is done
+	return if $ENV{PG_UPGRADE_SAVE_ONLY};
+
 	# ok, we now have the persistent copy of all branches we can use
 	# to test upgrading from
 
