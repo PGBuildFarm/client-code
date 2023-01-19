@@ -449,9 +449,10 @@ sub save_install
 	my $branch    = shift;
 	my $pgsql     = shift;
 	my $logfile   = shift;
+	my $prefix = shift;
 	my $animal    = $PGBuild::conf{animal};
 
-	my $dest = "$buildroot/saves.$animal/$branch";
+	my $dest = "$buildroot/$prefix.$animal/$branch";
 
 	if (!$saved)
 	{

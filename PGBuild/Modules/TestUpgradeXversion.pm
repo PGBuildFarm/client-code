@@ -51,8 +51,6 @@ sub setup
 	my $conf      = shift;    # ref to the whole config object
 	my $pgsql     = shift;    # postgres build dir
 
-	return if $from_source;
-
 	return if $branch !~ /^(?:HEAD|REL_?\d+(?:_\d+)?_STABLE)$/;
 
 	my $animal = $conf->{animal};
@@ -68,12 +66,21 @@ sub setup
 
 	mkdir $upgrade_install_root unless -d $upgrade_install_root;
 
+	# we need to segregate from-source builds so they don't corrupt
+	# non-from-source saves
+
+	my $fs_upgrade_install_root = "$buildroot/fs-upgrade.$animal";
+
+	mkdir $fs_upgrade_install_root
+	  if $from_source && ! -d $fs_upgrade_install_root;
+
 	my $self = {
 		buildroot            => $buildroot,
 		pgbranch             => $branch,
 		bfconf               => $conf,
 		pgsql                => $pgsql,
 		upgrade_install_root => $upgrade_install_root,
+		fs_upgrade_install_root      => $fs_upgrade_install_root,
 	};
 	bless($self, $class);
 
@@ -225,9 +232,12 @@ sub save_for_testing
 
 	return if $?;
 
+	my $save_prefix = $from_source ? "fs-saves" : "saves";
+
 	my $savebin = save_install(
 		$self->{buildroot}, $self->{pgbranch},
-		$self->{pgsql},     "$upgrade_loc/save.log"
+		$self->{pgsql},     "$upgrade_loc/save.log",
+		$save_prefix
 	);
 
 	return if $?;
@@ -339,7 +349,6 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	my $this_branch          = shift;
 	my $upgrade_install_root = shift;
 	my $dport                = shift;
-	my $install_loc          = shift;
 	my $other_branch         = shift;
 
 	my $upgrade_loc  = "$upgrade_install_root/$this_branch";
@@ -349,9 +358,11 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	print time_str(), "checking upgrade from $oversion to $this_branch ...\n"
 	  if $verbose;
+	print "upgrade_loc = $upgrade_install_root\n";
 
+	my $srcdir = $from_source || "$self->{buildroot}/$this_branch/pgsql";
 	# load helper module from source tree
-	unshift(@INC, "$self->{buildroot}/$this_branch/pgsql/src/test/perl");
+	unshift(@INC, "$srcdir/src/test/perl");
 	require PostgreSQL::Test::AdjustUpgrade;
 	PostgreSQL::Test::AdjustUpgrade->import;
 	shift(@INC);
@@ -689,8 +700,10 @@ sub installcheck
 
 	my $this_branch = $self->{pgbranch};
 
-	my $upgrade_install_root = $self->{upgrade_install_root};
-	my $install_loc          = "$self->{buildroot}/$this_branch/inst";
+	my $upgrade_install_root =
+	  $from_source ?
+	  $self->{fs_upgrade_install_root} :
+	  $self->{upgrade_install_root};
 	my $upgrade_loc          = "$upgrade_install_root/$this_branch";
 	my $installdir           = "$upgrade_loc/inst";
 
@@ -726,13 +739,19 @@ sub installcheck
 	my $dconfig = `$installdir/bin/pg_config --configure`;
 	my $dport = $dconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
 
+	# for other branches ignore the from-source root if it's being used
+	my $stable_root = $self->{upgrade_install_root};
+
 	foreach my $other_branch (
 		sort { $a =~ "HEAD" ? 999 : $b =~ "HEAD" ? -999 : $a cmp $b }
-		glob("$upgrade_install_root/*"))
+		glob("$stable_root/*"))
 	{
 		my $oversion = basename $other_branch;
 
 		next unless -d $other_branch;    # will skip lockfiles
+
+		# don't self-test from-source builds
+		next if $from_source && $this_branch eq $oversion;
 
 		next
 		  unless (($this_branch eq 'HEAD')
@@ -746,7 +765,7 @@ sub installcheck
 
 		$status =
 		  test_upgrade($self, $save_env, $this_branch, $upgrade_install_root,
-			$dport, $install_loc, $other_branch) ? 0 : 1;
+			$dport, $other_branch) ? 0 : 1;
 
 		release_lock($self);
 
