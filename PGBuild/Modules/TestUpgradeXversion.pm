@@ -403,9 +403,6 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	setinstenv($self, "$other_branch/inst", $save_env);
 
-	my $sconfig = `$other_branch/inst/bin/pg_config --configure`;
-	my $sport = $sconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
-
 	unlink "$other_branch/inst/dump-$this_branch.log";
 
 	system( qq{"$other_branch/inst/bin/pg_ctl" -D }
@@ -414,6 +411,12 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		  . qq{>> "$upgrade_loc/$oversion-ctl.log" 2>&1});
 
 	return if $?;
+
+	run_psql("psql","-A -t","show port", "postgres",
+			 "$upgrade_loc/sport.dat");
+	my $sport = file_contents("$upgrade_loc/sport.dat");
+	$sport =~ s/\s+//msg;
+	$sport = $sport + 0;
 
 	# collect names of databases present in old installation.
 	my $sql = 'select datname from pg_database';
