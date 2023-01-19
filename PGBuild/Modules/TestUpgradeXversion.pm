@@ -358,7 +358,6 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	print time_str(), "checking upgrade from $oversion to $this_branch ...\n"
 	  if $verbose;
-	print "upgrade_loc = $upgrade_install_root\n";
 
 	my $srcdir = $from_source || "$self->{buildroot}/$this_branch/pgsql";
 	# load helper module from source tree
