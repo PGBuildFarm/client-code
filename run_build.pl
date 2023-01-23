@@ -132,7 +132,6 @@ if ($testmode)
 	$forcerun = 1;
 	$nostatus = 1;
 	$nosend   = 1;
-
 }
 
 $skip_steps ||= "";
@@ -509,6 +508,14 @@ if (-e $forcefile)
 {
 	$forcerun = 1;
 	unlink $forcefile;
+}
+
+# if it's not a regular run, make sure we force the next run
+# this run could defeat the up-to-date checks
+if (($nosend || $nostatus) && !$from_source)
+{
+	open(my $fh, '>', $forcefile) || die "opening $forcefile: $!";
+	close($fh);
 }
 
 # try to allow core files to be produced.
