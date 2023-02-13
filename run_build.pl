@@ -2000,10 +2000,12 @@ sub run_misc_tests
 	  ? $config_opts->{openssl}
 	  : (grep { $_ eq '--with-openssl' } @$config_opts);
 
+	## no critic (CodeLayout::ProhibitHardTabs)
 	foreach my $testdir (
 		glob(
 			"$pgsql/src/test/modules/*
-                               $pgsql/src/interfaces/*"
+			 $pgsql/src/interfaces/*
+			 $pgsql/src/tools/*"
 		)
 	  )
 	{
