@@ -983,7 +983,7 @@ sub _setup_new_workdir
 	# doesn't yet know about
 	my @fetchlog = run_log('git fetch --prune');
 
-	my @branches = `git branch`;
+	my @branches = `git branch --no-color`;
 	chomp @branches;
 	my @colog;
 	if (grep { /\bbf_$branch\b/ } @branches)
@@ -1065,7 +1065,7 @@ sub _update_target
 	}
 
 	chdir $target;
-	my @branches = `git branch 2>&1`;    # too trivial for run_log
+	my @branches = `git branch --no-color 2>&1`;    # too trivial for run_log
 	unless (grep { /^\* bf_$branch$/ } @branches)
 	{
 		if (_test_file_symlink(".git/config") eq 'ok')
@@ -1272,7 +1272,7 @@ sub get_branches
 	my $prefix = shift;
 	my $target = $self->{target};
 	chdir $target;
-	my @allbranches = `git branch -a`;
+	my @allbranches = `git branch --no-color -a`;
 	my @branches;
 	foreach (@allbranches)
 	{
