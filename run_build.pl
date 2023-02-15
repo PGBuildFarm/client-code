@@ -678,6 +678,13 @@ if ($extra_config && $extra_config->{DEFAULT})
 	}
 }
 
+# adjust to new config setting name
+if ($branch eq 'HEAD' || $branch ge 'REL_16')
+{
+	s/force_parallel_mode/debug_parallel_query/
+	  foreach @{ $extra_config->{$branch} }
+}
+
 if ($use_discard_caches && ($branch eq 'HEAD' || $branch ge 'REL_14'))
 {
 	if (!exists $extra_config->{$branch})

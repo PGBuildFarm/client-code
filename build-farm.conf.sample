@@ -296,7 +296,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 			"log_statement = 'all'",
 			"fsync = off"
 		],
-		HEAD => ['force_parallel_mode = regress'],
+		HEAD => ['debug_parallel_query = regress'],
 	},
 
 	optional_steps => {
