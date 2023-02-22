@@ -266,6 +266,11 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 
 	# see below for MSVC config
 
+	# set true if running with meson
+	# will be ignored for branches older than 16
+	using_meson => undef,
+
+	# options used with configure (and not for meson)
 	config_opts => [
 		qw(
 		  --enable-cassert
@@ -282,7 +287,29 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		  ),
 
 		# could also add for example --enable-tap-tests
-	],
+	   ],
+
+	# Note, for meson we turn off all the auto options and then selectively
+	# re-enable them using these options, so zlib and readline have to be
+	# explicitly enabled here.
+	meson_opts => [
+		qw(
+			  -Dcassert=true
+			  -Ddebug=true
+			  -Dnls=enabled
+			  -Dplperl=enabled
+			  -Dplpython=enabled
+			  -Dpltcl=enabled
+			  -Dgssapi=enabled
+			  -Dssl=openssl
+			  -Dldap=enabled
+			  -Dlibxml=enabled
+			  -Dlibxslt=enabled
+			  -Dzlib=enabled
+			  -Dreadline=enabled
+		 ),
+		# could for example add -Dtap_tests=enabled
+	   ],
 
 	# per-branch contents of extra config for check stages.
 	# each branch has an array of setting lines (no \n required)
@@ -388,9 +415,12 @@ if ($conf{using_msvc})
 
 	%{ $conf{build_env} } = (%{ $conf{build_env} }, %$vsenv);
 
-	# MSVC needs a somewhat different style of config opts (why??)
+	# MSVC non-meson needs a somewhat different style of config opts (why??)
 	# What we write here will be literally (via Data::Dumper) put into
 	# the config.pl file for the MSVC build.
+
+	# This will be ignored for meson builds, which use meson_opts rather
+	# than config_opts. See above for meson_opts.
 
 	$conf{config_opts} = {
 		asserts           => 1,                # --enable-cassert
