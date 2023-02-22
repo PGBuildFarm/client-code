@@ -1660,9 +1660,11 @@ sub make_install_check
 	my @checklog;
 	if ($using_meson)
 	{
+		my $sysroot = $ENV{SystemRoot};
 		local %ENV = (PATH => $ENV{PATH},
 					  PGUSER => $ENV{PGUSER},
 					  PGHOST => $ENV{PGHOST});
+		$ENV{SystemRoot} = $sysroot if $sysroot;
 		@checklog = run_log("meson test -v -C $pgsql --no-rebuild --print-errorlogs --setup running --suite regress-running --logbase regress-installcheck-$locale");
 	}
 	elsif ($using_msvc)
@@ -1752,9 +1754,11 @@ sub run_meson_install_checks
 {
 	my $locale = shift;
 	return unless step_wanted('misc-install-check');
+	my $sysroot = $ENV{SystemRoot};
 	local %ENV = (PATH => $ENV{PATH},
 				  PGUSER => $ENV{PGUSER},
 				  PGHOST => $ENV{PGHOST});
+	$ENV{SystemRoot} = $sysroot if $sysroot;
 	my @tests = run_log("meson test -C $pgsql --setup running --no-rebuild --list");
 	chomp @tests;
 	do { s/^postgresql:// ; s! / .*!!; } foreach @tests;
@@ -1790,7 +1794,9 @@ sub run_meson_install_checks
 sub run_meson_noninst_checks
 {
 	return unless step_wanted('misc-check');
-	local %ENV = (PATH => $ENV{PATH});
+	my $sysroot = $ENV{SystemRoot};
+	local %ENV = (PATH => $ENV{PATH}, PGUSER => $ENV{PGUSER});
+	$ENV{SystemRoot} = $sysroot if $sysroot;
 	my @tests = run_log("meson test -C $pgsql --no-rebuild --list");
 	chomp @tests;
 	do { s/^postgresql:// ; s! / .*!!; } foreach @tests;
@@ -1804,7 +1810,7 @@ sub run_meson_noninst_checks
 	{
 		print time_str(), "running test suite $suite...\n" if $verbose;
 
-		my @checklog=run_log("meson test --print-errorlogs --no-rebuild -C $pgsql --logbase $suite --suite $suite");
+		my @checklog=run_log("meson test -C $pgsql --print-errorlogs --no-rebuild --logbase $suite --suite $suite");
 		my $status ||= $? >> 8;
 
 		my $log = PGBuild::Log->new("$suite-check");
@@ -2158,8 +2164,10 @@ sub make_check
 	{
 		# prevent meson from logging the whole environment,
 		# see its issue 5328
+		my $sysroot = $ENV{SystemRoot};
 		local %ENV = (PATH => $ENV{PATH}, PGUSER => $ENV{PGUSER});
-		@makeout=run_log("meson test --logbase checklog --print-errorlogs --no-rebuild -C $pgsql --suite setup --suite regress");
+		$ENV{SystemRoot} = $sysroot if $sysroot;
+		@makeout=run_log("meson test -C $pgsql --logbase checklog --print-errorlogs --no-rebuild --suite setup --suite regress");
 	}
 	elsif ($using_msvc)
 	{
@@ -2444,6 +2452,10 @@ sub meson_setup
 		{
 			push(@quoted_opts, $c_opt);
 		}
+		elsif ($using_msvc)
+		{
+			push(@quoted_opts,qq{"$c_opt"});
+		}
 		else
 		{
 			push(@quoted_opts, "'$c_opt'");
@@ -2454,10 +2466,11 @@ sub meson_setup
 					   "-Dauto_features=disabled",
 					   @quoted_opts,
 					   "-Dlibdir=lib",
-					   "-Dprefix=$installdir",
+					   qq{-Dprefix="$installdir"},
 					   "-Dpgport=$buildport");
 
-	my @confout = run_log("meson setup $confstr $pgsql pgsql");
+	my $flag = $using_msvc ? "--backend vs" : "";
+	my @confout = run_log("meson setup $flag $confstr $pgsql pgsql");
 
 	my $status = $? >> 8;
 

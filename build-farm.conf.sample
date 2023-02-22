@@ -233,6 +233,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 
 		# comment out if not using ccache
 		# ccache is known to cause issues sometimes on msys2
+		# don't set CC at all if using MSVC, especially with meson
 		CC => 'ccache gcc',
 
 		# If using vpath builds, this makes it use true symbolic links
