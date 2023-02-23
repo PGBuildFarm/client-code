@@ -373,6 +373,9 @@ while (my ($envkey, $envval) = each %{ $PGBuild::conf{build_env} })
 	$ENV{$envkey} = $envval;
 }
 
+# default directory for port locks in TAP tests
+$ENV{PG_TEST_PORT_DIR} ||= $buildroot;
+
 # default value - supply unless set via the config file
 # or calling environment
 $ENV{PGCTLTIMEOUT} = 120 unless exists $ENV{PGCTLTIMEOUT};
