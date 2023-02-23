@@ -1497,6 +1497,18 @@ sub initdb
 	return;
 }
 
+
+sub _meson_env
+{
+	my %env;
+	foreach my $setting (qw(PATH PGUSER PGHOST SystemRoot))
+	{
+		my $v = $ENV{$setting};
+		$env{$setting} = $v if $v;
+	}
+	return %env;
+}
+
 sub start_valgrind_db
 {
 	# run the postmaster under valgrind.
@@ -1660,11 +1672,7 @@ sub make_install_check
 	my @checklog;
 	if ($using_meson)
 	{
-		my $sysroot = $ENV{SystemRoot};
-		local %ENV = (PATH => $ENV{PATH},
-					  PGUSER => $ENV{PGUSER},
-					  PGHOST => $ENV{PGHOST});
-		$ENV{SystemRoot} = $sysroot if $sysroot;
+		local %ENV = _meson_env();
 		@checklog = run_log("meson test -v -C $pgsql --no-rebuild --print-errorlogs --setup running --suite regress-running --logbase regress-installcheck-$locale");
 	}
 	elsif ($using_msvc)
@@ -1754,11 +1762,7 @@ sub run_meson_install_checks
 {
 	my $locale = shift;
 	return unless step_wanted('misc-install-check');
-	my $sysroot = $ENV{SystemRoot};
-	local %ENV = (PATH => $ENV{PATH},
-				  PGUSER => $ENV{PGUSER},
-				  PGHOST => $ENV{PGHOST});
-	$ENV{SystemRoot} = $sysroot if $sysroot;
+	local %ENV = _meson_env();
 	my @tests = run_log("meson test -C $pgsql --setup running --no-rebuild --list");
 	chomp @tests;
 	do { s/^postgresql:// ; s! / .*!!; } foreach @tests;
@@ -1794,9 +1798,7 @@ sub run_meson_install_checks
 sub run_meson_noninst_checks
 {
 	return unless step_wanted('misc-check');
-	my $sysroot = $ENV{SystemRoot};
-	local %ENV = (PATH => $ENV{PATH}, PGUSER => $ENV{PGUSER});
-	$ENV{SystemRoot} = $sysroot if $sysroot;
+	local %ENV = _meson_env();
 	my @tests = run_log("meson test -C $pgsql --no-rebuild --list");
 	chomp @tests;
 	do { s/^postgresql:// ; s! / .*!!; } foreach @tests;
@@ -1818,7 +1820,7 @@ sub run_meson_noninst_checks
 		push(@checklog, $log->log_string);
 		writelog("$suite-check", \@checklog);
 		print @checklog if ($verbose > 1);
-		send_result("MiscCheck", $status, \@checklog) if $status;
+		send_result("${suite}Check", $status, \@checklog) if $status;
 		$steps_completed .= " ${suite}Check";
 	}
 	return;
@@ -2164,9 +2166,7 @@ sub make_check
 	{
 		# prevent meson from logging the whole environment,
 		# see its issue 5328
-		my $sysroot = $ENV{SystemRoot};
-		local %ENV = (PATH => $ENV{PATH}, PGUSER => $ENV{PGUSER});
-		$ENV{SystemRoot} = $sysroot if $sysroot;
+		local %ENV = _meson_env();
 		@makeout=run_log("meson test -C $pgsql --logbase checklog --print-errorlogs --no-rebuild --suite setup --suite regress");
 	}
 	elsif ($using_msvc)
@@ -2440,9 +2440,12 @@ sub find_typedefs
 	return;
 }
 
+# meson setup for all platforms
 sub meson_setup
 {
 	my $env = $PGBuild::conf{config_env};
+	$env = { %$env }; # clone it
+	delete $env->{CC} if $using_msvc;  # this can confuse meson in this case
 	local %ENV = (%ENV, %$env);
 
 	my @quoted_opts;
@@ -2496,6 +2499,7 @@ sub meson_setup
 
 }
 
+# non-meson MSVC setup
 sub msvc_setup
 {
 	my $lconfig = { %$config_opts, "--with-pgport" => $buildport };
@@ -2523,6 +2527,8 @@ sub msvc_setup
 	return;
 }
 
+# setup entry, directly implements autoconf setup,
+# calls above for meson / msvc
 sub configure
 {
 	if ($using_meson)
