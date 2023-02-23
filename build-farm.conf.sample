@@ -225,6 +225,9 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		# These are the ones omitted without the setting
 		# on a secure single user system it makes sense to enable these
 		# PG_TEST_EXTRA => "ssl ldap kerberos",
+
+		# Where to put port locks. Default is the buildroot
+		# PG_TEST_PORT_DIR => 'some path',
 	},
 
 	# env settings to pass to configure. These settings will only be seen by
