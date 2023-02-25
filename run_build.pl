@@ -926,6 +926,8 @@ foreach my $locale (@locales)
 
 	initdb($locale);
 
+	$locale =~ s/\s/-/g;
+
 	do
 	{
 		# silence warning about uninitialized value, on e.g. frogmouth.
@@ -1390,7 +1392,9 @@ sub initdb
 
 	chdir $installdir;
 
-	my $initdbopts = qq{-A trust -U buildfarm --locale=$locale};
+	my $initdbopts = qq{-A trust -U buildfarm --locale="$locale"};
+
+	$locale =~ s/\s/-/g;
 
 	if ($use_discard_caches && ($branch eq 'HEAD' || $branch ge 'REL_14'))
 	{
