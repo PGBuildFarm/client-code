@@ -1691,8 +1691,9 @@ sub make_install_check
 	}
 	elsif ($using_msvc)
 	{
+		my $parallel = $use_installcheck_parallel ? "parallel" : "";
 		chdir "$pgsql/src/tools/msvc";
-		@checklog = run_log("perl vcregress.pl installcheck");
+		@checklog = run_log("perl vcregress.pl installcheck $parallel");
 		chdir $branch_root;
 	}
 	else
