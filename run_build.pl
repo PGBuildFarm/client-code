@@ -1504,8 +1504,14 @@ sub initdb
 sub _meson_env
 {
 	my %env;
-	# these are safe to appear on the log and are required for running tests
-	foreach my $setting (qw(PATH PGUSER PGHOST SystemRoot PG_TEST_PORT_DIR))
+	# these should be safe to appear on the log and could be required
+	# for running tests
+	my @safe_set = qw(
+						 PATH
+						 PGUSER PGHOST PG_TEST_PORT_DIR PG_TEST_EXTRA
+						 SystemRoot TEMP TMP
+						 USER USERNAME USERDOMAIN);
+	foreach my $setting (@safe_set)
 	{
 		my $v = $ENV{$setting};
 		$env{$setting} = $v if $v;
