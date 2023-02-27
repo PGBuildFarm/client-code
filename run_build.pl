@@ -2192,6 +2192,13 @@ sub make_check
 		# prevent meson from logging the whole environment,
 		# see its issue 5328
 		local %ENV = _meson_env();
+		if ($using_msvc)
+		{
+			# not sure why we need to do this for msvc, but it works
+			my $inst = $installdir;
+			$inst =~ s/^[a-z]://i;
+			$ENV{PATH} = "$pgsql/tmp_install$inst/bin;$ENV{PATH}";
+		}
 		@makeout=run_log("meson test -C $pgsql --logbase checklog --print-errorlogs --no-rebuild --suite regress --test-args=--no-locale");
 	}
 	elsif ($using_msvc)
