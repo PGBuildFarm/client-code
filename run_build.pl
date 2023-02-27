@@ -888,6 +888,8 @@ if (step_wanted('configure'))
 
 make();
 
+meson_test_setup() if $using_meson;
+
 make_check() unless $delay_check;
 
 # contrib is built under the standard build step for msvc
@@ -1772,6 +1774,14 @@ sub make_contrib_install_check
 	return;
 }
 
+sub meson_test_setup
+{
+	# we run test setup separately so we can pass test arguments
+	# in the check stage
+	local %ENV = _meson_env();
+	my @log = run_log("meson test -C $pgsql --no-rebuild --suite setup");
+}
+
 # run tests for all the installcheck suites meson knows about
 sub run_meson_install_checks
 {
@@ -2182,7 +2192,7 @@ sub make_check
 		# prevent meson from logging the whole environment,
 		# see its issue 5328
 		local %ENV = _meson_env();
-		@makeout=run_log("meson test -C $pgsql --logbase checklog --print-errorlogs --no-rebuild --suite setup --suite regress");
+		@makeout=run_log("meson test -C $pgsql --logbase checklog --print-errorlogs --no-rebuild --suite regress --test-args=--no-locale");
 	}
 	elsif ($using_msvc)
 	{
