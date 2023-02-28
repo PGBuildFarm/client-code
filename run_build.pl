@@ -1516,7 +1516,7 @@ sub _meson_env
 	my @safe_set = qw(
 						 PATH
 						 PGUSER PGHOST PG_TEST_PORT_DIR PG_TEST_EXTRA
-						 PG_TEST_USING_UNIX_SOCKETS PG_REGRESS_SOCK_DIR
+						 PG_TEST_USE_UNIX_SOCKETS PG_REGRESS_SOCK_DIR
 						 SystemRoot TEMP TMP
 						 USER USERNAME USERDOMAIN);
 	foreach my $setting (@safe_set)
