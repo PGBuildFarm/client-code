@@ -251,7 +251,7 @@ print scalar(localtime()), ": buildfarm run for $animal:$branch starting\n"
 $use_vpath ||= $using_meson;
 
 die "cannot use vpath with MSVC"
-  if ($using_msvc and $use_vpath and !$using_meson);
+  if ($using_msvc && $use_vpath && !$using_meson);
 
 if (ref($force_every) eq 'HASH')
 {
@@ -769,7 +769,8 @@ elsif (!$from_source)
 		}
 	}
 
-	print time_str(), "checking if build run needed ...\n" if $verbose;
+	print time_str(), "checking if build run needed ...\n"
+	  if $verbose && !($testmode || $from_source);
 
 	# transition to new time processing
 	unlink "last.success";
@@ -852,7 +853,8 @@ $scm->log_id() unless $from_source;
 
 if ($use_vpath)
 {
-	print time_str(), "creating vpath build dir $pgsql ...\n" if $verbose;
+	my $str  = $using_meson ? "meson" : "vpath";
+	print time_str(), "creating $str build dir $pgsql ...\n" if $verbose;
 	mkdir $pgsql || die "making $pgsql: $!";
 }
 elsif (!$from_source && $scm->copy_source_required())
@@ -878,7 +880,8 @@ my $dblaststartstop = 0;
 
 if (step_wanted('configure'))
 {
-	print time_str(), "running configure ...\n" if $verbose;
+	my $str = $using_meson ? "meson setup" : "configure";
+	print time_str(), "running $str ...\n" if $verbose;
 
 	configure();
 }
@@ -974,8 +977,6 @@ foreach my $locale (@locales)
 
 			stop_db($locale);
 			start_db($locale);
-
-			print time_str(), "running meson installchecks ...\n" if $verbose;
 
 			run_meson_install_checks($locale);
 		}
@@ -1211,7 +1212,7 @@ sub check_make
 sub make
 {
 	return unless step_wanted('make');
-	print time_str(), "running make ...\n" if $verbose;
+	print time_str(), "running build ...\n" if $verbose;
 
 	my (@makeout);
 	if ($using_meson)
@@ -1232,11 +1233,11 @@ sub make
 		@makeout = run_log("cd $pgsql && $make_cmd");
 	}
 	my $status = $? >> 8;
-	writelog('make', \@makeout);
+	writelog('build', \@makeout);
 	print "======== make log ===========\n", @makeout if ($verbose > 1);
-	$status ||= check_make_log_warnings('make', $verbose) if $check_warnings;
-	send_result('Make', $status, \@makeout) if $status;
-	$steps_completed .= " Make";
+	$status ||= check_make_log_warnings('build', $verbose) if $check_warnings;
+	send_result('Build', $status, \@makeout) if $status;
+	$steps_completed .= " Build";
 	return;
 }
 
@@ -1269,7 +1270,7 @@ sub make_doc
 sub make_install
 {
 	return unless step_wanted('install');
-	print time_str(), "running make install ...\n" if $verbose;
+	print time_str(), "running install ...\n" if $verbose;
 
 	my @makeout;
 	if($using_meson)
@@ -1683,7 +1684,7 @@ sub make_install_check
 {
 	my $locale = shift;
 	return unless step_wanted('install-check');
-	print time_str(), "running make installcheck ($locale)...\n" if $verbose;
+	print time_str(), "running installcheck ($locale)...\n" if $verbose;
 
 	my @checklog;
 	if ($using_meson)
@@ -1780,6 +1781,8 @@ sub meson_test_setup
 	# in the check stage
 	local %ENV = _meson_env();
 	my @log = run_log("meson test -C $pgsql --no-rebuild --suite setup");
+	# XXX fixme: logging etc.
+	return;
 }
 
 # run tests for all the installcheck suites meson knows about
@@ -1788,33 +1791,74 @@ sub run_meson_install_checks
 	my $locale = shift;
 	return unless step_wanted('misc-install-check');
 	local %ENV = _meson_env();
-	my @tests = run_log("meson test -C $pgsql --setup running --no-rebuild --list");
-	chomp @tests;
-	do { s/^postgresql:// ; s! / .*!!; } foreach @tests;
-	my %suites = map {$_ => 1} @tests;
+	print time_str(), "running meson misc installchecks ($locale) ...\n" if $verbose;
 
-	delete $suites{"regress-running"}; # already run
-	delete $suites{"ecpg-running"};    # already run
-	delete $suites{"unsafe_tests-running"}; # shouldn't run
-	delete $suites{"isolation-running"} unless $locale eq 'C'; # ony run once
+	# clean out old logs etc
+	unlink "$pgsql/meson-logs/installcheckworld.txt";
+	rmtree $_ foreach glob("$pgsql/testrun/*-running");
 
-	foreach my $suite (keys %suites)
+	# skip regress, done by make_installcheck
+	# skip isolation and ecpg, done with misc checks
+	my @checklog=run_log("meson test -C $pgsql --setup running --print-errorlogs --no-rebuild --logbase installcheckworld --no-suite regress-running --no-suite isolation-running --no-suite ecpg-running");
+
+	my @fails = glob("$pgsql/testrun/*/*/test.fail");
+
+	my $status = (0 < @fails);
+
+	my @faildirs = map { dirname $_ } @fails;
+	my (@miscdirs,@moddirs,@contribdirs,@otherdirs);
+	foreach my $dir (@faildirs)
 	{
-		print time_str(), "running test suite $suite...\n" if $verbose;
+		my $sname = basename (dirname ($dir));
+		$sname =~ s/-running$//;
+		if (-e "pgsql/src/test/$sname")
+		{
+			push @miscdirs, $dir;
+		}
+		elsif (-e "pgsql/src/test/modules/$sname")
+		{
+			push @moddirs, $dir;
+		}
+		elsif (-e "pgsql/contrib/$sname")
+		{
+			push @contribdirs, $dir;
+		}
+		else
+		{
+			push @otherdirs, $dir;
+		}
+	}
 
-		my $bare_suite = $suite;
-		$bare_suite =~ s/-running$//;
+	@miscdirs = sort @miscdirs;
+	@moddirs = sort @moddirs;
+	@contribdirs = sort @contribdirs;
+	@otherdirs = sort @otherdirs;
 
-		my @checklog=run_log("meson test --print-errorlogs --no-rebuild -C $pgsql --logbase $suite --suite $suite");
-		my $status ||= $? >> 8;
+	@faildirs = (@miscdirs, @moddirs, @contribdirs, @otherdirs);
 
-		my $log = PGBuild::Log->new("$bare_suite-installcheck");
-		$log->add_log("$pgsql/meson-logs/$suite.txt");
-		push(@checklog, $log->log_string);
-		writelog("${bare_suite}InstallCheck", \@checklog);
+	my $log = PGBuild::Log->new("misc-installcheck-$locale");
+	$log->add_log("$pgsql/meson-logs/installcheckworld.txt");
+	foreach my $dir (@faildirs)
+	{
+		$log->add_log($_)
+		  foreach ("$dir/regression.diffs", glob("$dir/log/*"));
+	}
+	push(@checklog, $log->log_string);
+
+	if ($status)
+	{
+		my $first = $faildirs[0];
+		$first = basename (dirname $first);
+		$first =~ s/-running$//;
+		writelog("$first-installcheck-$locale", \@checklog);
 		print @checklog if ($verbose > 1);
-		send_result("${bare_suite}InstallCheck", $status, \@checklog) if $status;
-		$steps_completed .= " ${bare_suite}InstallCheck";
+		send_result("${first}InstallCheck-$locale", $status, \@checklog);
+	}
+	else
+	{
+		writelog("misc-installcheck-$locale", \@checklog);
+		print @checklog if ($verbose > 1);
+		$steps_completed .= " MiscInstallCheck-$locale";
 	}
 	return;
 }
@@ -1824,29 +1868,74 @@ sub run_meson_noninst_checks
 {
 	return unless step_wanted('misc-check');
 	local %ENV = _meson_env();
-	my @tests = run_log("meson test -C $pgsql --no-rebuild --list");
-	chomp @tests;
-	do { s/^postgresql:// ; s! / .*!!; } foreach @tests;
-	my %suites = map {$_ => 1} @tests;
 
-	delete $suites{regress};
-	delete $suites{setup};
-	delete $suites{isolation};
+	print time_str(), "running meson misc tests ...\n" if $verbose;
 
-	foreach my $suite (keys %suites)
+	# skip setup, already done
+	# skip regress, done by make_check
+	my @checklog=run_log("meson test -C $pgsql --print-errorlogs --no-rebuild --logbase checkworld --no-suite setup --no-suite regress");
+
+	my @fails = glob("$pgsql/testrun/*/*/test.fail");
+
+	my $status = (0 < @fails);
+
+	my @faildirs = map { dirname $_ } @fails;
+	my (@bindirs,@miscdirs,@moddirs,@contribdirs,@otherdirs);
+	foreach my $dir (@faildirs)
 	{
-		print time_str(), "running test suite $suite...\n" if $verbose;
+		my $sname = basename (dirname ($dir));
+		if (-e "pgsql/src/bin/$sname")
+		{
+			push @bindirs,$dir;
+		}
+		elsif (-e "pgsql/src/test/$sname")
+		{
+			push @miscdirs, $dir;
+		}
+		elsif (-e "pgsql/src/test/modules/$sname")
+		{
+			push @moddirs, $dir;
+		}
+		elsif (-e "pgsql/contrib/$sname")
+		{
+			push @contribdirs, $dir;
+		}
+		else
+		{
+			push @otherdirs, $dir;
+		}
+	}
 
-		my @checklog=run_log("meson test -C $pgsql --print-errorlogs --no-rebuild --logbase $suite --suite $suite");
-		my $status ||= $? >> 8;
+	@bindirs = sort @bindirs;
+	@miscdirs = sort @miscdirs;
+	@moddirs = sort @moddirs;
+	@contribdirs = sort @contribdirs;
+	@otherdirs = sort @otherdirs;
 
-		my $log = PGBuild::Log->new("$suite-check");
-		$log->add_log("$pgsql/meson-logs/$suite.txt");
-		push(@checklog, $log->log_string);
-		writelog("$suite-check", \@checklog);
+	@faildirs = (@bindirs, @miscdirs, @moddirs, @contribdirs, @otherdirs);
+
+	my $log = PGBuild::Log->new("misc-check");
+	$log->add_log("$pgsql/meson-logs/checkworld.txt");
+	foreach my $dir (@faildirs)
+	{
+		$log->add_log($_)
+		  foreach ("$dir/regression.diffs", glob("$dir/log/*"));
+	}
+	push(@checklog, $log->log_string);
+
+	if ($status)
+	{
+		my $first = $faildirs[0];
+		$first = basename (dirname $first);
+		writelog("$first-check", \@checklog);
 		print @checklog if ($verbose > 1);
-		send_result("${suite}Check", $status, \@checklog) if $status;
-		$steps_completed .= " ${suite}Check";
+		send_result("${first}Check", $status, \@checklog);
+	}
+	else
+	{
+		writelog("misc-check", \@checklog);
+		print @checklog if ($verbose > 1);
+		$steps_completed .= " MiscCheck";
 	}
 	return;
 }
@@ -2184,7 +2273,7 @@ sub run_misc_tests
 sub make_check
 {
 	return unless step_wanted('check');
-	print time_str(), "running make check ...\n" if $verbose;
+	print time_str(), "running basic regression tests ...\n" if $verbose;
 
 	my @makeout;
 	if ($using_meson)
