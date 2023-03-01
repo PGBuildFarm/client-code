@@ -1879,6 +1879,16 @@ sub run_meson_noninst_checks
 
 	print time_str(), "running meson misc tests ...\n" if $verbose;
 
+	# move windows executables aside so that the TAP tests find them from
+	# the tmp_install rather than where they are built.
+	foreach my $file (glob("$pgsql/src/bin/*/*.exe"))
+	{
+		my $exe = basename $file;
+		next if $exe =~ /built-/;
+		(my $dest = $file) =~ s/$exe/built-$exe/;
+		move $exe, $dest;
+	}
+
 	# skip setup, already done
 	# skip regress, done by make_check
 	my @checklog=run_log("meson test -C $pgsql --print-errorlogs --no-rebuild --logbase checkworld --no-suite setup --no-suite regress");
