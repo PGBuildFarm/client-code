@@ -956,6 +956,10 @@ foreach my $locale (@locales)
 		{
 			$ENV{PGHOST} = $tmpdir;
 		}
+		elsif ($ENV{PG_TEST_USE_UNIX_SOCKETS})
+		{
+			$ENV{PGHOST} = $tmpdir;
+		}
 		else
 		{
 			$ENV{PGHOST} = 'localhost';
@@ -1449,13 +1453,16 @@ sub initdb
 
 		print $handle "\n# Configuration added by buildfarm client\n\n";
 
-		if (!$using_msvc && $Config{osname} !~ /msys|MSWin/)
+		if ($ENV{PG_TEST_USE_UNIX_SOCKETS} || (!$using_msvc && $Config{osname} !~ /msys|MSWin/))
 		{
+			# postgres treats backslash as escape
+			my $tmpd = $tmpdir;
+			$tmpd =~ s!\\!/!g;
 			my $param =
-			  $branch eq 'REL9_2_STABLE'
+			  ($branch le 'REL9_2_STABLE' && $branch ne 'HEAD')
 			  ? "unix_socket_directory"
 			  : "unix_socket_directories";
-			print $handle "$param = '$tmpdir'\n";
+			print $handle "$param = '$tmpd'\n";
 			print $handle "listen_addresses = ''\n";
 		}
 		else
@@ -1469,7 +1476,7 @@ sub initdb
 		}
 		close($handle);
 
-		if ($using_msvc || $Config{osname} =~ /msys|MSWin/)
+		if (!$ENV{PG_TEST_USE_UNIX_SOCKETS} && ($using_msvc || $Config{osname} =~ /msys|MSWin/))
 		{
 			my $pg_regress;
 
