@@ -1480,7 +1480,7 @@ sub initdb
 		{
 			my $pg_regress;
 
-			if ($using_msvc)
+			if ($using_msvc && !$using_meson)
 			{
 				$pg_regress = "$abspgsql/Release/pg_regress/pg_regress";
 				unless (-e "$pg_regress.exe")
