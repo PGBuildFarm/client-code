@@ -1886,7 +1886,7 @@ sub run_meson_noninst_checks
 		my $exe = basename $file;
 		next if $exe =~ /built-/;
 		(my $dest = $file) =~ s/$exe/built-$exe/;
-		move $exe, $dest;
+		move $file, $dest;
 	}
 
 	# skip setup, already done
