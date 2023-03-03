@@ -2304,7 +2304,8 @@ sub make_check
 			# not sure why we need to do this for msvc, but it works
 			my $inst = $installdir;
 			$inst =~ s/^[a-z]://i;
-			$ENV{PATH} = "$pgsql/tmp_install$inst/bin;$ENV{PATH}";
+			my $abs_pgsql = abs_path($pgsql);
+			$ENV{PATH} = "$abs_pgsql/tmp_install$inst/bin;$ENV{PATH}";
 		}
 		@makeout=run_log("meson test -C $pgsql --logbase checklog --print-errorlogs --no-rebuild --suite regress --test-args=--no-locale");
 	}
@@ -2337,9 +2338,9 @@ sub make_check
 
 	# get the log files and the regression diffs
 	my @logs =
-	  glob("$pgsql/src/test/regress/log/*.log $pgsql/tmp_install/log/* $pgsql/*/checklog.txt");
-	unshift(@logs, "$pgsql/src/test/regress/regression.diffs")
-	  if (-e "$pgsql/src/test/regress/regression.diffs");
+	  glob("$pgsql/src/test/regress/log/*.log $pgsql/tmp_install/log/* $pgsql/*/checklog.txt $pgsql/testrun/regress/regress/log/*");
+	unshift @logs, "$_/regression.diffs"
+	  foreach ("$pgsql/src/test/regress","$pgsql/testrun/regress/regress");
 	$log->add_log($_) foreach (@logs);
 	my $base = "$pgsql/src/test/regress/tmp_check";
 	if ($status)
