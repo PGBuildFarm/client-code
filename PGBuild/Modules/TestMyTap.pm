@@ -40,9 +40,9 @@ sub setup
 
 	return unless $branch eq 'HEAD';
 
-	my @opts = @{ $conf->{config_opts} };
+	my @opts = (@{ $conf->{config_opts} }, @{ $conf->{meson_opts} });
 
-	return unless grep { /enable-tap-tests/ } @opts;
+	return unless grep { /enable-tap-tests|-Dtap_tests=enabled/ } @opts;
 
 	my $tests = $conf->{my_tap_tests};
 

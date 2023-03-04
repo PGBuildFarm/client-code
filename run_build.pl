@@ -258,8 +258,17 @@ if (ref($force_every) eq 'HASH')
 	$force_every = $force_every->{$branch} || $force_every->{default};
 }
 
-my $config_opts = $PGBuild::conf{config_opts};
-my $meson_opts = $PGBuild::conf{meson_opts};
+my ($config_opts, $meson_opts);
+if ($using_meson)
+{
+	$meson_opts = $PGBuild::conf{meson_opts};
+	delete $PGBuild::conf{config_opts};
+}
+else
+{
+	$config_opts = $PGBuild::conf{config_opts};
+	delete $PGBuild::conf{meson_opts};
+}
 
 our ($buildport);
 

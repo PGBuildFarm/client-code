@@ -34,16 +34,19 @@ sub setup
 	my $branch    = shift;    # The branch of Postgres that's being built.
 	my $conf      = shift;    # ref to the whole config object
 	my $pgsql     = shift;    # postgres build dir
+	my @opts = (@{ $conf->{config_opts} }, @{ $conf->{meson_opts} });
 
-	return unless grep { $_ eq '--with-icu' } @{ $conf->{config_opts} },
+	# for autoconf, we require --with-icu to be explicit even if it's the
+	# default
+	return unless grep { $_ eq '--with-icu' || $_ eq '-Dicu=enabled' } @opts;
 
-	  # could even set up several of these (e.g. for different branches)
-	  my $self = {
+	# could even set up several of these (e.g. for different branches)
+	my $self = {
 		buildroot => $buildroot,
 		pgbranch  => $branch,
 		bfconf    => $conf,
 		pgsql     => $pgsql
-	  };
+	};
 	bless($self, $class);
 
 	# for each instance you create, do:
