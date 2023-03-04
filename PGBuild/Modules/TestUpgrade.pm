@@ -46,6 +46,8 @@ sub setup
 	my $conf      = shift;    # ref to the whole config object
 	my $pgsql     = shift;    # postgres build dir
 
+	# this obviates the need of any meson support in this module, as
+	# this has been in since release 15
 	return if -d "$buildroot/$branch/pgsql/src/bin/pg_upgrade/t";
 
 	die
