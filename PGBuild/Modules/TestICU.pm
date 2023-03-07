@@ -34,7 +34,12 @@ sub setup
 	my $branch    = shift;    # The branch of Postgres that's being built.
 	my $conf      = shift;    # ref to the whole config object
 	my $pgsql     = shift;    # postgres build dir
-	my @opts = (@{ $conf->{config_opts} }, @{ $conf->{meson_opts} });
+	my @opts;
+	foreach my $k ('config_opts','meson_opts')
+	{
+		next unless exists $conf->{$k};
+		push @opts, @{ $conf->{$k} }
+	}
 
 	# for autoconf, we require --with-icu to be explicit even if it's the
 	# default
