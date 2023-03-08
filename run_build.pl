@@ -918,7 +918,7 @@ make_install();
 make_contrib_install() unless ($using_msvc || $using_meson);
 
 make_testmodules_install()
-  unless ($using_msvc || $using_meson || ($branch ne 'HEAD' && $branch lt 'REL9_5'));
+  unless ($branch ne 'HEAD' && $branch lt 'REL9_5');
 
 make_check() if $delay_check;
 
@@ -1412,21 +1412,36 @@ sub make_contrib_install
 
 sub make_testmodules_install
 {
+	return if $using_msvc && ! $using_meson;
 	return
 	  unless (step_wanted('testmodules')
 		and step_wanted('install'));
-	print time_str(), "running make testmodules install ...\n"
+	print time_str(), "running testmodules install ...\n"
 	  if $verbose;
 
-	my $tmp_inst = abs_path($pgsql) . "/tmp_install";
-	my $cmd      = "cd $pgsql/src/test/modules  && "
-	  . "$make install && $make DESTDIR=$tmp_inst install";
-	my @makeout = run_log($cmd);
+	my @out;
+	if ($using_meson)
+	{
+		# for meson, the test setup installs these in the tmp_dir but
+		# the install procedure doesn't install them in $installdir, so
+		# do that using a special "compile" target
+		my $cmd = "meson compile -C $pgsql install-test-files";
+		@out = run_log($cmd);
+	}
+	else
+	{
+		# for autoconf, we need to install them in both $tmp_install
+		# and $installdir
+		my $tmp_inst = abs_path($pgsql) . "/tmp_install";
+		my $cmd      = "cd $pgsql/src/test/modules  && "
+		  . "$make install && $make DESTDIR=$tmp_inst install";
+		@out = run_log($cmd);
+	}
 	my $status  = $? >> 8;
-	writelog('install-testmodules', \@makeout);
-	print "======== make testmodules install log ===========\n", @makeout
+	writelog('install-testmodules', \@out);
+	print "======== testmodules install log ===========\n", @out
 	  if ($verbose > 1);
-	send_result('TestModulesInstall', $status, \@makeout) if $status;
+	send_result('TestModulesInstall', $status, \@out) if $status;
 	$steps_completed .= " TestModulesInstall";
 	return;
 }
