@@ -2636,8 +2636,8 @@ sub meson_setup
 					   qq{-Dprefix="$installdir"},
 					   "-Dpgport=$buildport");
 
-	my $flag = $using_msvc ? "--backend vs" : "";
-	my @confout = run_log("meson setup $flag $confstr $pgsql pgsql");
+	# use default ninja backend on all platforms
+	my @confout = run_log("meson setup $confstr $pgsql pgsql");
 
 	my $status = $? >> 8;
 
