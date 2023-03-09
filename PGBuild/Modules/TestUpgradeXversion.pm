@@ -99,6 +99,22 @@ sub run_psql    ## no critic (Subroutines::ProhibitManyArgs)
 	return;     # callers can check $?
 }
 
+sub dbnames
+{
+	my $loc = shift;
+	# collect names of databases.
+	my $sql = 'select datname from pg_database';
+
+	run_psql("psql", "-A -t", $sql, "postgres", "$loc-dbnames.data");
+	my @dbnames = file_lines("$loc-dbnames.data");
+
+	chomp @dbnames;
+	my %dbnames;
+	do { s/\r$//; $dbnames{$_} = 1; }
+	  foreach @dbnames;
+	return %dbnames;
+}
+
 sub get_lock
 {
 	my $self      = shift;
@@ -292,6 +308,8 @@ sub save_for_testing
 	# fix the regression database so its functions point to $libdir rather than
 	# the source directory, which won't persist past this build.
 
+	my %dbnames = dbnames("$upgrade_loc/save");
+
 	my $sql =
 	    'select distinct probin::text from pg_proc '
 	  . 'where probin not like $$$libdir%$$';
@@ -325,11 +343,14 @@ sub save_for_testing
 
 	return if $?;
 
+	my $dblink = (grep { /_dblink$/ } keys %dbnames)[0];
+
 	if (($this_branch ge 'REL9_5' || $this_branch eq 'HEAD')
-		&& !$self->{bfconf}->{using_msvc})
+		&& !$self->{bfconf}->{using_msvc}
+		&& $dblink)
 	{
 		run_psql("$installdir/bin/psql", "-A -t -e", $sql,
-			"contrib_regression_dblink", "$upgrade_loc/fix.log", 1);
+			$dblink, "$upgrade_loc/fix.log", 1);
 		return if $?;
 	}
 
@@ -418,16 +439,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	$sport = $sport + 0;
 
 	# collect names of databases present in old installation.
-	my $sql = 'select datname from pg_database';
-
-	run_psql("psql", "-A -t", $sql, "postgres",
-		"$upgrade_loc/$oversion-dbnames.data");
-	my @dbnames = file_lines("$upgrade_loc/$oversion-dbnames.data");
-
-	chomp @dbnames;
-	my %dbnames;
-	do { s/\r$//; $dbnames{$_} = 1; }
-	  foreach @dbnames;
+	my %dbnames = dbnames("$upgrade_loc/$oversion");
 
 	if ($oversion ne $this_branch)
 	{
