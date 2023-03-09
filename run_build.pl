@@ -1257,20 +1257,25 @@ sub make
 sub make_doc
 {
 	return unless step_wanted('make-doc');
-	print time_str(), "running make doc ...\n" if $verbose;
+	print time_str(), "building docs ...\n" if $verbose;
 
 	my (@makeout);
-	unless ($using_msvc)
+	if ($using_meson)
 	{
-		my $extra_targets = $PGBuild::conf{extra_doc_targets} || "";
 		@makeout =
-		  run_log("cd $pgsql/doc/src/sgml && $make html $extra_targets");
+		  run_log("cd $pgsql && ninja docs");
 	}
-	else
+	elsif ($using_msvc)
 	{
 		chdir "$pgsql/src/tools/msvc";
 		@makeout = run_log("perl builddoc.pl");
 		chdir $branch_root;
+	}
+	else
+	{
+		my $extra_targets = $PGBuild::conf{extra_doc_targets} || "";
+		@makeout =
+		  run_log("cd $pgsql/doc/src/sgml && $make html $extra_targets");
 	}
 	my $status = $? >> 8;
 	writelog('make-doc', \@makeout);
