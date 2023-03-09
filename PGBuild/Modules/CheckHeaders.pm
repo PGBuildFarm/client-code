@@ -36,6 +36,8 @@ sub setup
 
 	return if $branch ne 'HEAD';
 
+	return if $conf->{using_meson}; # no support yet
+
 	# could even set up several of these (e.g. for different branches)
 	my $self = {
 		buildroot => $buildroot,
