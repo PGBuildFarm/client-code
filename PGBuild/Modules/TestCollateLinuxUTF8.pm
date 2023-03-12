@@ -80,7 +80,7 @@ sub installcheck
 
 	return unless step_wanted("installcheck-collate-$locale");
 
-	print time_str(), "installchecking $locale", __PACKAGE__, "\n"
+	print time_str(), "installchecking $locale ", __PACKAGE__, "\n"
 	  if $verbose;
 
 	(my $buildport = $ENV{EXTRA_REGRESS_OPTS}) =~ s/--port=//;
