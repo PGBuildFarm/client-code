@@ -1262,8 +1262,11 @@ sub make_doc
 	my (@makeout);
 	if ($using_meson)
 	{
-		@makeout =
-		  run_log("cd $pgsql && ninja docs");
+		my @targets = ('html');
+		push (@targets, split(/\s+/,$PGBuild::conf{extra_doc_targets}))
+		  if $PGBuild::conf{extra_doc_targets};
+		do  { s!^!doc/src/sgml/! } foreach @targets;
+		@makeout = run_log("cd $pgsql && ninja " . join (' ',@targets));
 	}
 	elsif ($using_msvc)
 	{
@@ -2641,8 +2644,10 @@ sub meson_setup
 					   qq{-Dprefix="$installdir"},
 					   "-Dpgport=$buildport");
 
+	my $srcdir = $from_source || 'pgsql';
+
 	# use default ninja backend on all platforms
-	my @confout = run_log("meson setup $confstr $pgsql pgsql");
+	my @confout = run_log("meson setup $confstr $pgsql $srcdir");
 
 	my $status = $? >> 8;
 
