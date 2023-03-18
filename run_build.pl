@@ -507,7 +507,7 @@ my $installdir = "$buildroot/$branch/inst";
 # recursively fix any permissions that might stop us removing the directories
 # then remove old run artefacts if any, die if not possible
 my $fix_perms = sub { chmod 0700, $_ unless -l $_; };
-if step_wanted('install')
+if (step_wanted('install'))
 {
 	File::Find::find($fix_perms, "inst") if -d "inst";
 	rmtree("inst");
