@@ -298,6 +298,13 @@ sub save_for_testing
 
 	setinstenv($self, $installdir, $save_env);
 
+	# is this version using unix sockets or localhost?
+
+	my $saveconf = file_contents("$install_loc/data-C/postgresql.conf");
+	my $using_localhost = $saveconf =~ /^listen_addresses = 'localhost'/m;
+
+	local $ENV{PGHOST} = $using_localhost ? "localhost" : $ENV{PGHOST};
+
 	# start the server
 
 	system( qq{"$installdir/bin/pg_ctl" -D "$installdir/data-C" -o -F }
@@ -404,11 +411,16 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	);
 	return if $?;
 
+	# is the old version using unix sockets or localhost?
+
+	my $oldconf = file_contents("$other_branch/inst/data-C/postgresql.conf");
+	my $using_localhost = $oldconf =~ /^listen_addresses = 'localhost'/m;
+
 	# The old version will have the unix sockets point to tmpdir from the
 	# run in which it was set up, which will be gone by now, so we repoint
 	# it to the current run's tmpdir.
 	# listen_addresses will be set correctly and requires no adjustment.
-	unless ($self->{bfconf}->{using_msvc} || $^O eq 'msys')
+	if (! $using_localhost)
 	{
 		open(my $opgconf, ">>",
 			"$other_branch/inst/$upgrade_test/postgresql.conf")
@@ -422,6 +434,8 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 
 	setinstenv($self, "$other_branch/inst", $save_env);
+
+	local $ENV{PGHOST} = $using_localhost ? "localhost" : $ENV{PGHOST};
 
 	unlink "$other_branch/inst/dump-$this_branch.log";
 
@@ -697,7 +711,11 @@ sub installcheck
 
 	local %ENV = %ENV;
 
-	if ($self->{bfconf}->{using_msvc} || $^O eq 'msys')
+	if ($ENV{PG_TEST_USE_UNIX_SOCKETS})
+	{
+		$ENV{PGHOST} = $tmpdir;
+	}
+	elsif ($self->{bfconf}->{using_msvc} || $^O eq 'msys')
 	{
 		$ENV{PGHOST} = 'localhost';
 	}
