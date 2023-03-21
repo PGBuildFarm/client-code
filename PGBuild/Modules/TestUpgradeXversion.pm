@@ -298,13 +298,6 @@ sub save_for_testing
 
 	setinstenv($self, $installdir, $save_env);
 
-	# is this version using unix sockets or localhost?
-
-	my $saveconf = file_contents("$install_loc/data-C/postgresql.conf");
-	my $using_localhost = $saveconf =~ /^listen_addresses = 'localhost'/m;
-
-	local $ENV{PGHOST} = $using_localhost ? "localhost" : $ENV{PGHOST};
-
 	# start the server
 
 	system( qq{"$installdir/bin/pg_ctl" -D "$installdir/data-C" -o -F }
@@ -413,8 +406,10 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	# is the old version using unix sockets or localhost?
 
-	my $oldconf = file_contents("$other_branch/inst/data-C/postgresql.conf");
+	my $oldconf = file_contents("$other_branch/inst/$upgrade_test/postgresql.conf");
 	my $using_localhost = $oldconf =~ /^listen_addresses = 'localhost'/m;
+
+	local $ENV{PGHOST} = $using_localhost ? "localhost" : $ENV{PGHOST};
 
 	# The old version will have the unix sockets point to tmpdir from the
 	# run in which it was set up, which will be gone by now, so we repoint
@@ -434,8 +429,6 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 
 	setinstenv($self, "$other_branch/inst", $save_env);
-
-	local $ENV{PGHOST} = $using_localhost ? "localhost" : $ENV{PGHOST};
 
 	unlink "$other_branch/inst/dump-$this_branch.log";
 
@@ -499,7 +492,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		  . qq{> "$upgrade_loc/$oversion-initdb.log" 2>&1});
 	return if $?;
 
-	unless ($self->{bfconf}->{using_msvc} || $^O eq 'msys')
+	unless ($using_localhost)
 	{
 		open(my $pgconf, ">>", "$installdir/$oversion-upgrade/postgresql.conf")
 		  || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
@@ -768,8 +761,11 @@ sub installcheck
 	# ok, we now have the persistent copy of all branches we can use
 	# to test upgrading from
 
-	my $dconfig = `$installdir/bin/pg_config --configure`;
-	my $dport = $dconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
+	my $dport;
+	{
+		no warnings 'once';
+		$dport = $main::buildport;
+	}
 
 	# for other branches ignore the from-source root if it's being used
 	my $stable_root = $self->{upgrade_install_root};
