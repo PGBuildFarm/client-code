@@ -186,7 +186,7 @@ my (
 	$use_valgrind,              $valgrind_options,
 	$use_installcheck_parallel, $max_load_avg,
 	$use_discard_caches,        $archive_reports,
-	$using_meson,
+	$using_meson,               $meson_jobs,
   )
   = @PGBuild::conf{
 	qw(build_root target animal aux_path trigger_exclude
@@ -194,7 +194,7 @@ my (
 	  use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob
 	  ccache_failure_remove wait_timeout use_accache
 	  use_valgrind valgrind_options use_installcheck_parallel max_load_avg
-	  use_discard_caches archive_reports using_meson)
+	  use_discard_caches archive_reports using_meson meson_jobs)
   };
 
 $using_meson = undef unless $branch eq 'HEAD' || $branch ge 'REL_16_STABLE';
@@ -1233,7 +1233,8 @@ sub make
 	my (@makeout);
 	if ($using_meson)
 	{
-		@makeout = run_log("meson compile -C $pgsql");
+		my $jflag = defined($meson_jobs) ? " --jobs=$meson_jobs" : "";
+		@makeout = run_log("meson compile -C $pgsql $jflag");
 	}
 	elsif ($using_msvc)
 	{
@@ -1733,7 +1734,8 @@ sub make_install_check
 	if ($using_meson)
 	{
 		local %ENV = _meson_env();
-		@checklog = run_log("meson test -v -C $pgsql --no-rebuild --print-errorlogs --setup running --suite regress-running --logbase regress-installcheck-$locale");
+		my $jflag = defined($meson_jobs) ? " --num-processes=$meson_jobs" : "";
+		@checklog = run_log("meson test $jflag -v -C $pgsql --no-rebuild --print-errorlogs --setup running --suite regress-running --logbase regress-installcheck-$locale");
 	}
 	elsif ($using_msvc)
 	{
@@ -1840,9 +1842,11 @@ sub run_meson_install_checks
 	unlink "$pgsql/meson-logs/installcheckworld.txt";
 	rmtree $_ foreach glob("$pgsql/testrun/*-running");
 
+	my $jflag = defined($meson_jobs) ? " --num-processes=$meson_jobs" : "";
+
 	# skip regress, done by make_installcheck
 	# skip isolation and ecpg, done with misc checks
-	my @checklog=run_log("meson test -C $pgsql --setup running --print-errorlogs --no-rebuild --logbase installcheckworld --no-suite regress-running --no-suite isolation-running --no-suite ecpg-running");
+	my @checklog=run_log("meson test $jflag -C $pgsql --setup running --print-errorlogs --no-rebuild --logbase installcheckworld --no-suite regress-running --no-suite isolation-running --no-suite ecpg-running");
 
 	my @fails = glob("$pgsql/testrun/*/*/test.fail");
 
@@ -1924,9 +1928,11 @@ sub run_meson_noninst_checks
 		move $file, $dest;
 	}
 
+	my $jflag = defined($meson_jobs) ? " --num-processes $meson_jobs" : "";
+
 	# skip setup, already done
 	# skip regress, done by make_check
-	my @checklog=run_log("meson test -C $pgsql --print-errorlogs --no-rebuild --logbase checkworld --no-suite setup --no-suite regress");
+	my @checklog=run_log("meson test $jflag -C $pgsql --print-errorlogs --no-rebuild --logbase checkworld --no-suite setup --no-suite regress");
 
 	my @fails = glob("$pgsql/testrun/*/*/test.fail");
 
@@ -2342,7 +2348,8 @@ sub make_check
 			my $abs_pgsql = abs_path($pgsql);
 			$ENV{PATH} = "$abs_pgsql/tmp_install$inst/bin;$ENV{PATH}";
 		}
-		@makeout=run_log("meson test -C $pgsql --logbase checklog --print-errorlogs --no-rebuild --suite regress --test-args=--no-locale");
+		my $jflag = defined($meson_jobs) ? " --num-processes=$meson_jobs" : "";
+		@makeout=run_log("meson test $jflag -C $pgsql --logbase checklog --print-errorlogs --no-rebuild --suite regress --test-args=--no-locale");
 	}
 	elsif ($using_msvc)
 	{

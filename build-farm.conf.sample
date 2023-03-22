@@ -274,6 +274,10 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# will be ignored for branches older than 16
 	using_meson => undef,
 
+	# similar to make_jobs above - how much parallelism do you want for
+	# meson's build and test stages. undef says use meson's default. (1?)
+	meson_jobs => undef,
+
 	# options used with configure (and not for meson)
 	config_opts => [
 		qw(
