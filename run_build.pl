@@ -405,6 +405,7 @@ $tmpdir = File::Temp::tempdir(
 	CLEANUP => 1
 );
 umask $oldmask unless $using_msvc;
+$tmpdir = abs_path($tmpdir); # native path for Msys
 
 my $scm = PGBuild::SCM->new(\%PGBuild::conf);
 if (!$from_source)
