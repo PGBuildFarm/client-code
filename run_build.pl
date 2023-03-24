@@ -370,6 +370,9 @@ $st_prefix = "$animal.";
 # set environment from config
 while (my ($envkey, $envval) = each %{ $PGBuild::conf{build_env} })
 {
+	# ignore this setting for branches older than 13
+	next if $envkey eq 'PG_TEST_USE_UNIX_SOCKETS' &&
+	  $branch lt "REL_13_STABLE" && $branch ne 'HEAD';
 	$ENV{$envkey} = $envval;
 }
 
@@ -405,7 +408,13 @@ $tmpdir = File::Temp::tempdir(
 	CLEANUP => 1
 );
 umask $oldmask unless $using_msvc;
-$tmpdir = abs_path($tmpdir); # native path for Msys
+
+my $vtmpdir = $tmpdir;
+if ($Config{osname} =~ /msys/i)
+{
+	$tmpdir = `cygpath -a -m $tmpdir`;
+	chomp $tmpdir;
+}
 
 my $scm = PGBuild::SCM->new(\%PGBuild::conf);
 if (!$from_source)
@@ -706,8 +715,8 @@ if ($use_discard_caches && ($branch eq 'HEAD' || $branch ge 'REL_14'))
 
 if ($extra_config && $extra_config->{$branch})
 {
-	my $tmpname = "$tmpdir/bfextra.conf";
-	open($extraconf, ">", "$tmpname") || die 'opening $tmpname $!';
+	my $tmpname = "$vtmpdir/bfextra.conf";
+	open($extraconf, ">", "$tmpname") || die "opening $tmpname $!";
 	$ENV{TEMP_CONFIG} = $tmpname;
 	foreach my $line (@{ $extra_config->{$branch} })
 	{
