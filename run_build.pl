@@ -1245,6 +1245,13 @@ sub make
 	{
 		my $jflag = defined($meson_jobs) ? " --jobs=$meson_jobs" : "";
 		@makeout = run_log("meson compile -C $pgsql $jflag");
+		move "$pgsql/meson-logs/meson-log.txt", "$pgsql/meson-logs/compile.log";
+		if (-s "$pgsql/meson-logs/compile.log")
+		{
+			my $log = PGBuild::Log->new("compile");
+			$log->add_log("$pgsql/meson-logs/compile.log");
+			push(@makeout,$log->log_string);
+		}
 	}
 	elsif ($using_msvc)
 	{
@@ -1311,6 +1318,13 @@ sub make_install
 	if($using_meson)
 	{
 		@makeout = run_log("meson install -C $pgsql ");
+		move "$pgsql/meson-logs/meson-log.txt","$pgsql/meson-logs/install.log";
+		my $log = PGBuild::Log->new("install");
+		if (-s "$pgsql/meson-logs/install.log")
+		{
+			$log->add_file("$pgsql/meson-logs/install.log");
+			push(@makeout, $log->log_string);
+		}
 	}
 	elsif ($using_msvc)
 	{
@@ -2671,15 +2685,17 @@ sub meson_setup
 
 	my $status = $? >> 8;
 
-	print "======== configure output ===========\n", @confout
-	  if ($verbose > 1);
+	move "$pgsql/meson-logs/meson-log.txt", "$pgsql/meson-logs/setup.log";
 
-	if (-s "$pgsql/config.log")
+	if (-s "$pgsql/meson-logs/setup.log")
 	{
-		push(@confout,
-			"\n\n================= config.log ================\n\n",
-			file_lines("$pgsql/config.log"));
+		my $log = PGBuild::log->new("setup");
+		$log->add_log("$pgsql/meson-logs/setup.log");
+		push(@confout,$log->log_string);
 	}
+
+	print "======== setup output ===========\n", @confout
+	  if ($verbose > 1);
 
 	writelog('configure', \@confout);
 
@@ -2873,9 +2889,9 @@ sub configure
 
 	if (-s "$pgsql/config.log")
 	{
-		push(@confout,
-			"\n\n================= config.log ================\n\n",
-			file_lines("$pgsql/config.log"));
+		my $log = PGBuild::Log->new("configure");
+		$log->add_log("$pgsql/config.log");
+		push(@confout,$log->log_string);
 	}
 
 	writelog('configure', \@confout);
