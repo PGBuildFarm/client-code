@@ -2689,7 +2689,7 @@ sub meson_setup
 
 	if (-s "$pgsql/meson-logs/setup.log")
 	{
-		my $log = PGBuild::log->new("setup");
+		my $log = PGBuild::Log->new("setup");
 		$log->add_log("$pgsql/meson-logs/setup.log");
 		push(@confout,$log->log_string);
 	}
