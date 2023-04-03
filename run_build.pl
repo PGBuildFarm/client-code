@@ -2479,6 +2479,22 @@ sub make_ecpg_check
 	return;
 }
 
+# replace previous use of external egrep -A
+sub _dump_filter
+{
+	my ($lines, $tag, $context) = @_;
+	my @output;
+	while (@$lines)
+	{
+		my $line = shift @$lines;
+		if (index($line,$tag) > -1)
+		{
+			push(@output, splice(@$lines,0,$context));
+		}
+	}
+	return @output;
+}
+
 sub find_typedefs
 {
 	my ($hostobjdump) = grep { /--host=/ } @$config_opts;
@@ -2533,12 +2549,14 @@ sub find_typedefs
 	{
 		next if $bin =~ m!bin/(ipcclean|pltcl_)!;
 		next unless -f $bin;
-		next if -l $bin;    # ignore symlinks to plain files (e.g. postmaster)
+		next if -l $bin;    # ignore symlinks to plain files
+		next if $bin =~ m!/postmaster.exe$!; # sometimes a copy not a link
+
 		if ($using_osx)
 		{
 			# no run_log due to redirections.
-			@dumpout =
-			  `dwarfdump $bin 2>/dev/null | egrep -A2 TAG_typedef 2>/dev/null`;
+			@dumpout = `dwarfdump $bin 2>/dev/null`;
+			@dumpout = _dump_filter(\@dumpout,'TAG_typedef',2);
 			foreach (@dumpout)
 			{
 				## no critic (RegularExpressions::ProhibitCaptureWithoutTest)
@@ -2561,9 +2579,9 @@ sub find_typedefs
 		}
 		elsif (@err == 1)   # Linux and sometimes windows
 		{
-			my $cmd = "$objdump -Wi $bin 2>/dev/null | "
-			  . "egrep -A3 DW_TAG_typedef 2>/dev/null";
+			my $cmd = "$objdump -Wi $bin 2>/dev/null";
 			@dumpout = `$cmd`;    # no run_log because of redirections
+			@dumpout = _dump_filter(\@dumpout,'DW_TAG_typedef',3);
 			foreach (@dumpout)
 			{
 				@flds = split;
@@ -2578,10 +2596,10 @@ sub find_typedefs
 		{
 
 			# FreeBSD, similar output to Linux
-			my $cmd = "readelf -w $bin 2>/dev/null | "
-			  . "egrep -A3 DW_TAG_typedef 2>/dev/null";
-
+			my $cmd = "readelf -w $bin 2>/dev/null";
 			@dumpout = ` $cmd`;    # no run_log due to redirections
+			@dumpout = _dump_filter(\@dumpout,'DW_TAG_typedef',3);
+
 			foreach (@dumpout)
 			{
 				@flds = split;
