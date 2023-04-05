@@ -1283,11 +1283,8 @@ sub make_doc
 	my (@makeout);
 	if ($using_meson)
 	{
-		my @targets = ('html');
-		push (@targets, split(/\s+/,$PGBuild::conf{extra_doc_targets}))
-		  if $PGBuild::conf{extra_doc_targets};
-		do  { s!^!doc/src/sgml/! } foreach @targets;
-		@makeout = run_log("cd $pgsql && ninja " . join (' ',@targets));
+		my $extra_targets = $PGBuild::conf{extra_doc_targets} || "";
+		@makeout = run_log("meson compile -C $pgsql html $extra_targets");
 	}
 	elsif ($using_msvc)
 	{
@@ -2689,9 +2686,16 @@ sub meson_setup
 		}
 	}
 
+	my $docs_opts="";
+	$docs_opts = "-Ddocs=enabled"
+	  if defined($PGBuild::conf{optional_steps}->{build_docs});
+	$docs_opts .= " -Ddocs_pdf=enabled"
+	  if $docs_opts && ($PGBuild::conf{extra_doc_targets} || "") =~ /[.]pdf/;
+
 	my $confstr = join(" ",
 					   "-Dauto_features=disabled",
 					   @quoted_opts,
+					   $docs_opts,
 					   "-Dlibdir=lib",
 					   qq{-Dprefix="$installdir"},
 					   "-Dpgport=$buildport");
