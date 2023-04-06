@@ -908,6 +908,10 @@ if (step_wanted('configure'))
 	configure();
 }
 
+# force this on to avoid meson errors on build
+local $ENV{MSYS} = $ENV{MSYS} || "";
+$ENV{MSYS} .= " winjitdebug" if ($using_meson);
+
 # module configure has to wait until we have built and installed the base
 # so see below
 
@@ -1581,7 +1585,8 @@ sub _meson_env
 						 PATH
 						 PGUSER PGHOST PG_TEST_PORT_DIR PG_TEST_EXTRA
 						 PG_TEST_USE_UNIX_SOCKETS PG_REGRESS_SOCK_DIR
-						 SystemRoot TEMP TMP
+						 SystemRoot TEMP TMP MSYS
+						 TEMP_CONFIG  PGCTLTIMEOUT
 						 USER USERNAME USERDOMAIN);
 	foreach my $setting (@safe_set)
 	{
