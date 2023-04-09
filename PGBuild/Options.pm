@@ -26,7 +26,7 @@ BEGIN
 	@option_list = qw(
 	  $forcerun $buildconf $keepall $help
 	  $quiet $from_source $from_source_clean $testmode
-	  $skip_steps $only_steps $find_typedefs
+	  $skip_steps $only_steps $skip_suites $find_typedefs
 	  $nosend $nostatus $verbose @config_set $schedule $tests
 	  $check_warnings $delay_check $show_error_log
 	  $avoid_ts_collisions
@@ -49,6 +49,7 @@ our (
 	$nostatus,          $verbose,        @config_set,
 	$schedule,          $tests,          $check_warnings,
 	$delay_check,       $show_error_log, $avoid_ts_collisions,
+	$skip_suites
 );
 
 my (%standard_options);
@@ -68,6 +69,7 @@ my (%standard_options);
 	'quiet'               => \$quiet,
 	'skip-steps=s'        => \$skip_steps,
 	'only-steps=s'        => \$only_steps,
+	'skip-suites=s'       => \$skip_suites,
 	'config-set=s'        => \@config_set,
 	'schedule=s'          => \$schedule,
 	'tests=s'             => \$tests,

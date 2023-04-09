@@ -144,6 +144,12 @@ if ($only_steps =~ /\S/)
 {
 	%only_steps = map { $_ => 1 } split(/\s+/, $only_steps);
 }
+our %skip_suites;
+$skip_suites ||= "";
+if ($skip_suites =~ /\S/)
+{
+	%skip_suites = map { $_ => 1 } split(/\s+/, $skip_suites);
+}
 
 our ($branch);
 my $explicit_branch    = shift;
@@ -1872,7 +1878,13 @@ sub run_meson_install_checks
 
 	# skip regress, done by make_installcheck
 	# skip isolation and ecpg, done with misc checks
-	my @checklog=run_log("meson test $jflag -C $pgsql --setup running --print-errorlogs --no-rebuild --logbase installcheckworld --no-suite regress-running --no-suite isolation-running --no-suite ecpg-running");
+	my $skip = "--no-suite regress-running --no-suite isolation-running --no-suite ecpg-running";
+	foreach my $sk (keys %skip_suites)
+	{
+		$skip .= " --no-suite $sk-running";
+	}
+
+	my @checklog=run_log("meson test $jflag -C $pgsql --setup running --print-errorlogs --no-rebuild --logbase installcheckworld $skip");
 
 	my @fails = glob("$pgsql/testrun/*/*/test.fail");
 
@@ -1958,7 +1970,12 @@ sub run_meson_noninst_checks
 
 	# skip setup, already done
 	# skip regress, done by make_check
-	my @checklog=run_log("meson test $jflag -C $pgsql --print-errorlogs --no-rebuild --logbase checkworld --no-suite setup --no-suite regress");
+	my $skip = "--no-suite setup --no-suite regress";
+	foreach my $sk (keys %skip_suites)
+	{
+		$skip .= " --no-suite $sk";
+	}
+	my @checklog=run_log("meson test $jflag -C $pgsql --print-errorlogs --no-rebuild --logbase checkworld $skip");
 
 	my @fails = glob("$pgsql/testrun/*/*/test.fail");
 
