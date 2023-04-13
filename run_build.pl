@@ -2691,6 +2691,7 @@ sub meson_setup
 	$env = { %$env }; # clone it
 	delete $env->{CC} if $using_msvc;  # this can confuse meson in this case
 	local %ENV = (%ENV, %$env);
+	$ENV{MSYS2_ARG_CONV_EXCL} = "-Dextra";
 
 	my @quoted_opts;
 	foreach my $c_opt (@$meson_opts)
