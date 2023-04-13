@@ -2354,7 +2354,7 @@ sub run_misc_tests
 		my $testname = basename($testdir);
 		next if $testname =~ /ssl/ && !$using_ssl;
 		next unless -d "$testdir/t";
-		next if !$using_meson && $using_msvc && $testname eq 'pg_bsd_indent';
+		next if $using_msvc && $testname eq 'pg_bsd_indent';
 		next unless step_wanted("module-$testname");
 		print time_str(), "running misc test module-$testname ...\n"
 		  if $verbose;
