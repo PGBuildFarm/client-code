@@ -1254,7 +1254,7 @@ sub make
 	if ($using_meson)
 	{
 		my $jflag = defined($meson_jobs) ? " --jobs=$meson_jobs" : "";
-		@makeout = run_log("meson compile -C $pgsql $jflag");
+		@makeout = run_log("meson compile -C $pgsql --verbose $jflag");
 		move "$pgsql/meson-logs/meson-log.txt", "$pgsql/meson-logs/compile.log";
 		if (-s "$pgsql/meson-logs/compile.log")
 		{
