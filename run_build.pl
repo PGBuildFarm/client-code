@@ -386,7 +386,7 @@ die "cannot run as root/Administrator"
 
 $devnull = $using_msvc ? "nul" : "/dev/null";
 
-$st_prefix = "$animal.";
+$st_prefix = $testmode ? "$animal-test." : "$animal.";
 
 # set environment from config
 while (my ($envkey, $envval) = each %{ $PGBuild::conf{build_env} })
