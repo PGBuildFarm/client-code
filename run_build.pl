@@ -528,7 +528,8 @@ if (-e $forcefile)
 
 # if it's not a regular run, make sure we force the next run
 # this run could defeat the up-to-date checks
-if (($nosend || $nostatus) && !$from_source)
+# unless it's in testmode, which uses a different prefix
+if (($nosend || $nostatus) && !$from_source && !$testmode)
 {
 	open(my $fh, '>', $forcefile) || die "opening $forcefile: $!";
 	close($fh);
