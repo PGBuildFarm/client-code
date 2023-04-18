@@ -2521,7 +2521,7 @@ sub find_typedefs
 	# work around the fact that ucrt/binutils objdump is far slower
 	# than the one in msys/binutils
 	local $ENV{PATH} = $ENV{PATH};
-	$ENV{PATH} = "/usr/bin:$ENV{PATH}" if ($Config{osname} eq 'msys';
+	$ENV{PATH} = "/usr/bin:$ENV{PATH}" if $Config{osname} eq 'msys';
 
 	my ($hostobjdump) = grep { /--host=/ } @$config_opts;
 	$hostobjdump ||= "";
