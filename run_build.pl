@@ -2069,7 +2069,7 @@ sub make_misc_check
 		my @out = run_log("cd $dir && $make $instflags TAP_TESTS= check");
 		$status ||= $? >> 8;
 		push(@checklog, "=========== Module $test check =============\n", @out);
-		my @logs = glob("$dir/regression.diffs $dir/*/regression.diffs $dir/log/*.log");
+		my @logs = glob("$dir/regression.diffs $dir/log/*.log");
 		$log->add_log($_) foreach (@logs);
 	}
 	push(@checklog, $log->log_string);
@@ -2212,7 +2212,6 @@ sub run_tap_test
 	my $is_install_check = shift;
 
 	my $taptarget = $is_install_check ? "installcheck" : "check";
-	my $targname  = "prove_$taptarget";
 
 	return unless step_wanted("$testname-$taptarget");
 
@@ -2249,7 +2248,7 @@ sub run_tap_test
 		my $instflags = $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
 
 		@makeout =
-		  run_log("cd $dir && $make NO_LOCALE=1 $pflags $instflags $targname");
+		  run_log("cd $dir && $make NO_LOCALE=1 $pflags $instflags $taptarget");
 	}
 
 	my $status = $? >> 8;
