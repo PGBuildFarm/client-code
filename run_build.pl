@@ -99,6 +99,9 @@ use PGBuild::Utils qw(:DEFAULT $st_prefix $logdirname $branch_root
   $devnull $send_result_routine $ts_prefix);
 use PGBuild::Log;
 
+# check if we have IPC::Run, but don't make it a hard requirement
+our $have_ipc_run = eval { require IPC::Run; 1; };
+
 $send_result_routine = \&send_res;
 
 # make sure we exit nicely on any normal interrupt
@@ -1717,8 +1720,16 @@ sub stop_db
 	my $locale = shift;
 	my $logpos = -s "$installdir/logfile" || 0;
 	chdir($installdir);
-	my $cmd = qq{"bin/pg_ctl" -D data-$locale stop >stoplog 2>&1};
-	system($cmd);
+	if ($have_ipc_run)
+	{
+		my $cmd = ['bin/pg_ctl', "-D", "data-$locale", "stop"];
+		IPC::Run::run $cmd, \"" , ">&stoplog";
+	}
+	else
+	{
+		my $cmd = qq{"bin/pg_ctl" -D data-$locale stop >stoplog 2>&1};
+		system($cmd);
+	}
 	my $status = $? >> 8;
 	chdir($branch_root);
 	if ($use_valgrind)
