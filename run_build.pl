@@ -1722,8 +1722,9 @@ sub stop_db
 	chdir($installdir);
 	if ($have_ipc_run)
 	{
+		my $in = "";
 		my $cmd = ['bin/pg_ctl', "-D", "data-$locale", "stop"];
-		IPC::Run::run $cmd, \"" , ">&stoplog";
+		IPC::Run::run($cmd, \$in , ">&stoplog");
 	}
 	else
 	{
