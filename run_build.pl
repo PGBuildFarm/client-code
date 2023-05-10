@@ -196,6 +196,7 @@ my (
 	$use_installcheck_parallel, $max_load_avg,
 	$use_discard_caches,        $archive_reports,
 	$using_meson,               $meson_jobs,
+	$meson_test_timeout
   )
   = @PGBuild::conf{
 	qw(build_root target animal aux_path trigger_exclude
@@ -203,10 +204,12 @@ my (
 	  use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob
 	  ccache_failure_remove wait_timeout use_accache
 	  use_valgrind valgrind_options use_installcheck_parallel max_load_avg
-	  use_discard_caches archive_reports using_meson meson_jobs)
+	  use_discard_caches archive_reports using_meson meson_jobs
+	  meson_test_timeout)
   };
 
 $using_meson = undef unless $branch eq 'HEAD' || $branch ge 'REL_16_STABLE';
+$meson_test_timeout //= 3;
 
 $ts_prefix = sprintf('%s:%-13s ', $animal, $branch);
 
@@ -1780,7 +1783,7 @@ sub make_install_check
 	{
 		local %ENV = _meson_env();
 		my $jflag = defined($meson_jobs) ? " --num-processes=$meson_jobs" : "";
-		@checklog = run_log("meson test $jflag -v -C $pgsql --no-rebuild --print-errorlogs --setup running --suite regress-running --logbase regress-installcheck-$locale");
+		@checklog = run_log("meson test -t $meson_test_timeout $jflag -v -C $pgsql --no-rebuild --print-errorlogs --setup running --suite regress-running --logbase regress-installcheck-$locale");
 	}
 	elsif ($using_msvc)
 	{
@@ -1897,7 +1900,7 @@ sub run_meson_install_checks
 		$skip .= " --no-suite $sk-running";
 	}
 
-	my @checklog=run_log("meson test $jflag -C $pgsql --setup running --print-errorlogs --no-rebuild --logbase installcheckworld $skip");
+	my @checklog=run_log("meson test -t $meson_test_timeout $jflag -C $pgsql --setup running --print-errorlogs --no-rebuild --logbase installcheckworld $skip");
 
 	my @fails = glob("$pgsql/testrun/*/*/test.fail");
 
@@ -1988,7 +1991,7 @@ sub run_meson_noninst_checks
 	{
 		$skip .= " --no-suite $sk";
 	}
-	my @checklog=run_log("meson test $jflag -C $pgsql --print-errorlogs --no-rebuild --logbase checkworld $skip");
+	my @checklog=run_log("meson test -t $meson_test_timeout $jflag -C $pgsql --print-errorlogs --no-rebuild --logbase checkworld $skip");
 
 	my @fails = glob("$pgsql/testrun/*/*/test.fail");
 
@@ -2406,7 +2409,7 @@ sub make_check
 			$ENV{PATH} = "$abs_pgsql/tmp_install$inst/bin;$ENV{PATH}";
 		}
 		my $jflag = defined($meson_jobs) ? " --num-processes=$meson_jobs" : "";
-		@makeout=run_log("meson test $jflag -C $pgsql --logbase checklog --print-errorlogs --no-rebuild --suite regress --test-args=--no-locale");
+		@makeout=run_log("meson test -t $meson_test_timeout $jflag -C $pgsql --logbase checklog --print-errorlogs --no-rebuild --suite regress --test-args=--no-locale");
 	}
 	elsif ($using_msvc)
 	{

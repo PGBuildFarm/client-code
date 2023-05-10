@@ -284,6 +284,10 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# meson's build and test stages. undef says use meson's default. (1?)
 	meson_jobs => undef,
 
+	# timeout multiplier for meson test jobs.
+	# default if value is undefined is 3, 0 means no timeout
+	meson_test_timeout => undef,
+
 	# options used with configure (and not for meson)
 	config_opts => [
 		qw(
