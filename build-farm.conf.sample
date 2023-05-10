@@ -253,6 +253,12 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		# This example makes the regression tests run with extra
 		# checking of user names created by the tests
 		# CPPFLAGS => '-DENFORCE_REGRESSION_TEST_NAME_RESTRICTIONS',
+
+		# where to find a usable pkg-config or equivalent
+		# see for example https://github.com/pkgconf/pkgconf
+		# PKG_CONFIG => 'c:/path/to/pkg-config.exe',
+		# PATH-style list of extra directories to search for .pc files
+		# PKG_CONFIG_PATH => 'c:/path/to/libxml/pkgconfig',
 	},
 
 	# settings added to those in config_env if valgrind is being used
