@@ -99,9 +99,6 @@ use PGBuild::Utils qw(:DEFAULT $st_prefix $logdirname $branch_root
   $devnull $send_result_routine $ts_prefix);
 use PGBuild::Log;
 
-# check if we have IPC::Run, but don't make it a hard requirement
-our $have_ipc_run = eval { require IPC::Run; 1; };
-
 $send_result_routine = \&send_res;
 
 # make sure we exit nicely on any normal interrupt
@@ -1684,9 +1681,10 @@ sub start_db
 		# clear log file each time we start
 		# seem to need an intermediate file here to get round Windows bogosity
 
+		# we need to redirect input from devnull to avoid issues on msys2
 		chdir($installdir);
 		my $cmd =
-		  qq{"bin/pg_ctl" -D data-$locale -l logfile -w start >startlog 2>&1};
+		  qq{"bin/pg_ctl" -D data-$locale -l logfile -w start <$devnull >startlog 2>&1};
 		system($cmd);
 	}
 
@@ -1723,17 +1721,8 @@ sub stop_db
 	my $locale = shift;
 	my $logpos = -s "$installdir/logfile" || 0;
 	chdir($installdir);
-	if ($have_ipc_run)
-	{
-		my $in = "";
-		my $cmd = ['bin/pg_ctl', "-D", "data-$locale", "stop"];
-		IPC::Run::run($cmd, \$in , ">&stoplog");
-	}
-	else
-	{
-		my $cmd = qq{"bin/pg_ctl" -D data-$locale stop >stoplog 2>&1};
-		system($cmd);
-	}
+	my $cmd = qq{"bin/pg_ctl" -D data-$locale stop >stoplog 2>&1};
+	system($cmd);
 	my $status = $? >> 8;
 	chdir($branch_root);
 	if ($use_valgrind)
