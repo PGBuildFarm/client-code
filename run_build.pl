@@ -138,11 +138,13 @@ $skip_steps ||= "";
 if ($skip_steps =~ /\S/)
 {
 	%skip_steps = map { $_ => 1 } split(/\s+/, $skip_steps);
+	$skip_steps{make} = 1 if $skip_steps{build};
 }
 $only_steps ||= "";
 if ($only_steps =~ /\S/)
 {
 	%only_steps = map { $_ => 1 } split(/\s+/, $only_steps);
+	$only_steps{make} = 1 if $only_steps{build};
 }
 our %skip_suites;
 $skip_suites ||= "";
