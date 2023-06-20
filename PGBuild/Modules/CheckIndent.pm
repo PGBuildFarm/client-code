@@ -46,19 +46,6 @@ sub setup
 	};
 	bless($self, $class);
 
-
-	# need to fetch the old git ref before the log directory is wiped out
-	
-	my $animal = $conf->{animal};
-
-	my $gitreffile = "$buildroot/$branch/$animal.lastrun-logs/githead.log";
-	if (-e $gitreffile)
-	{
-		my $oldref = file_contents($gitreffile);
-		chomp $oldref;
-		$self->{oldref} = $oldref;
-	}
-	
 	register_module_hooks($self, $hooks);
 	return;
 }
@@ -80,43 +67,22 @@ sub build
 
 	local $ENV{PATH} = "$pgsql/src/tools/pg_bsd_indent:$ENV{PATH}";
 
-	my $gitref; 
-	my $commits = "";
-
-	# we're just going to look at the set of files changed since the last run
-	# if we know what they are
-	if ($gitref = $self->{oldref})
-	{
-		my @commits = `cd pgsql && git log --pretty=format:\%h $gitref..`;
-		chomp @commits;
-		$commits .= " --commit=$_" foreach @commits;
-	}
-
 	my $status;
 	my @diffs;
-	
-	if ($commits)
-	{
-		my $cmd = "src/tools/pgindent/pgindent --show-diff $commits";
 
-		@diffs = run_log("cd pgsql && $cmd");
-		$status = $? >> 8;
-		
-		my $log = PGBuild::Log->new("indent-check");
-		$log->add_log_lines("indent.diff",\@diffs);
-		
-		# --show-diff doesn't exit with error, unlike --silent-diff
-		$status ||= 1 if @diffs;
-		
-		@diffs = ("============ pgindent check since $gitref ======\n",
-				  $log->log_string);
-		
-	}
-	else
-	{
-		@diffs = ("============ pgindent check  ======\n",
-				  "no new commits to check\n");		
-	}
+	my $cmd = "src/tools/pgindent/pgindent --show-diff .";
+
+	@diffs = run_log("cd pgsql && $cmd");
+	$status = $? >> 8;
+
+	my $log = PGBuild::Log->new("indent-check");
+	$log->add_log_lines("indent.diff",\@diffs);
+
+	# --show-diff doesn't exit with error, unlike --silent-diff
+	$status ||= 1 if @diffs;
+
+	@diffs = ("============ pgindent check ======\n",
+			  $log->log_string);
 
 	writelog("indent-check", \@diffs);
 	print @diffs if ($verbose > 1);
