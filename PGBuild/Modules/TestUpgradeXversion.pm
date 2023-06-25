@@ -99,6 +99,22 @@ sub run_psql    ## no critic (Subroutines::ProhibitManyArgs)
 	return;     # callers can check $?
 }
 
+sub dbnames
+{
+	my $loc = shift;
+	# collect names of databases.
+	my $sql = 'select datname from pg_database';
+
+	run_psql("psql", "-A -t", $sql, "postgres", "$loc-dbnames.data");
+	my @dbnames = file_lines("$loc-dbnames.data");
+
+	chomp @dbnames;
+	my %dbnames;
+	do { s/\r$//; $dbnames{$_} = 1; }
+	  foreach @dbnames;
+	return %dbnames;
+}
+
 sub get_lock
 {
 	my $self      = shift;
@@ -292,6 +308,8 @@ sub save_for_testing
 	# fix the regression database so its functions point to $libdir rather than
 	# the source directory, which won't persist past this build.
 
+	my %dbnames = dbnames("$upgrade_loc/save");
+
 	my $sql =
 	    'select distinct probin::text from pg_proc '
 	  . 'where probin not like $$$libdir%$$';
@@ -325,11 +343,14 @@ sub save_for_testing
 
 	return if $?;
 
+	my $dblink = (grep { /_dblink$/ } keys %dbnames)[0];
+
 	if (($this_branch ge 'REL9_5' || $this_branch eq 'HEAD')
-		&& !$self->{bfconf}->{using_msvc})
+		&& !$self->{bfconf}->{using_msvc}
+		&& $dblink)
 	{
 		run_psql("$installdir/bin/psql", "-A -t -e", $sql,
-			"contrib_regression_dblink", "$upgrade_loc/fix.log", 1);
+			$dblink, "$upgrade_loc/fix.log", 1);
 		return if $?;
 	}
 
@@ -383,11 +404,18 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	);
 	return if $?;
 
+	# is the old version using unix sockets or localhost?
+
+	my $oldconf = file_contents("$other_branch/inst/$upgrade_test/postgresql.conf");
+	my $using_localhost = $oldconf =~ /^listen_addresses = 'localhost'/m;
+
+	local $ENV{PGHOST} = $using_localhost ? "localhost" : $ENV{PGHOST};
+
 	# The old version will have the unix sockets point to tmpdir from the
 	# run in which it was set up, which will be gone by now, so we repoint
 	# it to the current run's tmpdir.
 	# listen_addresses will be set correctly and requires no adjustment.
-	unless ($self->{bfconf}->{using_msvc} || $^O eq 'msys')
+	if (! $using_localhost)
 	{
 		open(my $opgconf, ">>",
 			"$other_branch/inst/$upgrade_test/postgresql.conf")
@@ -418,16 +446,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	$sport = $sport + 0;
 
 	# collect names of databases present in old installation.
-	my $sql = 'select datname from pg_database';
-
-	run_psql("psql", "-A -t", $sql, "postgres",
-		"$upgrade_loc/$oversion-dbnames.data");
-	my @dbnames = file_lines("$upgrade_loc/$oversion-dbnames.data");
-
-	chomp @dbnames;
-	my %dbnames;
-	do { s/\r$//; $dbnames{$_} = 1; }
-	  foreach @dbnames;
+	my %dbnames = dbnames("$upgrade_loc/$oversion");
 
 	if ($oversion ne $this_branch)
 	{
@@ -473,7 +492,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		  . qq{> "$upgrade_loc/$oversion-initdb.log" 2>&1});
 	return if $?;
 
-	unless ($self->{bfconf}->{using_msvc} || $^O eq 'msys')
+	unless ($using_localhost)
 	{
 		open(my $pgconf, ">>", "$installdir/$oversion-upgrade/postgresql.conf")
 		  || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
@@ -685,7 +704,11 @@ sub installcheck
 
 	local %ENV = %ENV;
 
-	if ($self->{bfconf}->{using_msvc} || $^O eq 'msys')
+	if ($ENV{PG_TEST_USE_UNIX_SOCKETS})
+	{
+		$ENV{PGHOST} = $tmpdir;
+	}
+	elsif ($self->{bfconf}->{using_msvc} || $^O eq 'msys')
 	{
 		$ENV{PGHOST} = 'localhost';
 	}
@@ -738,8 +761,11 @@ sub installcheck
 	# ok, we now have the persistent copy of all branches we can use
 	# to test upgrading from
 
-	my $dconfig = `$installdir/bin/pg_config --configure`;
-	my $dport = $dconfig =~ /--with-pgport=(\d+)/ ? $1 : 5432;
+	my $dport;
+	{
+		no warnings 'once';
+		$dport = $main::buildport;
+	}
 
 	# for other branches ignore the from-source root if it's being used
 	my $stable_root = $self->{upgrade_install_root};

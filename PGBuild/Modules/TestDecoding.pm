@@ -32,7 +32,8 @@ sub setup
 	my $pgsql     = shift;    # postgres build dir
 
 	# for now do nothing on MSVC
-	return if $conf->{using_msvc};
+	# meson runs the test on its own
+	return if $conf->{using_msvc} || $conf->{using_meson};
 
 	# only for supported branches
 	return unless $branch eq 'HEAD' || $branch ge 'REL9_4_STABLE';

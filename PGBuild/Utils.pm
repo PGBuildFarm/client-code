@@ -409,7 +409,16 @@ sub check_install_is_complete
 	my $suffix  = '.dll';
 
 	# adjust settings for non-MSVC
-	if (-e "$build_dir/src/Makefile.global")    # i.e. not msvc
+
+	# use a simplified test for meson - where we always install everything
+	if (-e "$build_dir/meson-private")
+	{
+		$tmp_loc = "$tmp_loc/$install_dir";
+		$bindir  = "$tmp_loc/bin";
+		$libdir  = "$tmp_loc/lib/postgresql";
+		return (-d $bindir && -d $libdir);
+	}
+	elsif (-e "$build_dir/src/Makefile.global")    # i.e. not msvc
 	{
 		no warnings qw(once);
 		my $make = $PGBuild::conf{make};

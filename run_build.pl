@@ -138,11 +138,19 @@ $skip_steps ||= "";
 if ($skip_steps =~ /\S/)
 {
 	%skip_steps = map { $_ => 1 } split(/\s+/, $skip_steps);
+	$skip_steps{make} = 1 if $skip_steps{build};
 }
 $only_steps ||= "";
 if ($only_steps =~ /\S/)
 {
 	%only_steps = map { $_ => 1 } split(/\s+/, $only_steps);
+	$only_steps{make} = 1 if $only_steps{build};
+}
+our %skip_suites;
+$skip_suites ||= "";
+if ($skip_suites =~ /\S/)
+{
+	%skip_suites = map { $_ => 1 } split(/\s+/, $skip_suites);
 }
 
 our ($branch);
@@ -185,7 +193,9 @@ my (
 	$wait_timeout,              $use_accache,
 	$use_valgrind,              $valgrind_options,
 	$use_installcheck_parallel, $max_load_avg,
-	$use_discard_caches,        $archive_reports
+	$use_discard_caches,        $archive_reports,
+	$using_meson,               $meson_jobs,
+	$meson_test_timeout
   )
   = @PGBuild::conf{
 	qw(build_root target animal aux_path trigger_exclude
@@ -193,8 +203,12 @@ my (
 	  use_vpath tar_log_cmd using_msvc extra_config make_jobs core_file_glob
 	  ccache_failure_remove wait_timeout use_accache
 	  use_valgrind valgrind_options use_installcheck_parallel max_load_avg
-	  use_discard_caches archive_reports)
+	  use_discard_caches archive_reports using_meson meson_jobs
+	  meson_test_timeout)
   };
+
+$using_meson = undef unless $branch eq 'HEAD' || $branch ge 'REL_16_STABLE';
+$meson_test_timeout //= 3;
 
 $ts_prefix = sprintf('%s:%-13s ', $animal, $branch);
 
@@ -245,15 +259,27 @@ my $scm_timeout_secs = $PGBuild::conf{scm_timeout_secs}
 print scalar(localtime()), ": buildfarm run for $animal:$branch starting\n"
   if $verbose;
 
+$use_vpath ||= $using_meson;
+
 die "cannot use vpath with MSVC"
-  if ($using_msvc and $use_vpath);
+  if ($using_msvc && $use_vpath && !$using_meson);
 
 if (ref($force_every) eq 'HASH')
 {
 	$force_every = $force_every->{$branch} || $force_every->{default};
 }
 
-my $config_opts = $PGBuild::conf{config_opts};
+my ($config_opts, $meson_opts);
+if ($using_meson)
+{
+	$meson_opts = $PGBuild::conf{meson_opts};
+	delete $PGBuild::conf{config_opts};
+}
+else
+{
+	$config_opts = $PGBuild::conf{config_opts};
+	delete $PGBuild::conf{meson_opts};
+}
 
 our ($buildport);
 
@@ -441,11 +467,11 @@ if ($from_source)
 }
 else
 {
-	$pgsql = $scm->get_build_path($use_vpath);
+	$pgsql = $scm->get_build_path($use_vpath || $using_meson);
 }
 
 # make sure we are using GNU make (except for MSVC)
-unless ($using_msvc)
+unless ($using_msvc || $using_meson)
 {
 	die "$make is not GNU Make - please fix config file"
 	  unless check_make();
@@ -777,7 +803,8 @@ elsif (!$from_source)
 		}
 	}
 
-	print time_str(), "checking if build run needed ...\n" if $verbose;
+	print time_str(), "checking if build run needed ...\n"
+	  if $verbose && !($testmode || $from_source);
 
 	# transition to new time processing
 	unlink "last.success";
@@ -860,7 +887,8 @@ $scm->log_id() unless $from_source;
 
 if ($use_vpath)
 {
-	print time_str(), "creating vpath build dir $pgsql ...\n" if $verbose;
+	my $str  = $using_meson ? "meson" : "vpath";
+	print time_str(), "creating $str build dir $pgsql ...\n" if $verbose;
 	mkdir $pgsql || die "making $pgsql: $!";
 }
 elsif (!$from_source && $scm->copy_source_required())
@@ -886,33 +914,40 @@ my $dblaststartstop = 0;
 
 if (step_wanted('configure'))
 {
-	print time_str(), "running configure ...\n" if $verbose;
+	my $str = $using_meson ? "meson setup" : "configure";
+	print time_str(), "running $str ...\n" if $verbose;
 
 	configure();
 }
+
+# force this on to avoid meson errors on build
+local $ENV{MSYS} = $ENV{MSYS} || "";
+$ENV{MSYS} .= " winjitdebug" if ($using_meson);
 
 # module configure has to wait until we have built and installed the base
 # so see below
 
 make();
 
+meson_test_setup() if $using_meson;
+
 make_check() unless $delay_check;
 
 # contrib is built under the standard build step for msvc
-make_contrib() unless ($using_msvc);
+make_contrib() unless ($using_msvc || $using_meson);
 
 make_testmodules()
-  unless ($using_msvc || ($branch ne 'HEAD' && $branch lt 'REL9_5'));
+  unless ($using_msvc || $using_meson || ($branch ne 'HEAD' && $branch lt 'REL9_5'));
 
 make_doc() if (check_optional_step('build_docs'));
 
 make_install();
 
 # contrib is installed under standard install for msvc
-make_contrib_install() unless ($using_msvc);
+make_contrib_install() unless ($using_msvc || $using_meson);
 
 make_testmodules_install()
-  unless ($using_msvc || ($branch ne 'HEAD' && $branch lt 'REL9_5'));
+  unless ($branch ne 'HEAD' && $branch lt 'REL9_5');
 
 make_check() if $delay_check;
 
@@ -926,11 +961,18 @@ process_module_hooks('install');
 
 process_module_hooks("check") if $delay_check;
 
-make_misc_check();
+if ($using_meson)
+{
+	run_meson_noninst_checks();
+}
+else
+{
+	make_misc_check();
 
-run_bin_tests();
+	run_bin_tests();
 
-run_misc_tests();
+	run_misc_tests();
+}
 
 foreach my $locale (@locales)
 {
@@ -970,80 +1012,90 @@ foreach my $locale (@locales)
 		process_module_hooks('installcheck', $locale)
 		  if step_wanted('install-check');
 
-		if (   -d "$pgsql/src/test/isolation"
-			&& $locale eq 'C'
-			&& step_wanted('isolation-check'))
+		if ($using_meson)
 		{
-
 			# restart the db to clear the log file
 			print time_str(), "restarting db ($locale)...\n" if $verbose;
 
 			stop_db($locale);
 			start_db($locale);
 
-			print time_str(), "running make isolation check ...\n" if $verbose;
-
-			make_isolation_check($locale);
+			run_meson_install_checks($locale);
 		}
-
-		if (
-			step_wanted('pl-install-check')
-			&& (
-				(
-					!$using_msvc
-					&& (grep { /--with-(perl|python|tcl)/ } @$config_opts)
-				)
-				|| (
-					$using_msvc
-					&& (   defined($config_opts->{perl})
-						|| defined($config_opts->{python})
-						|| defined($config_opts->{tcl}))
-				)
-			)
-		  )
+		else
 		{
+			if (   -d "$pgsql/src/test/isolation"
+				   && $locale eq 'C'
+				   && step_wanted('isolation-check'))
+			{
+				# restart the db to clear the log file
+				print time_str(), "restarting db ($locale)...\n" if $verbose;
 
-			# restart the db to clear the log file
-			print time_str(), "restarting db ($locale)...\n" if $verbose;
+				stop_db($locale);
+				start_db($locale);
 
-			stop_db($locale);
-			start_db($locale);
+				print time_str(), "running make isolation check ...\n"
+				  if $verbose;
+				make_isolation_check($locale);
+			}
 
-			print time_str(), "running make PL installcheck ($locale)...\n"
-			  if $verbose;
+			if (
+				step_wanted('pl-install-check')
+				&& (
+					(
+						!$using_msvc
+						&& (grep { /--with-(perl|python|tcl)/ } @$config_opts)
+					   )
+					|| (
+						$using_msvc
+						&& (   defined($config_opts->{perl})
+							   || defined($config_opts->{python})
+							   || defined($config_opts->{tcl}))
+					   )
+				   )
+			   )
+			{
+				# restart the db to clear the log file
+				print time_str(), "restarting db ($locale)...\n" if $verbose;
 
-			make_pl_install_check($locale);
-		}
+				stop_db($locale);
+				start_db($locale);
 
-		if (step_wanted('contrib-install-check'))
-		{
+				print time_str(), "running make PL installcheck ($locale)...\n"
+				  if $verbose;
 
-			# restart the db to clear the log file
-			print time_str(), "restarting db ($locale)...\n" if $verbose;
+				make_pl_install_check($locale);
+			}
 
-			stop_db($locale);
-			start_db($locale);
+			if (step_wanted('contrib-install-check'))
+			{
+				# restart the db to clear the log file
+				print time_str(), "restarting db ($locale)...\n" if $verbose;
 
-			print time_str(), "running make contrib installcheck ($locale)...\n"
-			  if $verbose;
+				stop_db($locale);
+				start_db($locale);
 
-			make_contrib_install_check($locale);
-		}
+				print time_str(), "running make contrib installcheck ($locale)...\n"
+				  if $verbose;
 
-		unless (!step_wanted('testmodules-install-check')
-			|| ($branch ne 'HEAD' && $branch lt 'REL9_5'))
-		{
-			print time_str(), "restarting db ($locale)...\n" if $verbose;
+				make_contrib_install_check($locale);
+			}
 
-			stop_db($locale);
-			start_db($locale);
+			unless (!step_wanted('testmodules-install-check')
+					|| ($branch ne 'HEAD' && $branch lt 'REL9_5'))
+			{
+				print time_str(), "restarting db ($locale)...\n" if $verbose;
 
-			print time_str(),
-			  "running make test-modules installcheck ($locale)...\n"
-			  if $verbose;
+				stop_db($locale);
+				start_db($locale);
 
-			make_testmodules_install_check($locale);
-		}
+				print time_str(),
+				  "running make test-modules installcheck ($locale)...\n"
+				  if $verbose;
+
+				make_testmodules_install_check($locale);
+			}
+		} # end of non-meson block
 
 		print time_str(), "stopping db ($locale)...\n" if $verbose;
 
@@ -1057,7 +1109,7 @@ foreach my $locale (@locales)
 	  unless $keepall;
 }
 
-if (step_wanted('ecpg-check'))
+if (!$using_meson && step_wanted('ecpg-check'))
 {
 	print time_str(), "running make ecpg check ...\n" if $verbose;
 
@@ -1202,48 +1254,65 @@ sub check_make
 sub make
 {
 	return unless step_wanted('make');
-	print time_str(), "running make ...\n" if $verbose;
+	print time_str(), "running build ...\n" if $verbose;
 
 	my (@makeout);
-	unless ($using_msvc)
+	if ($using_meson)
+	{
+		my $jflag = defined($meson_jobs) ? " --jobs=$meson_jobs" : "";
+		@makeout = run_log("meson compile -C $pgsql --verbose $jflag");
+		move "$pgsql/meson-logs/meson-log.txt", "$pgsql/meson-logs/compile.log";
+		if (-s "$pgsql/meson-logs/compile.log")
+		{
+			my $log = PGBuild::Log->new("compile");
+			$log->add_log("$pgsql/meson-logs/compile.log");
+			push(@makeout,$log->log_string);
+		}
+	}
+	elsif ($using_msvc)
+	{
+		chdir "$pgsql/src/tools/msvc";
+		@makeout = run_log("perl build.pl");
+		chdir $branch_root;
+	}
+	else
 	{
 		my $make_cmd = $make;
 		$make_cmd = "$make -j $make_jobs"
 		  if ($make_jobs > 1);
 		@makeout = run_log("cd $pgsql && $make_cmd");
 	}
-	else
-	{
-		chdir "$pgsql/src/tools/msvc";
-		@makeout = run_log("perl build.pl");
-		chdir $branch_root;
-	}
 	my $status = $? >> 8;
-	writelog('make', \@makeout);
+	writelog('build', \@makeout);
 	print "======== make log ===========\n", @makeout if ($verbose > 1);
-	$status ||= check_make_log_warnings('make', $verbose) if $check_warnings;
-	send_result('Make', $status, \@makeout) if $status;
-	$steps_completed .= " Make";
+	$status ||= check_make_log_warnings('build', $verbose) if $check_warnings;
+	send_result('Build', $status, \@makeout) if $status;
+	$steps_completed .= " Build";
 	return;
 }
 
 sub make_doc
 {
 	return unless step_wanted('make-doc');
-	print time_str(), "running make doc ...\n" if $verbose;
+	print time_str(), "building docs ...\n" if $verbose;
 
 	my (@makeout);
-	unless ($using_msvc)
+	if ($using_meson)
 	{
 		my $extra_targets = $PGBuild::conf{extra_doc_targets} || "";
-		@makeout =
-		  run_log("cd $pgsql/doc/src/sgml && $make html $extra_targets");
+		@makeout = run_log("meson compile -C $pgsql html $extra_targets");
 	}
-	else
+	elsif ($using_msvc)
 	{
 		chdir "$pgsql/src/tools/msvc";
 		@makeout = run_log("perl builddoc.pl");
 		chdir $branch_root;
+	}
+	else
+	{
+		my $extra_targets = $PGBuild::conf{extra_doc_targets} || "";
+		@makeout =
+		  run_log("cd $pgsql/doc/src/sgml && $make html $extra_targets");
 	}
 	my $status = $? >> 8;
 	writelog('make-doc', \@makeout);
@@ -1256,18 +1325,29 @@ sub make_doc
 sub make_install
 {
 	return unless step_wanted('install');
-	print time_str(), "running make install ...\n" if $verbose;
+	print time_str(), "running install ...\n" if $verbose;
 
 	my @makeout;
-	unless ($using_msvc)
+	if($using_meson)
 	{
-		@makeout = run_log("cd $pgsql && $make install");
+		@makeout = run_log("meson install -C $pgsql ");
+		move "$pgsql/meson-logs/meson-log.txt","$pgsql/meson-logs/install.log";
+		my $log = PGBuild::Log->new("install");
+		if (-s "$pgsql/meson-logs/install.log")
+		{
+			$log->add_file("$pgsql/meson-logs/install.log");
+			push(@makeout, $log->log_string);
+		}
 	}
-	else
+	elsif ($using_msvc)
 	{
 		chdir "$pgsql/src/tools/msvc";
 		@makeout = run_log(qq{perl install.pl "$installdir"});
 		chdir $branch_root;
+	}
+	else
+	{
+		@makeout = run_log("cd $pgsql && $make install");
 	}
 	my $status = $? >> 8;
 	writelog('make-install', \@makeout);
@@ -1381,21 +1461,36 @@ sub make_contrib_install
 
 sub make_testmodules_install
 {
+	return if $using_msvc && ! $using_meson;
 	return
 	  unless (step_wanted('testmodules')
 		and step_wanted('install'));
-	print time_str(), "running make testmodules install ...\n"
+	print time_str(), "running testmodules install ...\n"
 	  if $verbose;
 
-	my $tmp_inst = abs_path($pgsql) . "/tmp_install";
-	my $cmd      = "cd $pgsql/src/test/modules  && "
-	  . "$make install && $make DESTDIR=$tmp_inst install";
-	my @makeout = run_log($cmd);
+	my @out;
+	if ($using_meson)
+	{
+		# for meson, the test setup installs these in the tmp_dir but
+		# the install procedure doesn't install them in $installdir, so
+		# do that using a special "compile" target
+		my $cmd = "meson compile -C $pgsql install-test-files";
+		@out = run_log($cmd);
+	}
+	else
+	{
+		# for autoconf, we need to install them in both $tmp_install
+		# and $installdir
+		my $tmp_inst = abs_path($pgsql) . "/tmp_install";
+		my $cmd      = "cd $pgsql/src/test/modules  && "
+		  . "$make install && $make DESTDIR=$tmp_inst install";
+		@out = run_log($cmd);
+	}
 	my $status  = $? >> 8;
-	writelog('install-testmodules', \@makeout);
-	print "======== make testmodules install log ===========\n", @makeout
+	writelog('install-testmodules', \@out);
+	print "======== testmodules install log ===========\n", @out
 	  if ($verbose > 1);
-	send_result('TestModulesInstall', $status, \@makeout) if $status;
+	send_result('TestModulesInstall', $status, \@out) if $status;
 	$steps_completed .= " TestModulesInstall";
 	return;
 }
@@ -1458,7 +1553,7 @@ sub initdb
 		{
 			my $pg_regress;
 
-			if ($using_msvc)
+			if ($using_msvc && !$using_meson)
 			{
 				$pg_regress = "$abspgsql/Release/pg_regress/pg_regress";
 				unless (-e "$pg_regress.exe")
@@ -1490,6 +1585,27 @@ sub initdb
 	send_result("Initdb-$locale", $status, \@initout) if $status;
 	$steps_completed .= " Initdb-$locale";
 	return;
+}
+
+
+sub _meson_env
+{
+	my %env;
+	# these should be safe to appear on the log and could be required
+	# for running tests
+	my @safe_set = qw(
+						 PATH
+						 PGUSER PGHOST PG_TEST_PORT_DIR PG_TEST_EXTRA
+						 PG_TEST_USE_UNIX_SOCKETS PG_REGRESS_SOCK_DIR
+						 SystemRoot TEMP TMP MSYS
+						 TEMP_CONFIG  PGCTLTIMEOUT
+						 USER USERNAME USERDOMAIN);
+	foreach my $setting (@safe_set)
+	{
+		my $v = $ENV{$setting};
+		$env{$setting} = $v if $v;
+	}
+	return %env;
 }
 
 sub start_valgrind_db
@@ -1567,9 +1683,10 @@ sub start_db
 		# clear log file each time we start
 		# seem to need an intermediate file here to get round Windows bogosity
 
+		# we need to redirect input from devnull to avoid issues on msys2
 		chdir($installdir);
 		my $cmd =
-		  qq{"bin/pg_ctl" -D data-$locale -l logfile -w start >startlog 2>&1};
+		  qq{"bin/pg_ctl" -D data-$locale -l logfile -w start <$devnull >startlog 2>&1};
 		system($cmd);
 	}
 
@@ -1650,10 +1767,23 @@ sub make_install_check
 {
 	my $locale = shift;
 	return unless step_wanted('install-check');
-	print time_str(), "running make installcheck ($locale)...\n" if $verbose;
+	print time_str(), "running installcheck ($locale)...\n" if $verbose;
 
 	my @checklog;
-	unless ($using_msvc)
+	if ($using_meson)
+	{
+		local %ENV = _meson_env();
+		my $jflag = defined($meson_jobs) ? " --num-processes=$meson_jobs" : "";
+		@checklog = run_log("meson test -t $meson_test_timeout $jflag -v -C $pgsql --no-rebuild --print-errorlogs --setup running --suite regress-running --logbase regress-installcheck-$locale");
+	}
+	elsif ($using_msvc)
+	{
+		my $parallel = $use_installcheck_parallel ? "parallel" : "";
+		chdir "$pgsql/src/tools/msvc";
+		@checklog = run_log("perl vcregress.pl installcheck $parallel");
+		chdir $branch_root;
+	}
+	else
 	{
 		my $chktarget =
 		  $use_installcheck_parallel
@@ -1669,13 +1799,6 @@ sub make_install_check
 			$chktarget = 'TESTS=' . qq{"$tests"} . " installcheck-tests";
 		}
 		@checklog = run_log("cd $pgsql/src/test/regress && $make $chktarget");
-	}
-	else
-	{
-		my $parallel = $use_installcheck_parallel ? "parallel" : "";
-		chdir "$pgsql/src/tools/msvc";
-		@checklog = run_log("perl vcregress.pl installcheck $parallel");
-		chdir $branch_root;
 	}
 	my $status   = $? >> 8;
 	my @logfiles = ("$pgsql/src/test/regress/regression.diffs", "inst/logfile");
@@ -1733,6 +1856,196 @@ sub make_contrib_install_check
 	  if ($verbose > 1);
 	send_result("ContribCheck-$locale", $status, \@checklog) if $status;
 	$steps_completed .= " ContribCheck-$locale";
+	return;
+}
+
+sub meson_test_setup
+{
+	# we run test setup separately so we can pass test arguments
+	# in the check stage
+	local %ENV = _meson_env();
+	my @log = run_log("meson test -C $pgsql --no-rebuild --suite setup");
+	# XXX fixme: logging etc.
+	return;
+}
+
+# run tests for all the installcheck suites meson knows about
+sub run_meson_install_checks
+{
+	my $locale = shift;
+	return unless step_wanted('misc-install-check');
+	local %ENV = _meson_env();
+	print time_str(), "running meson misc installchecks ($locale) ...\n" if $verbose;
+
+	# clean out old logs etc
+	unlink "$pgsql/meson-logs/installcheckworld.txt";
+	rmtree $_ foreach glob("$pgsql/testrun/*-running");
+
+	my $jflag = defined($meson_jobs) ? " --num-processes=$meson_jobs" : "";
+
+	# skip regress, done by make_installcheck
+	# skip isolation and ecpg, done with misc checks
+	my $skip = "--no-suite regress-running --no-suite isolation-running --no-suite ecpg-running";
+	foreach my $sk (keys %skip_suites)
+	{
+		$skip .= " --no-suite $sk-running";
+	}
+
+	my @checklog=run_log("meson test -t $meson_test_timeout $jflag -C $pgsql --setup running --print-errorlogs --no-rebuild --logbase installcheckworld $skip");
+
+	my @fails = glob("$pgsql/testrun/*/*/test.fail");
+
+	my $status = (0 < @fails);
+
+	my @faildirs = map { dirname $_ } @fails;
+	my (@miscdirs,@moddirs,@contribdirs,@otherdirs);
+	foreach my $dir (@faildirs)
+	{
+		my $sname = basename (dirname ($dir));
+		$sname =~ s/-running$//;
+		if (-e "pgsql/src/test/$sname")
+		{
+			push @miscdirs, $dir;
+		}
+		elsif (-e "pgsql/src/test/modules/$sname")
+		{
+			push @moddirs, $dir;
+		}
+		elsif (-e "pgsql/contrib/$sname")
+		{
+			push @contribdirs, $dir;
+		}
+		else
+		{
+			push @otherdirs, $dir;
+		}
+	}
+
+	@miscdirs = sort @miscdirs;
+	@moddirs = sort @moddirs;
+	@contribdirs = sort @contribdirs;
+	@otherdirs = sort @otherdirs;
+
+	@faildirs = (@miscdirs, @moddirs, @contribdirs, @otherdirs);
+
+	my $log = PGBuild::Log->new("misc-installcheck-$locale");
+	$log->add_log("$pgsql/meson-logs/installcheckworld.txt");
+	foreach my $dir (@faildirs)
+	{
+		$log->add_log($_)
+		  foreach ("$dir/regression.diffs", glob("$dir/log/*"));
+	}
+	push(@checklog, $log->log_string);
+
+	if ($status)
+	{
+		my $first = $faildirs[0];
+		$first = basename (dirname $first);
+		$first =~ s/-running$//;
+		writelog("$first-installcheck-$locale", \@checklog);
+		print @checklog if ($verbose > 1);
+		send_result("${first}InstallCheck-$locale", $status, \@checklog);
+	}
+	else
+	{
+		writelog("misc-installcheck-$locale", \@checklog);
+		print @checklog if ($verbose > 1);
+		$steps_completed .= " MiscInstallCheck-$locale";
+	}
+	return;
+}
+
+# run tests for all the non-installcheck suites meson knows about
+sub run_meson_noninst_checks
+{
+	return unless step_wanted('misc-check');
+	local %ENV = _meson_env();
+
+	print time_str(), "running meson misc tests ...\n" if $verbose;
+
+	# move windows executables aside so that the TAP tests find them from
+	# the tmp_install rather than where they are built.
+	foreach my $file (glob("$pgsql/src/bin/*/*.exe"))
+	{
+		my $exe = basename $file;
+		next if $exe =~ /built-/;
+		(my $dest = $file) =~ s/$exe/built-$exe/;
+		move $file, $dest;
+	}
+
+	my $jflag = defined($meson_jobs) ? " --num-processes $meson_jobs" : "";
+
+	# skip setup, already done
+	# skip regress, done by make_check
+	my $skip = "--no-suite setup --no-suite regress";
+	foreach my $sk (keys %skip_suites)
+	{
+		$skip .= " --no-suite $sk";
+	}
+	my @checklog=run_log("meson test -t $meson_test_timeout $jflag -C $pgsql --print-errorlogs --no-rebuild --logbase checkworld $skip");
+
+	my @fails = glob("$pgsql/testrun/*/*/test.fail");
+
+	my $status = (0 < @fails);
+
+	my @faildirs = map { dirname $_ } @fails;
+	my (@bindirs,@miscdirs,@moddirs,@contribdirs,@otherdirs);
+	foreach my $dir (@faildirs)
+	{
+		my $sname = basename (dirname ($dir));
+		if (-e "pgsql/src/bin/$sname")
+		{
+			push @bindirs,$dir;
+		}
+		elsif (-e "pgsql/src/test/$sname")
+		{
+			push @miscdirs, $dir;
+		}
+		elsif (-e "pgsql/src/test/modules/$sname")
+		{
+			push @moddirs, $dir;
+		}
+		elsif (-e "pgsql/contrib/$sname")
+		{
+			push @contribdirs, $dir;
+		}
+		else
+		{
+			push @otherdirs, $dir;
+		}
+	}
+
+	@bindirs = sort @bindirs;
+	@miscdirs = sort @miscdirs;
+	@moddirs = sort @moddirs;
+	@contribdirs = sort @contribdirs;
+	@otherdirs = sort @otherdirs;
+
+	@faildirs = (@bindirs, @miscdirs, @moddirs, @contribdirs, @otherdirs);
+
+	my $log = PGBuild::Log->new("misc-check");
+	$log->add_log("$pgsql/meson-logs/checkworld.txt");
+	foreach my $dir (@faildirs)
+	{
+		$log->add_log($_)
+		  foreach ("$dir/regression.diffs", glob("$dir/log/*"));
+	}
+	push(@checklog, $log->log_string);
+
+	if ($status)
+	{
+		my $first = $faildirs[0];
+		$first = basename (dirname $first);
+		writelog("$first-check", \@checklog);
+		print @checklog if ($verbose > 1);
+		send_result("${first}Check", $status, \@checklog);
+	}
+	else
+	{
+		writelog("misc-check", \@checklog);
+		print @checklog if ($verbose > 1);
+		$steps_completed .= " MiscCheck";
+	}
 	return;
 }
 
@@ -2070,10 +2383,32 @@ sub run_misc_tests
 sub make_check
 {
 	return unless step_wanted('check');
-	print time_str(), "running make check ...\n" if $verbose;
+	print time_str(), "running basic regression tests ...\n" if $verbose;
 
 	my @makeout;
-	unless ($using_msvc)
+	if ($using_meson)
+	{
+		# prevent meson from logging the whole environment,
+		# see its issue 5328
+		local %ENV = _meson_env();
+		if ($using_msvc)
+		{
+			# not sure why we need to do this for msvc, but it works
+			my $inst = $installdir;
+			$inst =~ s/^[a-z]://i;
+			my $abs_pgsql = abs_path($pgsql);
+			$ENV{PATH} = "$abs_pgsql/tmp_install$inst/bin;$ENV{PATH}";
+		}
+		my $jflag = defined($meson_jobs) ? " --num-processes=$meson_jobs" : "";
+		@makeout=run_log("meson test -t $meson_test_timeout $jflag -C $pgsql --logbase checklog --print-errorlogs --no-rebuild --suite regress --test-args=--no-locale");
+	}
+	elsif ($using_msvc)
+	{
+		chdir "$pgsql/src/tools/msvc";
+		@makeout = run_log("perl vcregress.pl check");
+		chdir $branch_root;
+	}
+	else
 	{
 		my $chktarget = "check";
 		if ($schedule && -s $schedule)
@@ -2089,12 +2424,6 @@ sub make_check
 		@makeout =
 		  run_log("cd $pgsql/src/test/regress && $make NO_LOCALE=1 $chktarget");
 	}
-	else
-	{
-		chdir "$pgsql/src/tools/msvc";
-		@makeout = run_log("perl vcregress.pl check");
-		chdir $branch_root;
-	}
 
 	my $status = $? >> 8;
 
@@ -2102,9 +2431,9 @@ sub make_check
 
 	# get the log files and the regression diffs
 	my @logs =
-	  glob("$pgsql/src/test/regress/log/*.log $pgsql/tmp_install/log/*");
-	unshift(@logs, "$pgsql/src/test/regress/regression.diffs")
-	  if (-e "$pgsql/src/test/regress/regression.diffs");
+	  glob("$pgsql/src/test/regress/log/*.log $pgsql/tmp_install/log/* $pgsql/*/checklog.txt $pgsql/testrun/regress/regress/log/*");
+	unshift @logs, "$_/regression.diffs"
+	  foreach ("$pgsql/src/test/regress","$pgsql/testrun/regress/regress");
 	$log->add_log($_) foreach (@logs);
 	my $base = "$pgsql/src/test/regress/tmp_check";
 	if ($status)
@@ -2367,36 +2696,122 @@ sub find_typedefs
 	return;
 }
 
+# meson setup for all platforms
+sub meson_setup
+{
+	my $env = $PGBuild::conf{config_env};
+	$env = { %$env }; # clone it
+	delete $env->{CC} if $using_msvc;  # this can confuse meson in this case
+	local %ENV = (%ENV, %$env);
+	$ENV{MSYS2_ARG_CONV_EXCL} = "-Dextra";
+
+	my @quoted_opts;
+	foreach my $c_opt (@$meson_opts)
+	{
+		if ($c_opt =~ /['"]/)
+		{
+			push(@quoted_opts, $c_opt);
+		}
+		elsif ($using_msvc)
+		{
+			push(@quoted_opts,qq{"$c_opt"});
+		}
+		else
+		{
+			push(@quoted_opts, "'$c_opt'");
+		}
+	}
+
+	my $docs_opts="";
+	$docs_opts = "-Ddocs=enabled"
+	  if defined($PGBuild::conf{optional_steps}->{build_docs});
+	$docs_opts .= " -Ddocs_pdf=enabled"
+	  if $docs_opts && ($PGBuild::conf{extra_doc_targets} || "") =~ /[.]pdf/;
+
+	my $confstr = join(" ",
+					   "-Dauto_features=disabled",
+					   @quoted_opts,
+					   $docs_opts,
+					   "-Dlibdir=lib",
+					   qq{-Dprefix="$installdir"},
+					   "-Dpgport=$buildport");
+
+	my $srcdir = $from_source || 'pgsql';
+
+	# use default ninja backend on all platforms
+	my @confout = run_log("meson setup $confstr $pgsql $srcdir");
+
+	my $status = $? >> 8;
+
+	move "$pgsql/meson-logs/meson-log.txt", "$pgsql/meson-logs/setup.log";
+
+	if (-s "$pgsql/meson-logs/setup.log")
+	{
+		my $log = PGBuild::Log->new("setup");
+		$log->add_log("$pgsql/meson-logs/setup.log");
+		push(@confout,$log->log_string);
+	}
+
+	print "======== setup output ===========\n", @confout
+	  if ($verbose > 1);
+
+	writelog('configure', \@confout);
+
+	if ($status)
+	{
+		send_result('Configure', $status, \@confout);
+	}
+	$steps_completed .= " Configure";
+
+	return;
+
+}
+
+# non-meson MSVC setup
+sub msvc_setup
+{
+	my $lconfig = { %$config_opts, "--with-pgport" => $buildport };
+	my $conf = Data::Dumper->Dump([$lconfig], ['config']);
+	my @text = (
+		"# Configuration arguments for vcbuild.\n",
+		"# written by buildfarm client \n",
+		"use strict; \n",
+		"use warnings;\n",
+		"our $conf \n",
+		"1;\n"
+	   );
+
+	my $handle;
+	open($handle, ">", "$pgsql/src/tools/msvc/config.pl")
+	  || die "opening $pgsql/src/tools/msvc/config.pl: $!";
+	print $handle @text;
+	close($handle);
+
+	push(@text, "# no configure step for MSCV - config file shown\n");
+
+	writelog('configure', \@text);
+
+	$steps_completed .= " Configure";
+	return;
+}
+
+# setup entry, directly implements autoconf setup,
+# calls above for meson / msvc
 sub configure
 {
+	if ($using_meson)
+	{
+		meson_setup();
+		return;
+	}
 
 	if ($using_msvc)
 	{
-		my $lconfig = { %$config_opts, "--with-pgport" => $buildport };
-		my $conf = Data::Dumper->Dump([$lconfig], ['config']);
-		my @text = (
-			"# Configuration arguments for vcbuild.\n",
-			"# written by buildfarm client \n",
-			"use strict; \n",
-			"use warnings;\n",
-			"our $conf \n",
-			"1;\n"
-		);
-
-		my $handle;
-		open($handle, ">", "$pgsql/src/tools/msvc/config.pl")
-		  || die "opening $pgsql/src/tools/msvc/config.pl: $!";
-		print $handle @text;
-		close($handle);
-
-		push(@text, "# no configure step for MSCV - config file shown\n");
-
-		writelog('configure', \@text);
-
-		$steps_completed .= " Configure";
-
+		msvc_setup();
 		return;
 	}
+
+	# autoconf/configure setup
 
 	my @quoted_opts;
 	foreach my $c_opt (@$config_opts)
@@ -2532,9 +2947,9 @@ sub configure
 
 	if (-s "$pgsql/config.log")
 	{
-		push(@confout,
-			"\n\n================= config.log ================\n\n",
-			file_lines("$pgsql/config.log"));
+		my $log = PGBuild::Log->new("configure");
+		$log->add_log("$pgsql/config.log");
+		push(@confout,$log->log_string);
 	}
 
 	writelog('configure', \@confout);
