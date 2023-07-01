@@ -334,7 +334,8 @@ sub save_for_testing
 	$sql = q{
                update pg_proc set probin =
                   regexp_replace(probin,$$.*/$$,$$$libdir/$$)
-               where probin not like $$$libdir/%$$ returning proname,probin;
+               where probin not like $$$libdir/%$$
+               returning current_database(), proname, probin;
              };
 	$sql =~ s/\n//g;
 
@@ -346,7 +347,6 @@ sub save_for_testing
 	my $dblink = (grep { /_dblink$/ } keys %dbnames)[0];
 
 	if (($this_branch ge 'REL9_5' || $this_branch eq 'HEAD')
-		&& !$self->{bfconf}->{using_msvc}
 		&& $dblink)
 	{
 		run_psql("$installdir/bin/psql", "-A -t -e", $sql,
