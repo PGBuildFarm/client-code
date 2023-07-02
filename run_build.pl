@@ -3142,7 +3142,7 @@ sub send_res
 
 	unless ($stage eq 'OK' || $quiet)
 	{
-		print "Buildfarm member $animal failed on $branch stage $stage\n";
+		print time_str(), "failed at stage $stage\n";
 	}
 
 	set_last('success.snap', $current_snap) if ($stage eq 'OK' && !$nostatus);
