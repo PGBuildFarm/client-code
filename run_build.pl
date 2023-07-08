@@ -1935,6 +1935,13 @@ sub run_meson_install_checks
 		$log->add_log($_)
 		  foreach ("$dir/regression.diffs", glob("$dir/log/*"));
 	}
+	# add all the rest of the logs after the failure logs
+	foreach my $dir (glob("$pgsql/testrun/*/*"))
+	{
+		next unless -e "$dir/test.success";
+		$log->add_log($_)
+		  foreach ("$dir/regression.diffs", glob("$dir/log/*"));
+	}
 	push(@checklog, $log->log_string);
 
 	if ($status)
@@ -2027,6 +2034,14 @@ sub run_meson_noninst_checks
 	$log->add_log("$pgsql/meson-logs/checkworld.txt");
 	foreach my $dir (@faildirs)
 	{
+		$log->add_log($_)
+		  foreach ("$dir/regression.diffs", glob("$dir/log/*"));
+	}
+
+	# add all the rest of the logs after the failure logs
+	foreach my $dir (glob("$pgsql/testrun/*/*"))
+	{
+		next unless -e "$dir/test.success";
 		$log->add_log($_)
 		  foreach ("$dir/regression.diffs", glob("$dir/log/*"));
 	}
