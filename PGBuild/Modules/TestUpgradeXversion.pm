@@ -417,6 +417,9 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	# listen_addresses will be set correctly and requires no adjustment.
 	if (! $using_localhost)
 	{
+		my $tdir = $tmpdir;
+		$tdir =~ s!\\!/!g;
+
 		open(my $opgconf, ">>",
 			"$other_branch/inst/$upgrade_test/postgresql.conf")
 		  || die "opening $other_branch/inst/$upgrade_test/postgresql.conf: $!";
@@ -424,7 +427,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		$param = "unix_socket_directory"
 		  if $oversion ne 'HEAD' && $oversion lt 'REL9_3_STABLE';
 		print $opgconf "\n# Configuration added by buildfarm client\n\n";
-		print $opgconf "$param = '$tmpdir'\n";
+		print $opgconf "$param = '$tdir'\n";
 		close($opgconf);
 	}
 

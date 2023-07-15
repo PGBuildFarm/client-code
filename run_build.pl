@@ -425,9 +425,19 @@ die "$buildroot does not exist or is not a directory" unless -d $buildroot;
 
 chdir $buildroot || die "chdir to $buildroot: $!";
 
-# set up a temporary directory for extra configs, sockets etc
 my $oldmask = umask;
 umask 0077 unless $using_msvc;
+
+# try to keep temp files/directories on the same device ... this helps minimize
+# cross-device issues with renaming etc.
+unless (defined $ENV{TMPDIR})
+{
+	my $temp = "$buildroot/tmp";
+	mkdir $temp unless -d $temp;
+	$ENV{TMPDIR} = $temp;
+}
+
+# set up a temporary directory for extra configs, sockets etc
 $tmpdir = File::Temp::tempdir(
 	"buildfarm-XXXXXX",
 	DIR     => File::Spec->tmpdir,
