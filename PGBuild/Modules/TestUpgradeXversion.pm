@@ -708,7 +708,7 @@ sub installcheck
 	local %ENV = %ENV;
 
 	my $tdir = $tmpdir;
-	$tdir =~ s!\\!/!g
+	$tdir =~ s!\\!/!g;
 
 	if ($ENV{PG_TEST_USE_UNIX_SOCKETS})
 	{
