@@ -707,9 +707,12 @@ sub installcheck
 
 	local %ENV = %ENV;
 
+	my $tdir = $tmpdir;
+	$tdir =~ s!\\!/!g
+
 	if ($ENV{PG_TEST_USE_UNIX_SOCKETS})
 	{
-		$ENV{PGHOST} = $tmpdir;
+		$ENV{PGHOST} = $tdir;
 	}
 	elsif ($self->{bfconf}->{using_msvc} || $^O eq 'msys')
 	{
@@ -717,7 +720,7 @@ sub installcheck
 	}
 	else
 	{
-		$ENV{PGHOST} = $tmpdir;
+		$ENV{PGHOST} = $tdir;
 	}
 
 	my $save_env = {};
