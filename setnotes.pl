@@ -37,8 +37,8 @@ my ($sys_notes, $help, $del);
 
 GetOptions(
 	'config=s' => \$buildconf,
-	'help'     => \$help,
-	'delete'   => \$del,
+	'help' => \$help,
+	'delete' => \$del,
 ) || usage("bad command line");
 
 $sys_notes = shift;
@@ -104,7 +104,7 @@ unless ($response->is_success)
 	  "Target: $target/$sig\n",
 	  "Query Content: $content\n";
 	print "Status Line: ", $response->status_line, "\n";
-	print "Content: \n",   $response->content,     "\n";
+	print "Content: \n", $response->content, "\n";
 	exit 1;
 }
 

@@ -27,10 +27,10 @@ use warnings;
 our ($VERSION); $VERSION = 'REL_16';
 
 my $hooks = {
-	'build'      => \&build,
-	'install'    => \&install,
+	'build' => \&build,
+	'install' => \&install,
 	'locale-end' => \&locale_end,
-	'cleanup'    => \&cleanup,
+	'cleanup' => \&cleanup,
 };
 
 sub setup
@@ -38,9 +38,9 @@ sub setup
 	my $class = __PACKAGE__;
 
 	my $buildroot = shift;    # where we're building
-	my $branch    = shift;    # The branch of Postgres that's being built.
-	my $conf      = shift;    # ref to the whole config object
-	my $pgsql     = shift;    # postgres build dir
+	my $branch = shift;       # The branch of Postgres that's being built.
+	my $conf = shift;         # ref to the whole config object
+	my $pgsql = shift;        # postgres build dir
 
 	die "vpath testing not supported for SELinux tests"
 	  if $conf->{use_vpath};
@@ -52,9 +52,9 @@ sub setup
 
 	my $self = {
 		buildroot => $buildroot,
-		pgbranch  => $branch,
-		bfconf    => $conf,
-		pgsql     => $pgsql
+		pgbranch => $branch,
+		bfconf => $conf,
+		pgsql => $pgsql
 	};
 	bless($self, $class);
 
@@ -69,7 +69,7 @@ sub setup
 
 sub build
 {
-	my $self  = shift;
+	my $self = shift;
 	my $pgsql = $self->{pgsql};
 
 	print time_str(), "building sepgsql policy module\n" if $verbose;
@@ -82,7 +82,7 @@ sub build
 	chdir "$pgsql/contrib/sepgsql";
 
 	my $make = $self->{bfconf}->{make};
-	my @log  = run_log("$make -f /usr/share/selinux/devel/Makefile");
+	my @log = run_log("$make -f /usr/share/selinux/devel/Makefile");
 	;    #  && sudo semodule -u sepgsql-regtest.pp 2>&1`;
 	my $status = $? >> 8;
 
@@ -100,7 +100,7 @@ sub build
 
 sub install
 {
-	my $self  = shift;
+	my $self = shift;
 	my $pgsql = $self->{pgsql};
 
 	print time_str(), "installing sepgsql policy module\n"
@@ -113,8 +113,8 @@ sub install
 
 	chdir "$pgsql/contrib/sepgsql";
 
-	my $make   = $self->{bfconf}->{make};
-	my @log    = run_log("sudo semodule -u sepgsql-regtest.pp");
+	my $make = $self->{bfconf}->{make};
+	my @log = run_log("sudo semodule -u sepgsql-regtest.pp");
 	my $status = $? >> 8;
 
 	$self->{module_installed} = $status == 0;
@@ -133,9 +133,9 @@ sub install
 
 sub locale_end
 {
-	my $self   = shift;
+	my $self = shift;
 	my $locale = shift;
-	my $pgsql  = $self->{pgsql};
+	my $pgsql = $self->{pgsql};
 
 	return unless $locale eq 'C';
 
@@ -167,7 +167,7 @@ sub locale_end
 
 	local %ENV = %ENV;
 	$ENV{PGDATA} = cwd() . "/inst/sepgsql";
-	$ENV{PATH}   = cwd() . "/inst/bin:$ENV{PATH}";
+	$ENV{PATH} = cwd() . "/inst/bin:$ENV{PATH}";
 	$ENV{PGHOST} = $tmpdir;
 
 	foreach my $db (qw(template0 template1 postgres))

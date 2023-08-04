@@ -28,7 +28,7 @@ use warnings;
 our ($VERSION); $VERSION = 'REL_16';
 
 my $hooks = {
-	'checkout'     => \&checkout,
+	'checkout' => \&checkout,
 	'setup-target' => \&setup_target,
 
 	# 'need-run' => \&need_run,
@@ -37,9 +37,9 @@ my $hooks = {
 	'build' => \&build,
 
 	# 'check' => \&check,
-	'install'      => \&install,
+	'install' => \&install,
 	'installcheck' => \&installcheck,
-	'cleanup'      => \&cleanup,
+	'cleanup' => \&cleanup,
 };
 
 sub setup
@@ -47,28 +47,28 @@ sub setup
 	my $class = __PACKAGE__;
 
 	my $buildroot = shift;    # where we're building
-	my $branch    = shift;    # The branch of Postgres that's being built.
-	my $conf      = shift;    # ref to the whole config object
-	my $pgsql     = shift;    # postgres build dir
+	my $branch = shift;       # The branch of Postgres that's being built.
+	my $conf = shift;         # ref to the whole config object
+	my $pgsql = shift;        # postgres build dir
 
 	# return unless step_wanted("$MODULE-build");
 
 	# could even set up several of these (e.g. for different branches)
 	my $self = {
 		buildroot => $buildroot,
-		pgbranch  => $branch,
-		bfconf    => $conf,
-		pgsql     => $pgsql
+		pgbranch => $branch,
+		bfconf => $conf,
+		pgsql => $pgsql
 	};
 	bless($self, $class);
 
 	my $scmconf = {
-		scm           => 'git',
-		scmrepo       => 'https://github.com/adunstan/file_text_array_fdw.git',
+		scm => 'git',
+		scmrepo => 'https://github.com/adunstan/file_text_array_fdw.git',
 		git_reference => undef,
-		git_keep_mirror           => 'true',
+		git_keep_mirror => 'true',
 		git_ignore_mirror_failure => 'true',
-		build_root                => $self->{buildroot},
+		build_root => $self->{buildroot},
 	};
 
 	$self->{scm} = PGBuild::SCM->new($scmconf, 'file_text_array_fdw');
@@ -85,7 +85,7 @@ sub setup
 
 sub checkout
 {
-	my $self       = shift;
+	my $self = shift;
 	my $savescmlog = shift;    # array ref to the log lines
 
 	print time_str(), "checking out $MODULE\n" if $verbose;
@@ -165,7 +165,7 @@ sub check
 
 sub installcheck
 {
-	my $self   = shift;
+	my $self = shift;
 	my $locale = shift;
 
 	return unless $locale eq 'C';
@@ -180,9 +180,9 @@ sub installcheck
 
 	my $log = PGBuild::Log->new("$MODULE-installcheck-$locale");
 
-	my $status     = $? >> 8;
+	my $status = $? >> 8;
 	my $installdir = "$self->{buildroot}/$self->{pgbranch}/inst";
-	my @logfiles   = ("$self->{where}/regression.diffs", "$installdir/logfile");
+	my @logfiles = ("$self->{where}/regression.diffs", "$installdir/logfile");
 	if ($status)
 	{
 		$log->add_log($_) foreach (@logfiles);

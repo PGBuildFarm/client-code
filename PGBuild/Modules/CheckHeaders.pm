@@ -30,20 +30,20 @@ sub setup
 	my $class = __PACKAGE__;
 
 	my $buildroot = shift;    # where we're building
-	my $branch    = shift;    # The branch of Postgres that's being built.
-	my $conf      = shift;    # ref to the whole config object
-	my $pgsql     = shift;    # postgres build dir
+	my $branch = shift;       # The branch of Postgres that's being built.
+	my $conf = shift;         # ref to the whole config object
+	my $pgsql = shift;        # postgres build dir
 
 	return if $branch ne 'HEAD';
 
-	return if $conf->{using_meson}; # no support yet
+	return if $conf->{using_meson};    # no support yet
 
 	# could even set up several of these (e.g. for different branches)
 	my $self = {
 		buildroot => $buildroot,
-		pgbranch  => $branch,
-		bfconf    => $conf,
-		pgsql     => $pgsql
+		pgbranch => $branch,
+		bfconf => $conf,
+		pgsql => $pgsql
 	};
 	bless($self, $class);
 
@@ -55,9 +55,9 @@ sub setup
 
 sub build
 {
-	my $self  = shift;
+	my $self = shift;
 	my $pgsql = $self->{pgsql};
-	my $make  = $self->{bfconf}->{make};
+	my $make = $self->{bfconf}->{make};
 
 	return unless step_wanted('headers-check');
 
@@ -80,7 +80,7 @@ sub build
 		s/\o{342}\o{200}(\o{230}|\o{231})/'/g;
 	}
 
-	unshift(@hcheck,   "headerscheck:\n");
+	unshift(@hcheck, "headerscheck:\n");
 	unshift(@cppcheck, "cpluspluscheck:\n");
 
 	push(@hcheck, @cppcheck);

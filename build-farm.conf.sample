@@ -41,9 +41,9 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	secret => "CHANGEME",
 
 	# source code
-	scm                       => 'git',  # or 'cvs'
-	git_keep_mirror           => 1,      # manage a git mirror in the build root
-	git_ignore_mirror_failure => 1,      # ignore failures in fetching to mirror
+	scm => 'git',                      # or 'cvs'
+	git_keep_mirror => 1,              # manage a git mirror in the build root
+	git_ignore_mirror_failure => 1,    # ignore failures in fetching to mirror
 	git_gc_hours => 7 * 24,    # garbage collect once a week, 0/undef to disable
 
 	# use symlinked git repo from non-HEAD branches, like git-new-workdir does
@@ -64,10 +64,10 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# git_reference => undef, # for --reference on git repo
 
 	# external commands and control
-	make      => 'make',  # or gmake if required. can include path if necessary.
+	make => 'make',       # or gmake if required. can include path if necessary.
 	make_jobs => undef,   # >1 for parallel "make" and "make check" steps
 	tar_log_cmd => undef, # default is "tar -z -cf runlogs.tgz *.log"
-	                      # replacement must have the same effect
+						  # replacement must have the same effect
 
 	# archive this many copies of the report summary
 	archive_reports => undef,
@@ -93,12 +93,12 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# "$confdir/buildroot" means buildroot in the config file's directory,
 	# which is useful for auto from-source setups
 	build_root => undef,    #  or '/path/to/buildroot',
-	use_vpath  => undef,    # set true to do vpath builds
+	use_vpath => undef,     # set true to do vpath builds
 
 	# valgrind settings - default is don't use valgrind
 	# It will use the .supp file in the source code	so that's not in the
 	# options here.
-	use_valgrind     => undef,
+	use_valgrind => undef,
 	valgrind_options => join(
 		' ', qw{--quiet --trace-children=yes
 		  --track-origins=yes --read-var-info=yes --num-callers=20
@@ -115,7 +115,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# aux_path => "../..",
 
 	keep_error_builds => 0,
-	core_file_glob    => "*core*",    # should work for both Linux and *BSD
+	core_file_glob => "*core*",    # should work for both Linux and *BSD
 
 	# where to report status
 	target => "https://buildfarm.postgresql.org/cgi-bin/pgstatus.pl",
@@ -167,10 +167,10 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# must be complete email addresses, as the email is sent from the server
 
 	mail_events => {
-		all    => [],    # unconditional
-		fail   => [],    # if this build fails
+		all => [],       # unconditional
+		fail => [],      # if this build fails
 		change => [],    # if this build causes a state change
-		green  => [],    # if this build causes a state change to/from OK
+		green => [],     # if this build causes a state change to/from OK
 	},
 
 	# if this flag is set and ccache is used, an unsuccessful run will result
@@ -264,7 +264,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# settings added to those in config_env if valgrind is being used
 	valgrind_config_env_extra => {
 
-		CFLAGS   => "-fno-omit-frame-pointer -O0 -fPIC",
+		CFLAGS => "-fno-omit-frame-pointer -O0 -fPIC",
 		CPPFLAGS => "-DUSE_VALGRIND  -DRELCACHE_FORCE_RELEASE",
 	},
 
@@ -305,7 +305,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		  ),
 
 		# could also add for example --enable-tap-tests
-	   ],
+	],
 
 	# Note, for meson we turn off all the auto options and then selectively
 	# re-enable them using these options, so zlib and readline have to be
@@ -314,22 +314,23 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# optimization settings. debugoptimised = debug:on + optimisation:2
 	meson_opts => [
 		qw(
-			  -Dcassert=true
-			  -Dbuildtype=debugoptimized
-			  -Dnls=enabled
-			  -Dplperl=enabled
-			  -Dplpython=enabled
-			  -Dpltcl=enabled
-			  -Dgssapi=enabled
-			  -Dssl=openssl
-			  -Dldap=enabled
-			  -Dlibxml=enabled
-			  -Dlibxslt=enabled
-			  -Dzlib=enabled
-			  -Dreadline=enabled
-		 ),
+		  -Dcassert=true
+		  -Dbuildtype=debugoptimized
+		  -Dnls=enabled
+		  -Dplperl=enabled
+		  -Dplpython=enabled
+		  -Dpltcl=enabled
+		  -Dgssapi=enabled
+		  -Dssl=openssl
+		  -Dldap=enabled
+		  -Dlibxml=enabled
+		  -Dlibxslt=enabled
+		  -Dzlib=enabled
+		  -Dreadline=enabled
+		  ),
+
 		# could for example add -Dtap_tests=enabled
-	   ],
+	],
 
 	# per-branch contents of extra config for check stages.
 	# each branch has an array of setting lines (no \n required)
@@ -386,7 +387,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		# settings for parallel runs
 		parallel_lockdir => undef,    # default is global_lock_dir
 		parallel_stagger => undef,    # default 60
-		max_parallel     => undef,    # default 10
+		max_parallel => undef,        # default 10
 
 	},
 
@@ -443,20 +444,20 @@ if ($conf{using_msvc})
 	# than config_opts. See above for meson_opts.
 
 	$conf{config_opts} = {
-		asserts           => 1,                # --enable-cassert
-		integer_datetimes => 1,                # --enable-integer-datetimes
-		nls               => undef,            # --enable-nls=<path>
-		tcl               => 'c:\tcl',         # --with-tcl=<path>
-		perl              => 'c:\perl',        # --with-perl=<path>
-		python            => 'c:\python25',    # --with-python=<path>
-		krb5              => undef,            # --with-krb5=<path>
-		ldap              => 0,                # --with-ldap
-		openssl           => undef,            # --with-ssl=<path>
-		xml               => undef,            # --with-libxml=<path>
-		xslt              => undef,            # --with-libxslt=<path>,
-		iconv             => undef,            # path to iconv library
-		zlib              => undef,            # --with-zlib=<path>
-		tap_tests         => undef,            # --enable-tap-tests
+		asserts => 1,               # --enable-cassert
+		integer_datetimes => 1,     # --enable-integer-datetimes
+		nls => undef,               # --enable-nls=<path>
+		tcl => 'c:\tcl',            # --with-tcl=<path>
+		perl => 'c:\perl',          # --with-perl=<path>
+		python => 'c:\python25',    # --with-python=<path>
+		krb5 => undef,              # --with-krb5=<path>
+		ldap => 0,                  # --with-ldap
+		openssl => undef,           # --with-ssl=<path>
+		xml => undef,               # --with-libxml=<path>
+		xslt => undef,              # --with-libxslt=<path>,
+		iconv => undef,             # path to iconv library
+		zlib => undef,              # --with-zlib=<path>
+		tap_tests => undef,         # --enable-tap-tests
 	};
 
 }

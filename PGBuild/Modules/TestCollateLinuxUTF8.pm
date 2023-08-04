@@ -31,12 +31,12 @@ sub setup
 	my $class = __PACKAGE__;
 
 	my $buildroot = shift;    # where we're building
-	my $branch    = shift;    # The branch of Postgres that's being built.
-	my $conf      = shift;    # ref to the whole config object
-	my $pgsql     = shift;    # postgres build dir
+	my $branch = shift;       # The branch of Postgres that's being built.
+	my $conf = shift;         # ref to the whole config object
+	my $pgsql = shift;        # postgres build dir
 
 	my $locales = $conf->{locales};
-	my $found   = 0;
+	my $found = 0;
 	return unless ref $locales eq 'ARRAY';
 	foreach my $locale (@$locales)
 	{
@@ -53,9 +53,9 @@ sub setup
 	# could even set up several of these (e.g. for different branches)
 	my $self = {
 		buildroot => $buildroot,
-		pgbranch  => $branch,
-		bfconf    => $conf,
-		pgsql     => $pgsql
+		pgbranch => $branch,
+		bfconf => $conf,
+		pgsql => $pgsql
 	};
 	bless($self, $class);
 
@@ -66,11 +66,11 @@ sub setup
 
 sub installcheck
 {
-	my $self   = shift;
+	my $self = shift;
 	my $locale = shift;
 
-	my $pgsql     = $self->{pgsql};
-	my $branch    = $self->{pgbranch};
+	my $pgsql = $self->{pgsql};
+	my $branch = $self->{pgbranch};
 	my $buildroot = "$self->{buildroot}/$branch";
 	my $binswitch =
 	  ($branch ne 'HEAD' && $branch lt 'REL9_5') ? 'psqldir' : 'bindir';

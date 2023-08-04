@@ -81,7 +81,7 @@ BEGIN
 		# this is to stop leaking of things like passwords
 		$orig_env->{$k} = (
 			(
-				     $k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|CXX|LD|LD_LIBRARY_PATH/
+					 $k =~ /^PG(?!PASSWORD)|MAKE|CC|CPP|CXX|LD|LD_LIBRARY_PATH/
 				  || $k =~ /^(HOME|LOGNAME|USER|PATH|SHELL|LIBRAR|INCLUDE)$/
 				  || $k =~ /^BF_CONF_BRANCHES$/
 			)
@@ -128,10 +128,10 @@ die "only one of --skip-steps and --only-steps allowed"
 
 if ($testmode)
 {
-	$verbose  = 1 unless $verbose;
+	$verbose = 1 unless $verbose;
 	$forcerun = 1;
 	$nostatus = 1;
-	$nosend   = 1;
+	$nosend = 1;
 }
 
 $skip_steps ||= "";
@@ -154,7 +154,7 @@ if ($skip_suites =~ /\S/)
 }
 
 our ($branch);
-my $explicit_branch    = shift;
+my $explicit_branch = shift;
 my $from_source_branch = '';
 if ($from_source || $from_source_clean)
 {
@@ -171,7 +171,7 @@ print_help() if ($help);
 require $buildconf;
 
 # get this here before we change directories
-my @conf_stat     = stat $buildconf;
+my @conf_stat = stat $buildconf;
 my $buildconf_mod = $conf_stat[9];
 
 PGBuild::Options::fixup_conf(\%PGBuild::conf, \@config_set);
@@ -181,20 +181,20 @@ $PGBuild::conf{build_root} ||= abs_path(dirname(__FILE__)) . "/buildroot";
 
 # get the config data into some local variables
 my (
-	$buildroot,                 $target,
-	$animal,                    $aux_path,
-	$trigger_exclude,           $trigger_include,
-	$secret,                    $keep_errs,
-	$force_every,               $make,
-	$optional_steps,            $use_vpath,
-	$tar_log_cmd,               $using_msvc,
-	$extra_config,              $make_jobs,
-	$core_file_glob,            $ccache_failure_remove,
-	$wait_timeout,              $use_accache,
-	$use_valgrind,              $valgrind_options,
+	$buildroot, $target,
+	$animal, $aux_path,
+	$trigger_exclude, $trigger_include,
+	$secret, $keep_errs,
+	$force_every, $make,
+	$optional_steps, $use_vpath,
+	$tar_log_cmd, $using_msvc,
+	$extra_config, $make_jobs,
+	$core_file_glob, $ccache_failure_remove,
+	$wait_timeout, $use_accache,
+	$use_valgrind, $valgrind_options,
 	$use_installcheck_parallel, $max_load_avg,
-	$use_discard_caches,        $archive_reports,
-	$using_meson,               $meson_jobs,
+	$use_discard_caches, $archive_reports,
+	$using_meson, $meson_jobs,
 	$meson_test_timeout
   )
   = @PGBuild::conf{
@@ -323,8 +323,8 @@ if ($from_source || $from_source_clean)
 	  "build artefacts etc will go in $branch\n"
 	  unless ($explicit_branch);
 	$verbose ||= 1;
-	$nosend     = 1;
-	$nostatus   = 1;
+	$nosend = 1;
+	$nostatus = 1;
 	$logdirname = "fromsource-logs";
 
 	if (!$from_source_clean && $use_vpath)
@@ -397,8 +397,10 @@ $st_prefix = $testmode ? "$animal-test." : "$animal.";
 while (my ($envkey, $envval) = each %{ $PGBuild::conf{build_env} })
 {
 	# ignore this setting for branches older than 13
-	next if $envkey eq 'PG_TEST_USE_UNIX_SOCKETS' &&
-	  $branch lt "REL_13_STABLE" && $branch ne 'HEAD';
+	next
+	  if $envkey eq 'PG_TEST_USE_UNIX_SOCKETS'
+	  && $branch lt "REL_13_STABLE"
+	  && $branch ne 'HEAD';
 	$ENV{$envkey} = $envval;
 }
 
@@ -440,7 +442,7 @@ unless (defined $ENV{TMPDIR})
 # set up a temporary directory for extra configs, sockets etc
 $tmpdir = File::Temp::tempdir(
 	"buildfarm-XXXXXX",
-	DIR     => File::Spec->tmpdir,
+	DIR => File::Spec->tmpdir,
 	CLEANUP => 1
 );
 umask $oldmask unless $using_msvc;
@@ -735,7 +737,7 @@ if ($extra_config && $extra_config->{DEFAULT})
 if ($branch eq 'HEAD' || $branch ge 'REL_16')
 {
 	s/force_parallel_mode/debug_parallel_query/
-	  foreach @{ $extra_config->{$branch} }
+	  foreach @{ $extra_config->{$branch} };
 }
 
 if ($use_discard_caches && ($branch eq 'HEAD' || $branch ge 'REL_14'))
@@ -796,7 +798,7 @@ elsif (!$from_source)
 	$timeout_pid = spawn(\&scm_timeout, $scm_timeout_secs)
 	  if $scm_timeout_secs;
 
-	$savescmlog      = $scm->checkout($branch);
+	$savescmlog = $scm->checkout($branch);
 	$steps_completed = "SCM-checkout";
 
 	process_module_hooks('checkout', $savescmlog);
@@ -820,8 +822,8 @@ elsif (!$from_source)
 	unlink "last.success";
 
 	# get the timestamp data
-	$last_status       = find_last('status') || 0;
-	$last_run_snap     = find_last('run.snap');
+	$last_status = find_last('status') || 0;
+	$last_run_snap = find_last('run.snap');
 	$last_success_snap = find_last('success.snap');
 	my $last_stage = get_last_stage() || "";
 	if ($last_stage =~ /-Git|Git-mirror/ && $last_status < (time - (3 * 3600)))
@@ -843,7 +845,7 @@ elsif (!$from_source)
 
 	# see what's changed since the last time we did work
 	$scm->find_changed(
-		\$current_snap,  $last_run_snap, $last_success_snap,
+		\$current_snap, $last_run_snap, $last_success_snap,
 		\@changed_files, \@changed_since_success
 	);
 
@@ -897,7 +899,7 @@ $scm->log_id() unless $from_source;
 
 if ($use_vpath)
 {
-	my $str  = $using_meson ? "meson" : "vpath";
+	my $str = $using_meson ? "meson" : "vpath";
 	print time_str(), "creating $str build dir $pgsql ...\n" if $verbose;
 	mkdir $pgsql || die "making $pgsql: $!";
 }
@@ -912,10 +914,10 @@ process_module_hooks('setup-target');
 
 # start working
 
-set_last('status',   $now)          unless $nostatus;
+set_last('status', $now) unless $nostatus;
 set_last('run.snap', $current_snap) unless $nostatus;
 
-my $started_times   = 0;
+my $started_times = 0;
 my $dblaststartstop = 0;
 
 # each of these routines will call send_result, which calls exit,
@@ -947,7 +949,9 @@ make_check() unless $delay_check;
 make_contrib() unless ($using_msvc || $using_meson);
 
 make_testmodules()
-  unless ($using_msvc || $using_meson || ($branch ne 'HEAD' && $branch lt 'REL9_5'));
+  unless ($using_msvc
+	|| $using_meson
+	|| ($branch ne 'HEAD' && $branch lt 'REL9_5'));
 
 make_doc() if (check_optional_step('build_docs'));
 
@@ -1035,8 +1039,8 @@ foreach my $locale (@locales)
 		else
 		{
 			if (   -d "$pgsql/src/test/isolation"
-				   && $locale eq 'C'
-				   && step_wanted('isolation-check'))
+				&& $locale eq 'C'
+				&& step_wanted('isolation-check'))
 			{
 				# restart the db to clear the log file
 				print time_str(), "restarting db ($locale)...\n" if $verbose;
@@ -1055,15 +1059,15 @@ foreach my $locale (@locales)
 					(
 						!$using_msvc
 						&& (grep { /--with-(perl|python|tcl)/ } @$config_opts)
-					   )
+					)
 					|| (
 						$using_msvc
 						&& (   defined($config_opts->{perl})
-							   || defined($config_opts->{python})
-							   || defined($config_opts->{tcl}))
-					   )
-				   )
-			   )
+							|| defined($config_opts->{python})
+							|| defined($config_opts->{tcl}))
+					)
+				)
+			  )
 			{
 				# restart the db to clear the log file
 				print time_str(), "restarting db ($locale)...\n" if $verbose;
@@ -1085,14 +1089,15 @@ foreach my $locale (@locales)
 				stop_db($locale);
 				start_db($locale);
 
-				print time_str(), "running make contrib installcheck ($locale)...\n"
+				print time_str(),
+				  "running make contrib installcheck ($locale)...\n"
 				  if $verbose;
 
 				make_contrib_install_check($locale);
 			}
 
 			unless (!step_wanted('testmodules-install-check')
-					|| ($branch ne 'HEAD' && $branch lt 'REL9_5'))
+				|| ($branch ne 'HEAD' && $branch lt 'REL9_5'))
 			{
 				print time_str(), "restarting db ($locale)...\n" if $verbose;
 
@@ -1105,7 +1110,7 @@ foreach my $locale (@locales)
 
 				make_testmodules_install_check($locale);
 			}
-		} # end of non-meson block
+		}    # end of non-meson block
 
 		print time_str(), "stopping db ($locale)...\n" if $verbose;
 
@@ -1238,7 +1243,7 @@ sub clean_from_source
 	}
 
 	my @makeout = run_log($command);
-	my $status  = $? >> 8;
+	my $status = $? >> 8;
 	writelog('distclean', \@makeout);
 	print "======== distclean log ===========\n", @makeout if ($verbose > 1);
 	send_result('distclean', $status, \@makeout) if $status;
@@ -1276,7 +1281,7 @@ sub make
 		{
 			my $log = PGBuild::Log->new("compile");
 			$log->add_log("$pgsql/meson-logs/compile.log");
-			push(@makeout,$log->log_string);
+			push(@makeout, $log->log_string);
 		}
 	}
 	elsif ($using_msvc)
@@ -1338,10 +1343,10 @@ sub make_install
 	print time_str(), "running install ...\n" if $verbose;
 
 	my @makeout;
-	if($using_meson)
+	if ($using_meson)
 	{
 		@makeout = run_log("meson install -C $pgsql ");
-		move "$pgsql/meson-logs/meson-log.txt","$pgsql/meson-logs/install.log";
+		move "$pgsql/meson-logs/meson-log.txt", "$pgsql/meson-logs/install.log";
 		my $log = PGBuild::Log->new("install");
 		if (-s "$pgsql/meson-logs/install.log")
 		{
@@ -1417,7 +1422,7 @@ sub make_contrib
 	$make_cmd = "$make -j $make_jobs"
 	  if ($make_jobs > 1);
 	my @makeout = run_log("cd $pgsql/contrib && $make_cmd");
-	my $status  = $? >> 8;
+	my $status = $? >> 8;
 	writelog('make-contrib', \@makeout);
 	print "======== make contrib log ===========\n", @makeout if ($verbose > 1);
 	$status ||= check_make_log_warnings('make-contrib', $verbose)
@@ -1436,7 +1441,7 @@ sub make_testmodules
 	$make_cmd = "$make -j $make_jobs"
 	  if ($make_jobs > 1);
 	my @makeout = run_log("cd $pgsql/src/test/modules && $make_cmd");
-	my $status  = $? >> 8;
+	my $status = $? >> 8;
 	writelog('make-testmodules', \@makeout);
 	print "======== make testmodules log ===========\n", @makeout
 	  if ($verbose > 1);
@@ -1460,7 +1465,7 @@ sub make_contrib_install
 	my $cmd =
 	  "cd $pgsql/contrib && $make install && $make DESTDIR=$tmp_inst install";
 	my @makeout = run_log($cmd);
-	my $status  = $? >> 8;
+	my $status = $? >> 8;
 	writelog('install-contrib', \@makeout);
 	print "======== make contrib install log ===========\n", @makeout
 	  if ($verbose > 1);
@@ -1471,7 +1476,7 @@ sub make_contrib_install
 
 sub make_testmodules_install
 {
-	return if $using_msvc && ! $using_meson;
+	return if $using_msvc && !$using_meson;
 	return
 	  unless (step_wanted('testmodules')
 		and step_wanted('install'));
@@ -1492,11 +1497,11 @@ sub make_testmodules_install
 		# for autoconf, we need to install them in both $tmp_install
 		# and $installdir
 		my $tmp_inst = abs_path($pgsql) . "/tmp_install";
-		my $cmd      = "cd $pgsql/src/test/modules  && "
+		my $cmd = "cd $pgsql/src/test/modules  && "
 		  . "$make install && $make DESTDIR=$tmp_inst install";
 		@out = run_log($cmd);
 	}
-	my $status  = $? >> 8;
+	my $status = $? >> 8;
 	writelog('install-testmodules', \@out);
 	print "======== testmodules install log ===========\n", @out
 	  if ($verbose > 1);
@@ -1536,7 +1541,8 @@ sub initdb
 
 		print $handle "\n# Configuration added by buildfarm client\n\n";
 
-		if ($ENV{PG_TEST_USE_UNIX_SOCKETS} || (!$using_msvc && $Config{osname} !~ /msys|MSWin/))
+		if ($ENV{PG_TEST_USE_UNIX_SOCKETS}
+			|| (!$using_msvc && $Config{osname} !~ /msys|MSWin/))
 		{
 			# postgres treats backslash as escape
 			my $tmpd = $tmpdir;
@@ -1559,7 +1565,8 @@ sub initdb
 		}
 		close($handle);
 
-		if (!$ENV{PG_TEST_USE_UNIX_SOCKETS} && ($using_msvc || $Config{osname} =~ /msys|MSWin/))
+		if (!$ENV{PG_TEST_USE_UNIX_SOCKETS}
+			&& ($using_msvc || $Config{osname} =~ /msys|MSWin/))
 		{
 			my $pg_regress;
 
@@ -1580,7 +1587,7 @@ sub initdb
 			  ? "buildfarm,dblink_regression_test"
 			  : "buildfarm";
 			my $setauth = "--create-role $roles --config-auth";
-			my @lines   = run_log("$pg_regress $setauth data-$locale");
+			my @lines = run_log("$pg_regress $setauth data-$locale");
 			$status = $? >> 8;
 			push(@initout, "======== set config-auth ======\n", @lines);
 		}
@@ -1601,15 +1608,17 @@ sub initdb
 sub _meson_env
 {
 	my %env;
+
 	# these should be safe to appear on the log and could be required
 	# for running tests
 	my @safe_set = qw(
-						 PATH
-						 PGUSER PGHOST PG_TEST_PORT_DIR PG_TEST_EXTRA
-						 PG_TEST_USE_UNIX_SOCKETS PG_REGRESS_SOCK_DIR
-						 SystemRoot TEMP TMP MSYS
-						 TEMP_CONFIG  PGCTLTIMEOUT
-						 USER USERNAME USERDOMAIN);
+	  PATH
+	  PGUSER PGHOST PG_TEST_PORT_DIR PG_TEST_EXTRA
+	  PG_TEST_USE_UNIX_SOCKETS PG_REGRESS_SOCK_DIR
+	  SystemRoot TEMP TMP MSYS
+	  TEMP_CONFIG  PGCTLTIMEOUT
+	  USER USERNAME USERDOMAIN);
+
 	foreach my $setting (@safe_set)
 	{
 		my $v = $ENV{$setting};
@@ -1623,16 +1632,16 @@ sub start_valgrind_db
 	# run the postmaster under valgrind.
 	# subroutine is run in a child process.
 
-	my $locale          = shift;
+	my $locale = shift;
 	my $vgstarted_times = shift;
 	chdir 'inst';
 	my $source = $from_source || '../pgsql';
 	open(STDOUT, ">", "logfile") || die "opening valgrind log";
 	open(STDERR, ">&STDOUT")    # allowed by perlcritic
 	  || die "duping STDOUT for valgrind";
-	my $supp    = "--suppressions=$source/src/tools/valgrind.supp";
+	my $supp = "--suppressions=$source/src/tools/valgrind.supp";
 	my $markers = "--error-markers=VALGRINDERROR-BEGIN,VALGRINDERROR-END";
-	my $pgcmd   = "bin/postgres -D data-$locale";
+	my $pgcmd = "bin/postgres -D data-$locale";
 	system("valgrind $valgrind_options $supp $markers $pgcmd");
 	return $? >> 8;
 }
@@ -1663,7 +1672,7 @@ sub start_db
 		# We need to wait for it. We need to see the pid and socket files
 		# before continuing.
 
-		my $pidfile    = "$installdir/data-$locale/postmaster.pid";
+		my $pidfile = "$installdir/data-$locale/postmaster.pid";
 		my $socketfile = "$tmpdir/.s.PGSQL.$buildport";
 
 		# wait until the database has started. Under valgrind it can
@@ -1723,7 +1732,7 @@ sub start_db
 		chdir($branch_root);
 		send_result("StartDb-$locale:$started_times", $status, \@ctlout);
 	}
-	$dbstarted       = 1;
+	$dbstarted = 1;
 	$dblaststartstop = time;
 	return;
 }
@@ -1743,7 +1752,7 @@ sub stop_db
 		# We need to wait for it. We need to see the absences of the
 		# pid and socket files before continuing.
 
-		my $pidfile    = "$installdir/data-$locale/postmaster.pid";
+		my $pidfile = "$installdir/data-$locale/postmaster.pid";
 		my $socketfile = "$tmpdir/.s.PGSQL.$buildport";
 
 		foreach (1 .. 600)
@@ -1768,7 +1777,7 @@ sub stop_db
 	print "======== stop db ($locale): $started_times log ==========\n", @ctlout
 	  if ($verbose > 1);
 	send_result("StopDb-$locale:$started_times", $status, \@ctlout) if $status;
-	$dbstarted       = undef;
+	$dbstarted = undef;
 	$dblaststartstop = time;
 	return;
 }
@@ -1784,7 +1793,9 @@ sub make_install_check
 	{
 		local %ENV = _meson_env();
 		my $jflag = defined($meson_jobs) ? " --num-processes=$meson_jobs" : "";
-		@checklog = run_log("meson test -t $meson_test_timeout $jflag -v -C $pgsql --no-rebuild --print-errorlogs --setup running --suite regress-running --logbase regress-installcheck-$locale");
+		@checklog = run_log(
+			"meson test -t $meson_test_timeout $jflag -v -C $pgsql --no-rebuild --print-errorlogs --setup running --suite regress-running --logbase regress-installcheck-$locale"
+		);
 	}
 	elsif ($using_msvc)
 	{
@@ -1810,9 +1821,9 @@ sub make_install_check
 		}
 		@checklog = run_log("cd $pgsql/src/test/regress && $make $chktarget");
 	}
-	my $status   = $? >> 8;
+	my $status = $? >> 8;
 	my @logfiles = ("$pgsql/src/test/regress/regression.diffs", "inst/logfile");
-	my $log      = PGBuild::Log->new("check");
+	my $log = PGBuild::Log->new("check");
 	$log->add_log($_) foreach (@logfiles);
 	if ($status)
 	{
@@ -1850,8 +1861,8 @@ sub make_contrib_install_check
 		chdir $branch_root;
 	}
 	my $status = $? >> 8;
-	my @logs   = glob("$pgsql/contrib/*/regression.diffs");
-	my $log    = PGBuild::Log->new("contrib_install_check");
+	my @logs = glob("$pgsql/contrib/*/regression.diffs");
+	my $log = PGBuild::Log->new("contrib_install_check");
 	$log->add_log("inst/logfile");
 	$log->add_log($_) foreach (@logs);
 	if ($status)
@@ -1875,6 +1886,7 @@ sub meson_test_setup
 	# in the check stage
 	local %ENV = _meson_env();
 	my @log = run_log("meson test -C $pgsql --no-rebuild --suite setup");
+
 	# XXX fixme: logging etc.
 	return;
 }
@@ -1885,7 +1897,8 @@ sub run_meson_install_checks
 	my $locale = shift;
 	return unless step_wanted('misc-install-check');
 	local %ENV = _meson_env();
-	print time_str(), "running meson misc installchecks ($locale) ...\n" if $verbose;
+	print time_str(), "running meson misc installchecks ($locale) ...\n"
+	  if $verbose;
 
 	# clean out old logs etc
 	unlink "$pgsql/meson-logs/installcheckworld.txt";
@@ -1895,23 +1908,26 @@ sub run_meson_install_checks
 
 	# skip regress, done by make_installcheck
 	# skip isolation and ecpg, done with misc checks
-	my $skip = "--no-suite regress-running --no-suite isolation-running --no-suite ecpg-running";
+	my $skip =
+	  "--no-suite regress-running --no-suite isolation-running --no-suite ecpg-running";
 	foreach my $sk (keys %skip_suites)
 	{
 		$skip .= " --no-suite $sk-running";
 	}
 
-	my @checklog=run_log("meson test -t $meson_test_timeout $jflag -C $pgsql --setup running --print-errorlogs --no-rebuild --logbase installcheckworld $skip");
+	my @checklog = run_log(
+		"meson test -t $meson_test_timeout $jflag -C $pgsql --setup running --print-errorlogs --no-rebuild --logbase installcheckworld $skip"
+	);
 
 	my @fails = glob("$pgsql/testrun/*/*/test.fail");
 
 	my $status = (0 < @fails);
 
 	my @faildirs = map { dirname $_ } @fails;
-	my (@miscdirs,@moddirs,@contribdirs,@otherdirs);
+	my (@miscdirs, @moddirs, @contribdirs, @otherdirs);
 	foreach my $dir (@faildirs)
 	{
-		my $sname = basename (dirname ($dir));
+		my $sname = basename(dirname($dir));
 		$sname =~ s/-running$//;
 		if (-e "pgsql/src/test/$sname")
 		{
@@ -1942,22 +1958,21 @@ sub run_meson_install_checks
 	$log->add_log("$pgsql/meson-logs/installcheckworld.txt");
 	foreach my $dir (@faildirs)
 	{
-		$log->add_log($_)
-		  foreach ("$dir/regression.diffs", glob("$dir/log/*"));
+		$log->add_log($_) foreach ("$dir/regression.diffs", glob("$dir/log/*"));
 	}
+
 	# add all the rest of the logs after the failure logs
 	foreach my $dir (glob("$pgsql/testrun/*/*"))
 	{
 		next unless -e "$dir/test.success";
-		$log->add_log($_)
-		  foreach ("$dir/regression.diffs", glob("$dir/log/*"));
+		$log->add_log($_) foreach ("$dir/regression.diffs", glob("$dir/log/*"));
 	}
 	push(@checklog, $log->log_string);
 
 	if ($status)
 	{
 		my $first = $faildirs[0];
-		$first = basename (dirname $first);
+		$first = basename(dirname $first);
 		$first =~ s/-running$//;
 		writelog("$first-installcheck-$locale", \@checklog);
 		print @checklog if ($verbose > 1);
@@ -1999,20 +2014,22 @@ sub run_meson_noninst_checks
 	{
 		$skip .= " --no-suite $sk";
 	}
-	my @checklog=run_log("meson test -t $meson_test_timeout $jflag -C $pgsql --print-errorlogs --no-rebuild --logbase checkworld $skip");
+	my @checklog = run_log(
+		"meson test -t $meson_test_timeout $jflag -C $pgsql --print-errorlogs --no-rebuild --logbase checkworld $skip"
+	);
 
 	my @fails = glob("$pgsql/testrun/*/*/test.fail");
 
 	my $status = (0 < @fails);
 
 	my @faildirs = map { dirname $_ } @fails;
-	my (@bindirs,@miscdirs,@moddirs,@contribdirs,@otherdirs);
+	my (@bindirs, @miscdirs, @moddirs, @contribdirs, @otherdirs);
 	foreach my $dir (@faildirs)
 	{
-		my $sname = basename (dirname ($dir));
+		my $sname = basename(dirname($dir));
 		if (-e "pgsql/src/bin/$sname")
 		{
-			push @bindirs,$dir;
+			push @bindirs, $dir;
 		}
 		elsif (-e "pgsql/src/test/$sname")
 		{
@@ -2044,23 +2061,21 @@ sub run_meson_noninst_checks
 	$log->add_log("$pgsql/meson-logs/checkworld.txt");
 	foreach my $dir (@faildirs)
 	{
-		$log->add_log($_)
-		  foreach ("$dir/regression.diffs", glob("$dir/log/*"));
+		$log->add_log($_) foreach ("$dir/regression.diffs", glob("$dir/log/*"));
 	}
 
 	# add all the rest of the logs after the failure logs
 	foreach my $dir (glob("$pgsql/testrun/*/*"))
 	{
 		next unless -e "$dir/test.success";
-		$log->add_log($_)
-		  foreach ("$dir/regression.diffs", glob("$dir/log/*"));
+		$log->add_log($_) foreach ("$dir/regression.diffs", glob("$dir/log/*"));
 	}
 	push(@checklog, $log->log_string);
 
 	if ($status)
 	{
 		my $first = $faildirs[0];
-		$first = basename (dirname $first);
+		$first = basename(dirname $first);
 		writelog("$first-check", \@checklog);
 		print @checklog if ($verbose > 1);
 		send_result("${first}Check", $status, \@checklog);
@@ -2081,7 +2096,7 @@ sub make_misc_check
 	return unless step_wanted('misc-check');
 	my @checklog;
 	my $status = 0;
-	my @dirs   = glob("$pgsql/src/test/modules/* $pgsql/contrib/*");
+	my @dirs = glob("$pgsql/src/test/modules/* $pgsql/contrib/*");
 	return unless @dirs;
 	print time_str(), "running make check miscellaneous modules ...\n"
 	  if $verbose;
@@ -2130,8 +2145,8 @@ sub make_testmodules_install_check
 		chdir $branch_root;
 	}
 	my $status = $? >> 8;
-	my $log    = PGBuild::Log->new("testmodules-install-check-$locale");
-	my @logs   = glob("$pgsql/src/test/modules/*/regression.diffs");
+	my $log = PGBuild::Log->new("testmodules-install-check-$locale");
+	my @logs = glob("$pgsql/src/test/modules/*/regression.diffs");
 	push(@logs, "inst/logfile");
 	$log->add_log($_) foreach (@logs);
 	if ($status)
@@ -2165,7 +2180,7 @@ sub make_pl_install_check
 		chdir($branch_root);
 	}
 	my $status = $? >> 8;
-	my @logs   = (
+	my @logs = (
 		glob("$pgsql/src/pl/*/regression.diffs"),
 		glob("$pgsql/src/pl/*/*/regression.diffs")
 	);
@@ -2238,8 +2253,8 @@ sub make_isolation_check
 
 sub run_tap_test
 {
-	my $dir              = shift;
-	my $testname         = shift;
+	my $dir = shift;
+	my $testname = shift;
 	my $is_install_check = shift;
 
 	my $taptarget = $is_install_check ? "installcheck" : "check";
@@ -2370,7 +2385,7 @@ sub run_misc_tests
 
 
 	my $using_ssl =
-	    $using_msvc
+		$using_msvc
 	  ? $config_opts->{openssl}
 	  : (grep { $_ eq '--with-openssl' } @$config_opts);
 
@@ -2425,7 +2440,9 @@ sub make_check
 			$ENV{PATH} = "$abs_pgsql/tmp_install$inst/bin;$ENV{PATH}";
 		}
 		my $jflag = defined($meson_jobs) ? " --num-processes=$meson_jobs" : "";
-		@makeout=run_log("meson test -t $meson_test_timeout $jflag -C $pgsql --logbase checklog --print-errorlogs --no-rebuild --suite regress --test-args=--no-locale");
+		@makeout = run_log(
+			"meson test -t $meson_test_timeout $jflag -C $pgsql --logbase checklog --print-errorlogs --no-rebuild --suite regress --test-args=--no-locale"
+		);
 	}
 	elsif ($using_msvc)
 	{
@@ -2456,9 +2473,11 @@ sub make_check
 
 	# get the log files and the regression diffs
 	my @logs =
-	  glob("$pgsql/src/test/regress/log/*.log $pgsql/tmp_install/log/* $pgsql/*/checklog.txt $pgsql/testrun/regress/regress/log/*");
+	  glob(
+		"$pgsql/src/test/regress/log/*.log $pgsql/tmp_install/log/* $pgsql/*/checklog.txt $pgsql/testrun/regress/regress/log/*"
+	  );
 	unshift @logs, "$_/regression.diffs"
-	  foreach ("$pgsql/src/test/regress","$pgsql/testrun/regress/regress");
+	  foreach ("$pgsql/src/test/regress", "$pgsql/testrun/regress/regress");
 	$log->add_log($_) foreach (@logs);
 	my $base = "$pgsql/src/test/regress/tmp_check";
 	if ($status)
@@ -2539,9 +2558,9 @@ sub _dump_filter
 	while (@$lines)
 	{
 		my $line = shift @$lines;
-		if (index($line,$tag) > -1)
+		if (index($line, $tag) > -1)
 		{
-			push(@output, splice(@$lines,0,$context));
+			push(@output, splice(@$lines, 0, $context));
 		}
 	}
 	return @output;
@@ -2571,9 +2590,9 @@ sub find_typedefs
 			last;
 		}
 	}
-	my @err        = `$objdump -W 2>&1`;
+	my @err = `$objdump -W 2>&1`;
 	my @readelferr = `readelf -w 2>&1`;
-	my $using_osx  = (`uname` eq "Darwin\n");
+	my $using_osx = (`uname` eq "Darwin\n");
 	my @testfiles;
 	my %syms;
 	my @dumpout;
@@ -2606,14 +2625,14 @@ sub find_typedefs
 	{
 		next if $bin =~ m!bin/(ipcclean|pltcl_)!;
 		next unless -f $bin;
-		next if -l $bin;    # ignore symlinks to plain files
-		next if $bin =~ m!/postmaster.exe$!; # sometimes a copy not a link
+		next if -l $bin;                        # ignore symlinks to plain files
+		next if $bin =~ m!/postmaster.exe$!;    # sometimes a copy not a link
 
 		if ($using_osx)
 		{
 			# no run_log due to redirections.
 			@dumpout = `dwarfdump $bin 2>/dev/null`;
-			@dumpout = _dump_filter(\@dumpout,'TAG_typedef',2);
+			@dumpout = _dump_filter(\@dumpout, 'TAG_typedef', 2);
 			foreach (@dumpout)
 			{
 				## no critic (RegularExpressions::ProhibitCaptureWithoutTest)
@@ -2634,11 +2653,11 @@ sub find_typedefs
 				}
 			}
 		}
-		elsif (@err == 1)   # Linux and sometimes windows
+		elsif (@err == 1)    # Linux and sometimes windows
 		{
 			my $cmd = "$objdump -Wi $bin 2>/dev/null";
 			@dumpout = `$cmd`;    # no run_log because of redirections
-			@dumpout = _dump_filter(\@dumpout,'DW_TAG_typedef',3);
+			@dumpout = _dump_filter(\@dumpout, 'DW_TAG_typedef', 3);
 			foreach (@dumpout)
 			{
 				@flds = split;
@@ -2655,7 +2674,7 @@ sub find_typedefs
 			# FreeBSD, similar output to Linux
 			my $cmd = "readelf -w $bin 2>/dev/null";
 			@dumpout = ` $cmd`;    # no run_log due to redirections
-			@dumpout = _dump_filter(\@dumpout,'DW_TAG_typedef',3);
+			@dumpout = _dump_filter(\@dumpout, 'DW_TAG_typedef', 3);
 
 			foreach (@dumpout)
 			{
@@ -2725,8 +2744,8 @@ sub find_typedefs
 sub meson_setup
 {
 	my $env = $PGBuild::conf{config_env};
-	$env = { %$env }; # clone it
-	delete $env->{CC} if $using_msvc;  # this can confuse meson in this case
+	$env = {%$env};                      # clone it
+	delete $env->{CC} if $using_msvc;    # this can confuse meson in this case
 	local %ENV = (%ENV, %$env);
 	$ENV{MSYS2_ARG_CONV_EXCL} = "-Dextra";
 
@@ -2739,7 +2758,7 @@ sub meson_setup
 		}
 		elsif ($using_msvc)
 		{
-			push(@quoted_opts,qq{"$c_opt"});
+			push(@quoted_opts, qq{"$c_opt"});
 		}
 		else
 		{
@@ -2747,19 +2766,15 @@ sub meson_setup
 		}
 	}
 
-	my $docs_opts="";
+	my $docs_opts = "";
 	$docs_opts = "-Ddocs=enabled"
 	  if defined($PGBuild::conf{optional_steps}->{build_docs});
 	$docs_opts .= " -Ddocs_pdf=enabled"
 	  if $docs_opts && ($PGBuild::conf{extra_doc_targets} || "") =~ /[.]pdf/;
 
 	my $confstr = join(" ",
-					   "-Dauto_features=disabled",
-					   @quoted_opts,
-					   $docs_opts,
-					   "-Dlibdir=lib",
-					   qq{-Dprefix="$installdir"},
-					   "-Dpgport=$buildport");
+		"-Dauto_features=disabled", @quoted_opts, $docs_opts, "-Dlibdir=lib",
+		qq{-Dprefix="$installdir"}, "-Dpgport=$buildport");
 
 	my $srcdir = $from_source || 'pgsql';
 
@@ -2774,7 +2789,7 @@ sub meson_setup
 	{
 		my $log = PGBuild::Log->new("setup");
 		$log->add_log("$pgsql/meson-logs/setup.log");
-		push(@confout,$log->log_string);
+		push(@confout, $log->log_string);
 	}
 
 	print "======== setup output ===========\n", @confout
@@ -2802,9 +2817,8 @@ sub msvc_setup
 		"# written by buildfarm client \n",
 		"use strict; \n",
 		"use warnings;\n",
-		"our $conf \n",
-		"1;\n"
-	   );
+		"our $conf \n", "1;\n"
+	);
 
 	my $handle;
 	open($handle, ">", "$pgsql/src/tools/msvc/config.pl")
@@ -2869,9 +2883,9 @@ sub configure
 		$accachefile = "$accachedir/config-$branch.cache";
 		if (-e $accachefile)
 		{
-			my $obsolete   = 0;
+			my $obsolete = 0;
 			my @cache_stat = stat $accachefile;
-			my $cache_mod  = $cache_stat[9];
+			my $cache_mod = $cache_stat[9];
 			if ($from_source)
 			{
 				foreach my $conf (
@@ -2958,7 +2972,7 @@ sub configure
 	{
 		# if you're using a vpath the source must be pristine for configure
 		(my $conf_stat = $conf_path) =~ s/configure$/config.status/;
-		(my $conf_log  = $conf_path) =~ s/configure$/config.log/;
+		(my $conf_log = $conf_path) =~ s/configure$/config.log/;
 
 		die "source not config clean" if (-e $conf_stat || -e $conf_log);
 	}
@@ -2974,7 +2988,7 @@ sub configure
 	{
 		my $log = PGBuild::Log->new("configure");
 		$log->add_log("$pgsql/config.log");
-		push(@confout,$log->log_string);
+		push(@confout, $log->log_string);
 	}
 
 	writelog('configure', \@confout);
@@ -3006,7 +3020,7 @@ sub archive_report
 {
 	return unless defined($archive_reports) && $archive_reports > 0;
 	my $report = shift;
-	my $dest   = "$buildroot/archive/$animal/$branch";
+	my $dest = "$buildroot/archive/$animal/$branch";
 	mkpath $dest;
 	my $fname = basename $report;
 	my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) =
@@ -3036,9 +3050,9 @@ sub send_res
 
 	set_last_stage($stage);
 
-	my $ts     = $now  || time;
+	my $ts = $now || time;
 	my $status = shift || 0;
-	my $log    = shift || [];
+	my $log = shift || [];
 	print "======== log passed to send_result ===========\n", @$log
 	  if ($verbose > 1)
 	  or ($status && $show_error_log);
@@ -3049,9 +3063,9 @@ sub send_res
 		" GMT\n", "===================================================\n")
 	  unless ($from_source || !$current_snap);
 
-	my $log_data              = join("", @$log);
-	my $confsum               = "";
-	my $changed_this_run      = "";
+	my $log_data = join("", @$log);
+	my $confsum = "";
+	my $changed_this_run = "";
 	my $changed_since_success = "";
 	$changed_this_run = join("!", @changed_files)
 	  if @changed_files;
@@ -3160,7 +3174,7 @@ sub send_res
 
 		# if the web txn fails, restore the timestamps
 		# so we try again the next time.
-		set_last('status',   $last_status)   unless $nostatus;
+		set_last('status', $last_status) unless $nostatus;
 		set_last('run.snap', $last_run_snap) unless $nostatus;
 		exit($txstatus);
 	}
@@ -3220,10 +3234,10 @@ sub get_script_config_dump
 {
 	my $conf = {
 		%PGBuild::conf,    # shallow copy
-		script_version  => $VERSION,
+		script_version => $VERSION,
 		invocation_args => \@invocation_args,
 		steps_completed => [ split(/\s+/, $steps_completed) ],
-		orig_env        => $orig_env,
+		orig_env => $orig_env,
 		bf_perl_version => "$Config{version}",
 	};
 	delete $conf->{secret};
@@ -3241,8 +3255,8 @@ sub get_script_config_dump
 		eval $str;
 	}
 	$conf->{module_versions} = \%versions;
-	$conf->{skip_steps}      = join(" ", keys %skip_steps) if %skip_steps;
-	$conf->{only_steps}      = join(" ", keys %only_steps) if %only_steps;
+	$conf->{skip_steps} = join(" ", keys %skip_steps) if %skip_steps;
+	$conf->{only_steps} = join(" ", keys %only_steps) if %only_steps;
 	no warnings qw(once);    # silence old perls about following line
 	local $Data::Dumper::Sortkeys = 1;
 	return Data::Dumper->Dump([$conf], ['Script_Config']);
@@ -3250,9 +3264,9 @@ sub get_script_config_dump
 
 sub scm_timeout
 {
-	my $wait_time   = shift;
+	my $wait_time = shift;
 	my $who_to_kill = getpgrp(0);
-	my $sig         = SIGTERM;
+	my $sig = SIGTERM;
 	$sig = -$sig;
 	print "waiting $wait_time secs to time out process $who_to_kill\n"
 	  if $verbose;
@@ -3263,7 +3277,7 @@ sub scm_timeout
 	sleep($wait_time);
 	print STDERR "SCM timeout reached, cannot continue\n";
 	$SIG{TERM} = 'IGNORE';    # so we don't kill ourself, we're exiting anyway
-	                          # kill the whole process group
+							  # kill the whole process group
 	unless (kill $sig, $who_to_kill)
 	{
 		print "scm timeout kill failed\n";

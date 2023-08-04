@@ -61,9 +61,9 @@ sub run_web_txn
 	}
 
 	# add our own version string and time
-	my $current_ts       = time;
+	my $current_ts = time;
 	my $webscriptversion = "'web_script_version' => '$VERSION',\n";
-	my $cts              = "'current_ts' => $current_ts,\n";
+	my $cts = "'current_ts' => $current_ts,\n";
 
 	# $2 here helps us to preserve the nice spacing from Data::Dumper
 	my $scriptline = "((.*)'script_version' => '(REL_)?\\d+(\\.\\d+)*',?\n)";
@@ -107,7 +107,7 @@ sub run_web_txn
 		$tardata, $frozen_sconf);
 
 	my $content =
-	    "changed_files=$changed_this_run&"
+		"changed_files=$changed_this_run&"
 	  . "changed_since_success=$changed_since_success&"
 	  . "branch=$branch&res=$status&stage=$stage&animal=$animal&ts=$ts"
 	  . "&log=$log_data&conf=$confsum";
@@ -141,7 +141,7 @@ sub run_web_txn
 		  "Query for: stage=$stage&animal=$animal&ts=$ts\n",
 		  "Target: $target/$sig\n";
 		print "Status Line: ", $response->status_line, "\n";
-		print "Content: \n",   $response->content,     "\n"
+		print "Content: \n", $response->content, "\n"
 		  if $response->content;
 		no warnings qw(once);
 		print "Request: ", $request->as_string, "\n"

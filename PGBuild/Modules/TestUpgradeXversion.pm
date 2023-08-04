@@ -37,7 +37,7 @@ our ($VERSION); $VERSION = 'REL_16';
 
 my $hooks = {
 
-	'need-run'   => \&need_run,
+	'need-run' => \&need_run,
 	'locale-end' => \&installcheck,
 
 };
@@ -47,9 +47,9 @@ sub setup
 	my $class = __PACKAGE__;
 
 	my $buildroot = shift;    # where we're building
-	my $branch    = shift;    # The branch of Postgres that's being built.
-	my $conf      = shift;    # ref to the whole config object
-	my $pgsql     = shift;    # postgres build dir
+	my $branch = shift;       # The branch of Postgres that's being built.
+	my $conf = shift;         # ref to the whole config object
+	my $pgsql = shift;        # postgres build dir
 
 	return if $branch !~ /^(?:HEAD|REL_?\d+(?:_\d+)?_STABLE)$/;
 
@@ -72,15 +72,15 @@ sub setup
 	my $fs_upgrade_install_root = "$buildroot/fs-upgrade.$animal";
 
 	mkdir $fs_upgrade_install_root
-	  if $from_source && ! -d $fs_upgrade_install_root;
+	  if $from_source && !-d $fs_upgrade_install_root;
 
 	my $self = {
-		buildroot            => $buildroot,
-		pgbranch             => $branch,
-		bfconf               => $conf,
-		pgsql                => $pgsql,
+		buildroot => $buildroot,
+		pgbranch => $branch,
+		bfconf => $conf,
+		pgsql => $pgsql,
 		upgrade_install_root => $upgrade_install_root,
-		fs_upgrade_install_root      => $fs_upgrade_install_root,
+		fs_upgrade_install_root => $fs_upgrade_install_root,
 	};
 	bless($self, $class);
 
@@ -96,12 +96,13 @@ sub run_psql    ## no critic (Subroutines::ProhibitManyArgs)
 	close $fh;
 	my $rd = $append ? '>>' : '>';
 	system(qq{"$psql" -X $flags -f "$filename" $database $rd "$logfile" 2>&1});
-	return;     # callers can check $?
+	return;    # callers can check $?
 }
 
 sub dbnames
 {
 	my $loc = shift;
+
 	# collect names of databases.
 	my $sql = 'select datname from pg_database';
 
@@ -117,11 +118,11 @@ sub dbnames
 
 sub get_lock
 {
-	my $self      = shift;
-	my $branch    = shift;
+	my $self = shift;
+	my $branch = shift;
 	my $exclusive = shift;
-	my $lockdir   = $self->{upgrade_install_root};
-	my $lockfile  = "$lockdir/$branch.upgrade.LCK";
+	my $lockdir = $self->{upgrade_install_root};
+	my $lockfile = "$lockdir/$branch.upgrade.LCK";
 	open(my $ulock, ">", $lockfile)
 	  || die "opening upgrade lock file $lockfile: $!";
 
@@ -145,19 +146,19 @@ sub release_lock
 
 sub need_run
 {
-	my $self                 = shift;
-	my $need_run_ref         = shift;
+	my $self = shift;
+	my $need_run_ref = shift;
 	my $upgrade_install_root = $self->{upgrade_install_root};
-	my $upgrade_loc          = "$upgrade_install_root/$self->{pgbranch}";
+	my $upgrade_loc = "$upgrade_install_root/$self->{pgbranch}";
 	$$need_run_ref = 1 unless -d $upgrade_loc;
 	return;
 }
 
 sub setinstenv
 {
-	my $self       = shift;
+	my $self = shift;
 	my $installdir = shift;
-	my $save_env   = shift || {};
+	my $save_env = shift || {};
 
 	# first restore environment from what was saved
 
@@ -215,9 +216,9 @@ sub setinstenv
 
 sub save_for_testing
 {
-	my $self                 = shift;
-	my $save_env             = shift;
-	my $this_branch          = shift;
+	my $self = shift;
+	my $save_env = shift;
+	my $this_branch = shift;
 	my $upgrade_install_root = shift;
 
 	print time_str(), "saving files for cross-version upgrade check\n"
@@ -225,7 +226,7 @@ sub save_for_testing
 
 	my $install_loc = "$self->{buildroot}/$this_branch/inst";
 	my $upgrade_loc = "$upgrade_install_root/$this_branch";
-	my $installdir  = "$upgrade_loc/inst";
+	my $installdir = "$upgrade_loc/inst";
 
 	mkdir $upgrade_install_root unless -d $upgrade_install_root;
 
@@ -250,11 +251,8 @@ sub save_for_testing
 
 	my $save_prefix = $from_source ? "fs-saves" : "saves";
 
-	my $savebin = save_install(
-		$self->{buildroot}, $self->{pgbranch},
-		$self->{pgsql},     "$upgrade_loc/save.log",
-		$save_prefix
-	);
+	my $savebin = save_install($self->{buildroot}, $self->{pgbranch},
+		$self->{pgsql}, "$upgrade_loc/save.log", $save_prefix);
 
 	return if $?;
 
@@ -311,7 +309,7 @@ sub save_for_testing
 	my %dbnames = dbnames("$upgrade_loc/save");
 
 	my $sql =
-	    'select distinct probin::text from pg_proc '
+		'select distinct probin::text from pg_proc '
 	  . 'where probin not like $$$libdir%$$';
 
 	run_psql("psql", "-A -t", $sql, "regression",
@@ -365,22 +363,23 @@ sub save_for_testing
 
 sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 {
-	my $self                 = shift;
-	my $save_env             = shift;
-	my $this_branch          = shift;
+	my $self = shift;
+	my $save_env = shift;
+	my $this_branch = shift;
 	my $upgrade_install_root = shift;
-	my $dport                = shift;
-	my $other_branch         = shift;
+	my $dport = shift;
+	my $other_branch = shift;
 
-	my $upgrade_loc  = "$upgrade_install_root/$this_branch";
-	my $installdir   = "$upgrade_loc/inst";
-	my $oversion     = basename $other_branch;
+	my $upgrade_loc = "$upgrade_install_root/$this_branch";
+	my $installdir = "$upgrade_loc/inst";
+	my $oversion = basename $other_branch;
 	my $upgrade_test = "upgrade_test-$this_branch";
 
 	print time_str(), "checking upgrade from $oversion to $this_branch ...\n"
 	  if $verbose;
 
 	my $srcdir = $from_source || "$self->{buildroot}/$this_branch/pgsql";
+
 	# load helper module from source tree
 	unshift(@INC, "$srcdir/src/test/perl");
 	require PostgreSQL::Test::AdjustUpgrade;
@@ -406,7 +405,8 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	# is the old version using unix sockets or localhost?
 
-	my $oldconf = file_contents("$other_branch/inst/$upgrade_test/postgresql.conf");
+	my $oldconf =
+	  file_contents("$other_branch/inst/$upgrade_test/postgresql.conf");
 	my $using_localhost = $oldconf =~ /^listen_addresses = 'localhost'/m;
 
 	local $ENV{PGHOST} = $using_localhost ? "localhost" : $ENV{PGHOST};
@@ -415,7 +415,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	# run in which it was set up, which will be gone by now, so we repoint
 	# it to the current run's tmpdir.
 	# listen_addresses will be set correctly and requires no adjustment.
-	if (! $using_localhost)
+	if (!$using_localhost)
 	{
 		my $tdir = $tmpdir;
 		$tdir =~ s!\\!/!g;
@@ -442,8 +442,8 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	return if $?;
 
-	run_psql("psql","-A -t","show port", "postgres",
-			 "$upgrade_loc/sport.dat");
+	run_psql("psql", "-A -t", "show port", "postgres",
+		"$upgrade_loc/sport.dat");
 	my $sport = file_contents("$upgrade_loc/sport.dat");
 	$sport =~ s/\s+//msg;
 	$sport = $sport + 0;
@@ -657,13 +657,13 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	# Slurp the pg_dump output files, and filter them if not same version.
 	my $olddumpfile = "$upgrade_loc/origin-$oversion.sql";
-	my $olddump     = file_contents($olddumpfile);
+	my $olddump = file_contents($olddumpfile);
 
 	$olddump = adjust_old_dumpfile($old_version, $olddump)
 	  if ($oversion ne $this_branch);
 
 	my $newdumpfile = "$upgrade_loc/converted-$oversion-to-$this_branch.sql";
-	my $newdump     = file_contents($newdumpfile);
+	my $newdump = file_contents($newdumpfile);
 
 	$newdump = adjust_new_dumpfile($old_version, $newdump)
 	  if ($oversion ne $this_branch);
@@ -697,7 +697,7 @@ sub installcheck
 	# is after both base install and base contrib install have run,
 	# so we have everything we should need.
 
-	my $self   = shift;
+	my $self = shift;
 	my $locale = shift;
 	return unless $locale eq 'C';
 
@@ -732,11 +732,11 @@ sub installcheck
 	my $this_branch = $self->{pgbranch};
 
 	my $upgrade_install_root =
-	  $from_source ?
-	  $self->{fs_upgrade_install_root} :
-	  $self->{upgrade_install_root};
-	my $upgrade_loc          = "$upgrade_install_root/$this_branch";
-	my $installdir           = "$upgrade_loc/inst";
+		$from_source
+	  ? $self->{fs_upgrade_install_root}
+	  : $self->{upgrade_install_root};
+	my $upgrade_loc = "$upgrade_install_root/$this_branch";
+	my $installdir = "$upgrade_loc/inst";
 
 	# for saving we need an exclusive lock.
 	get_lock($self, $this_branch, 1);

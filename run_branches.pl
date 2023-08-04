@@ -53,9 +53,9 @@ my $run_build;
 
 my ($run_all, $run_one, $run_parallel, $check_for_work) = (0, 0, 0, 0);
 my %extra_options = (
-	'run-all'        => \$run_all,
-	'run-one'        => \$run_one,
-	'run-parallel'   => \$run_parallel,
+	'run-all' => \$run_all,
+	'run-one' => \$run_one,
+	'run-parallel' => \$run_parallel,
 	'check-for-work' => \$check_for_work,
 );
 
@@ -65,7 +65,7 @@ PGBuild::Options::fetch_options(%extra_options);
 # any arguments left are explicit branches
 my $explicit_branches = [@ARGV];
 
-my $mode_sum    = ($run_all + $run_one + $run_parallel + $check_for_work);
+my $mode_sum = ($run_all + $run_one + $run_parallel + $check_for_work);
 my $mode_string = "--run-all, --run-one, --run_parallel, check-for-work";
 if ($mode_sum > 1)
 {
@@ -182,9 +182,9 @@ elsif ((ref $branches_to_build) =~ /Regexp/i)
 	mkdir 'HEAD' unless -d 'HEAD';
 	chdir 'HEAD' || die "chdir to HEAD: $!";
 	$branch_root = getcwd();
-	$st_prefix   = "$animal.";
-	$logdirname  = "lastrun-logs";
-	my $scm        = PGBuild::SCM->new(\%PGBuild::conf);
+	$st_prefix = "$animal.";
+	$logdirname = "lastrun-logs";
+	my $scm = PGBuild::SCM->new(\%PGBuild::conf);
 	my $savescmlog = $scm->checkout('HEAD');
 	$scm->rm_worktree();    # don't need the worktree here
 	my @cbranches = $scm->get_branches('remotes/origin/');
@@ -196,7 +196,7 @@ elsif ($branches_to_build =~
 	/^(ALL|STABLE|OLD|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
 {
 	$ENV{BF_CONF_BRANCHES} = $branches_to_build;
-	my $match  = $1;
+	my $match = $1;
 	my $latest = $2;
 
 	@branches = get_branches_of_interest($match);
@@ -330,8 +330,8 @@ sub get_branches_of_interest
 sub check_max
 {
 	my $plockdir = shift;
-	my $max      = shift;
-	my $running  = 0;
+	my $max = shift;
+	my $running = 0;
 
 	# grab the global parallel lock. Wait if necessary
 	# only keep this for a very short time, just enough
@@ -372,7 +372,7 @@ sub check_max
 sub parallel_child
 {
 	my $plockdir = shift;
-	my $brnch    = shift;
+	my $brnch = shift;
 
 	# grab the global parallel lock. Wait if necessary
 	# only keep this for a very short time, just enough
@@ -401,7 +401,7 @@ sub parallel_child
 sub run_parallel
 {
 	my @pbranches = @_;
-	my $plockdir  = $PGBuild::conf{global}->{parallel_lock_dir}
+	my $plockdir = $PGBuild::conf{global}->{parallel_lock_dir}
 	  || $global_lock_dir;
 	my $stagger_time = $PGBuild::conf{global}->{parallel_stagger};
 	$stagger_time ||= 60;
@@ -490,8 +490,8 @@ sub apply_filters
 	# remove up to date branches unless they are forced
 	foreach my $brnch (@filt_branches)
 	{
-		my $gitref      = $branch_gitrefs{$brnch};
-		my $up_to_date  = 0;
+		my $gitref = $branch_gitrefs{$brnch};
+		my $up_to_date = 0;
 		my $force_every = $PGBuild::conf{force_every};
 		if (ref($force_every) eq 'HASH')
 		{
@@ -538,7 +538,7 @@ sub apply_filters
 	my $replacement;
 	if (exists $throttle{ALL})
 	{
-		@candidates  = @thrbranches;
+		@candidates = @thrbranches;
 		$replacement = $throttle{ALL};
 	}
 	elsif (exists $throttle{'!HEAD'})
@@ -555,7 +555,7 @@ sub apply_filters
 		@stable = sort @stable;
 		s/^REL0/REL/ foreach (@stable);
 		pop @stable;    # remove latest
-		@candidates  = @stable;
+		@candidates = @stable;
 		$replacement = $throttle{'!RECENT'};
 	}
 	foreach my $cand (@candidates)
@@ -576,7 +576,7 @@ sub apply_filters
 			next;
 		}
 		my $minh = $this_throttle->{min_hours_since};
-		my $ts   = find_last_status($branch);
+		my $ts = find_last_status($branch);
 		next
 		  if ( $ts
 			&& (defined $minh)
@@ -597,9 +597,9 @@ sub apply_filters
 sub send_res
 {
 	# error routine catch - we don't actually send anything here
-	my $stage  = shift;
+	my $stage = shift;
 	my $status = shift || 0;
-	my $log    = shift || [];
+	my $log = shift || [];
 	print "======== log passed to send_result ===========\n", @$log
 	  if ($verbose > 1);
 	print

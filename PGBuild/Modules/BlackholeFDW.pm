@@ -28,7 +28,7 @@ use warnings;
 our ($VERSION); $VERSION = 'REL_16';
 
 my $hooks = {
-	'checkout'     => \&checkout,
+	'checkout' => \&checkout,
 	'setup-target' => \&setup_target,
 
 	# 'need-run' => \&need_run,
@@ -47,26 +47,26 @@ sub setup
 	my $class = __PACKAGE__;
 
 	my $buildroot = shift;    # where we're building
-	my $branch    = shift;    # The branch of Postgres that's being built.
-	my $conf      = shift;    # ref to the whole config object
-	my $pgsql     = shift;    # postgres build dir
+	my $branch = shift;       # The branch of Postgres that's being built.
+	my $conf = shift;         # ref to the whole config object
+	my $pgsql = shift;        # postgres build dir
 
 	# could even set up several of these (e.g. for different branches)
 	my $self = {
 		buildroot => $buildroot,
-		pgbranch  => $branch,
-		bfconf    => $conf,
-		pgsql     => $pgsql
+		pgbranch => $branch,
+		bfconf => $conf,
+		pgsql => $pgsql
 	};
 	bless($self, $class);
 
 	my $scmconf = {
-		scm             => 'git',
-		scmrepo         => 'https://bitbucket.org/adunstan/blackhole_fdw.git',
-		git_reference   => undef,
+		scm => 'git',
+		scmrepo => 'https://bitbucket.org/adunstan/blackhole_fdw.git',
+		git_reference => undef,
 		git_keep_mirror => 'true',
 		git_ignore_mirror_failure => 'true',
-		build_root                => $self->{buildroot},
+		build_root => $self->{buildroot},
 	};
 
 	$self->{scm} = PGBuild::SCM->new($scmconf, 'blackhole_fdw');
@@ -83,7 +83,7 @@ sub setup
 
 sub checkout
 {
-	my $self       = shift;
+	my $self = shift;
 	my $savescmlog = shift;    # array ref to the log lines
 
 	print time_str(), "checking out $MODULE\n" if $verbose;

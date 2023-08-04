@@ -30,7 +30,7 @@ use warnings;
 our ($VERSION); $VERSION = 'REL_16';
 
 my $hooks = {
-	'checkout'     => \&checkout,
+	'checkout' => \&checkout,
 	'setup-target' => \&setup_target,
 
 	# 'need-run' => \&need_run,
@@ -38,9 +38,9 @@ my $hooks = {
 	'build' => \&build,
 
 	# 'check' => \&check,
-	'install'      => \&install,
+	'install' => \&install,
 	'installcheck' => \&installcheck,
-	'cleanup'      => \&cleanup,
+	'cleanup' => \&cleanup,
 };
 
 sub setup
@@ -48,26 +48,26 @@ sub setup
 	my $class = __PACKAGE__;
 
 	my $buildroot = shift;    # where we're building
-	my $branch    = shift;    # The branch of Postgres that's being built.
-	my $conf      = shift;    # ref to the whole config object
-	my $pgsql     = shift;    # postgres build dir
+	my $branch = shift;       # The branch of Postgres that's being built.
+	my $conf = shift;         # ref to the whole config object
+	my $pgsql = shift;        # postgres build dir
 
 	# could even set up several of these (e.g. for different branches)
 	my $self = {
 		buildroot => $buildroot,
-		pgbranch  => $branch,
-		bfconf    => $conf,
-		pgsql     => $pgsql
+		pgbranch => $branch,
+		bfconf => $conf,
+		pgsql => $pgsql
 	};
 	bless($self, $class);
 
 	my $scmconf = {
-		scm             => 'git',
-		scmrepo         => 'https://github.com/pg-redis-fdw/redis_fdw.git',
-		git_reference   => undef,
+		scm => 'git',
+		scmrepo => 'https://github.com/pg-redis-fdw/redis_fdw.git',
+		git_reference => undef,
 		git_keep_mirror => 'true',
 		git_ignore_mirror_failure => 'true',
-		build_root                => $self->{buildroot},
+		build_root => $self->{buildroot},
 	};
 
 	$self->{scm} = PGBuild::SCM->new($scmconf, 'redis_fdw');
@@ -84,7 +84,7 @@ sub setup
 
 sub checkout
 {
-	my $self       = shift;
+	my $self = shift;
 	my $savescmlog = shift;    # array ref to the log lines
 
 	print time_str(), "checking out $MODULE\n" if $verbose;
@@ -149,9 +149,9 @@ sub install
 
 sub get_lock
 {
-	my $self      = shift;
+	my $self = shift;
 	my $exclusive = shift;
-	my $lockdir   = $self->{buildroot};
+	my $lockdir = $self->{buildroot};
 
 	# note no branch involved here. we want all the branches to use
 	# the same lock.
@@ -179,7 +179,7 @@ sub release_lock
 
 sub installcheck
 {
-	my $self   = shift;
+	my $self = shift;
 	my $locale = shift;
 
 	return unless $locale eq 'C';

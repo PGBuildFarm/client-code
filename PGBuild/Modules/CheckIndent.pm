@@ -31,18 +31,18 @@ sub setup
 	my $class = __PACKAGE__;
 
 	my $buildroot = shift;    # where we're building
-	my $branch    = shift;    # The branch of Postgres that's being built.
-	my $conf      = shift;    # ref to the whole config object
-	my $pgsql     = shift;    # postgres build dir
+	my $branch = shift;       # The branch of Postgres that's being built.
+	my $conf = shift;         # ref to the whole config object
+	my $pgsql = shift;        # postgres build dir
 
 	return unless $branch eq 'HEAD';
 
 	# could even set up several of these (e.g. for different branches)
 	my $self = {
 		buildroot => $buildroot,
-		pgbranch  => $branch,
-		bfconf    => $conf,
-		pgsql     => $pgsql
+		pgbranch => $branch,
+		bfconf => $conf,
+		pgsql => $pgsql
 	};
 	bless($self, $class);
 
@@ -76,13 +76,12 @@ sub build
 	$status = $? >> 8;
 
 	my $log = PGBuild::Log->new("indent-check");
-	$log->add_log_lines("indent.diff",\@diffs);
+	$log->add_log_lines("indent.diff", \@diffs);
 
 	# --show-diff doesn't exit with error, unlike --silent-diff
 	$status ||= 1 if @diffs;
 
-	@diffs = ("============ pgindent check ======\n",
-			  $log->log_string);
+	@diffs = ("============ pgindent check ======\n", $log->log_string);
 
 	writelog("indent-check", \@diffs);
 	print @diffs if ($verbose > 1);

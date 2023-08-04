@@ -17,3 +17,4 @@
 # don't use the vertical-tightness settings
 # --vertical-tightness=2
 # --vertical-tightness-closing=2
+--valign-exclusion-list=", = => =~ |= || && if or qw unless"

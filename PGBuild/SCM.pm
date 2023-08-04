@@ -23,8 +23,8 @@ our ($VERSION); $VERSION = 'REL_16';
 # factory function to return the right subclass
 sub new
 {
-	my $class  = shift;
-	my $conf   = shift;
+	my $class = shift;
+	my $conf = shift;
 	my $target = shift || 'pgsql';
 	if (defined($conf->{scm}) && $conf->{scm} =~ /^git$/i)
 	{
@@ -46,7 +46,7 @@ sub new
 sub copy_source
 {
 	my $using_msvc = shift;
-	my $target     = shift;
+	my $target = shift;
 	my $build_path = shift;
 
 	# annoyingly, there isn't a standard perl module to do a recursive copy
@@ -96,18 +96,18 @@ use PGBuild::Utils;
 
 sub new
 {
-	my $class  = shift;
-	my $conf   = shift;
+	my $class = shift;
+	my $conf = shift;
 	my $target = shift;
-	my $self   = {};
+	my $self = {};
 	$self->{cvsrepo} =
-	     $conf->{cvsrepo}
+		 $conf->{cvsrepo}
 	  || $conf->{scmrepo}
 	  || ":pserver:anoncvs\@anoncvs.postgresql.org:/projects/cvsroot";
-	$self->{cvsmethod}         = $conf->{cvsmethod} || 'update';
+	$self->{cvsmethod} = $conf->{cvsmethod} || 'update';
 	$self->{use_git_cvsserver} = $conf->{use_git_cvsserver};
-	$self->{ignore_files}      = {};
-	$self->{target}            = $target;
+	$self->{ignore_files} = {};
+	$self->{target} = $target;
 
 	die "can't use export cvs method with git-cvsserver"
 	  if $self->{use_git_cvsserver} && ($self->{cvsmethod} eq 'export');
@@ -123,9 +123,9 @@ sub copy_source_required
 
 sub copy_source
 {
-	my $self       = shift;
+	my $self = shift;
 	my $using_msvc = shift;
-	my $target     = $self->{target};
+	my $target = $self->{target};
 	my $build_path = $self->{build_path};
 	die "no build path" unless $build_path;
 	PGBuild::SCM::copy_source($using_msvc, $target, $build_path);
@@ -134,7 +134,7 @@ sub copy_source
 
 sub check_access
 {
-	my $self       = shift;
+	my $self = shift;
 	my $using_msvc = shift;
 
 	return unless ($self->{cvsrepo} =~ /^:pserver:/ && !$using_msvc);
@@ -172,9 +172,9 @@ sub check_access
 
 sub get_build_path
 {
-	my $self      = shift;
+	my $self = shift;
 	my $use_vpath = shift;
-	my $target    = $self->{target};
+	my $target = $self->{target};
 	$self->{build_path} =
 	  ($self->{cvsmethod} eq 'export' && (!$use_vpath))
 	  ? "$target"
@@ -191,12 +191,12 @@ sub log_id
 
 sub checkout
 {
-	my $self   = shift;
+	my $self = shift;
 	my $branch = shift;
 	$self->{branch} = $branch;
 	my $cvsmethod = $self->{cvsmethod};
 	my $cvsserver = $self->{cvsrepo};
-	my $target    = $self->{target};
+	my $target = $self->{target};
 
 	my @cvslog;
 
@@ -261,9 +261,9 @@ sub checkout
 	# doesn't matter too much because if CVS fails we exit anyway.
 
 	my $merge_conflicts = grep { /^C/ } @cvslog;
-	my $mod_files       = grep { /^M/ } @cvslog;
-	my $unknown_files   = grep { /^\?/ } @cvslog;
-	my @bad_ignore      = ();
+	my $mod_files = grep { /^M/ } @cvslog;
+	my $unknown_files = grep { /^\?/ } @cvslog;
+	my @bad_ignore = ();
 	foreach my $ignore (keys %{ $self->{ignore_files} })
 	{
 		push(@bad_ignore, "X $ignore\n")
@@ -314,10 +314,10 @@ sub rm_worktree
 sub find_ignore
 {
 
-	my $self        = shift;
-	my $target      = $self->{target};
+	my $self = shift;
+	my $target = $self->{target};
 	my $ignore_file = $self->{ignore_files};
-	my $cvsmethod   = $self->{cvsmethod};
+	my $cvsmethod = $self->{cvsmethod};
 
 	my $wanted = sub {
 
@@ -347,14 +347,14 @@ sub find_ignore
 
 sub find_changed    ## no critic (Subroutines::ProhibitManyArgs)
 {
-	my $self                  = shift;
-	my $current_snap          = shift;
-	my $last_run_snap         = shift;
-	my $last_success_snap     = shift;
-	my $changed_files         = shift;
+	my $self = shift;
+	my $current_snap = shift;
+	my $last_run_snap = shift;
+	my $last_success_snap = shift;
+	my $changed_files = shift;
 	my $changed_since_success = shift;
-	my $cvsmethod             = $self->{cvsmethod};
-	my $target                = $self->{target};
+	my $cvsmethod = $self->{cvsmethod};
+	my $target = $self->{target};
 
 	my $wanted = sub {
 
@@ -366,8 +366,8 @@ sub find_changed    ## no critic (Subroutines::ProhibitManyArgs)
 		else
 		{
 			my (
-				$dev,   $ino,     $mode, $nlink, $uid,
-				$gid,   $rdev,    $size, $atime, $mtime,
+				$dev, $ino, $mode, $nlink, $uid,
+				$gid, $rdev, $size, $atime, $mtime,
 				$ctime, $blksize, $blocks
 			) = lstat($_);
 
@@ -478,10 +478,10 @@ use PGBuild::Options;
 
 sub new
 {
-	my $class  = shift;
-	my $conf   = shift;
+	my $class = shift;
+	my $conf = shift;
 	my $target = shift;
-	my $self   = {};
+	my $self = {};
 	$self->{gitrepo} = $conf->{scmrepo}
 	  || "https://git.postgresql.org/git/postgresql.git";
 	$self->{reference} = $conf->{git_reference}
@@ -494,8 +494,8 @@ sub new
 		: abs_path("$conf->{build_root}") . "/$target-mirror.git"
 	) if $conf->{git_keep_mirror};
 	$self->{ignore_mirror_failure} = $conf->{git_ignore_mirror_failure};
-	$self->{use_workdirs}          = $conf->{git_use_workdirs};
-	$self->{build_root}            = $conf->{build_root};
+	$self->{use_workdirs} = $conf->{git_use_workdirs};
+	$self->{build_root} = $conf->{build_root};
 	$self->{gchours} = 7 * 24;    # default 1 week.
 	if (exists($conf->{git_gc_hours}))
 	{
@@ -540,9 +540,9 @@ sub copy_source_required
 
 sub copy_source
 {
-	my $self       = shift;
+	my $self = shift;
 	my $using_msvc = shift;
-	my $target     = $self->{target};
+	my $target = $self->{target};
 	my $build_path = $self->{build_path};
 	die "no build path" unless $build_path;
 
@@ -558,9 +558,9 @@ sub copy_source
 
 sub get_build_path
 {
-	my $self      = shift;
-	my $use_vpath = shift;             # irrelevant for git
-	my $target    = $self->{target};
+	my $self = shift;
+	my $use_vpath = shift;    # irrelevant for git
+	my $target = $self->{target};
 	$self->{build_path} = "$target.build";
 	return $self->{build_path};
 }
@@ -677,7 +677,7 @@ sub _make_symlink
 	# assumes we have a working symlink (see above)
 	# note: unix and windows do link/target in the opposite order
 	my $target = shift;
-	my $link   = shift;
+	my $link = shift;
 	if ($^O eq 'MSWin32')
 	{
 		my $dirswitch = -d $target ? "/d" : "";
@@ -694,7 +694,7 @@ sub _make_symlink
 
 sub _check_default_branch
 {
-	my $self   = shift;
+	my $self = shift;
 	my $target = shift;
 
 	return if $self->{skip_git_default_check};
@@ -808,7 +808,7 @@ sub _check_default_branch
 
 sub _create_or_update_mirror
 {
-	my $self   = shift;
+	my $self = shift;
 	my $target = shift;
 	my $branch = shift;
 
@@ -903,12 +903,12 @@ sub _setup_new_head
 	# only called when HEAD has disappeared from under a workdir (or it never
 	# existed)
 
-	my $self   = shift;
+	my $self = shift;
 	my $target = shift;
 
 	my $gitserver = $self->{gitrepo};
-	my $base      = $self->{mirror} || $gitserver;
-	my $head      = $self->{build_root} . '/HEAD';
+	my $base = $self->{mirror} || $gitserver;
+	my $head = $self->{build_root} . '/HEAD';
 
 	my @gitlog;
 	my $status;
@@ -947,7 +947,7 @@ sub _setup_new_head
 
 sub _setup_new_workdir
 {
-	my $self   = shift;
+	my $self = shift;
 	my $target = shift;
 	my $branch = shift;
 
@@ -1010,7 +1010,7 @@ sub _setup_new_workdir
 
 sub _setup_new_basedir
 {
-	my $self   = shift;
+	my $self = shift;
 	my $target = shift;
 	my $branch = shift;
 
@@ -1052,7 +1052,7 @@ sub _setup_new_basedir
 
 sub _update_target
 {
-	my $self   = shift;
+	my $self = shift;
 	my $target = shift;
 	my $branch = shift;
 
@@ -1098,7 +1098,7 @@ sub _update_target
 	@colog = run_log("git checkout . ")
 	  unless (grep { $_ ne ".git" } glob(".[a-z]* *"));
 	my @gitstat = `git status --porcelain --ignored`;  # too trivial for run_log
-	     # make sure it's clean before we try to update it
+		# make sure it's clean before we try to update it
 	if (@gitstat)
 	{
 		print "Repo is not clean:\n", @gitstat
@@ -1148,7 +1148,7 @@ sub _update_target
 
 sub checkout
 {
-	my $self   = shift;
+	my $self = shift;
 	my $branch = shift;
 	my $target = $self->{target};
 	my $status;
@@ -1237,7 +1237,7 @@ sub checkout
 
 sub cleanup
 {
-	my $self   = shift;
+	my $self = shift;
 	my $target = $self->{target};
 	chdir $target;
 	system("git clean -dfxq");
@@ -1247,7 +1247,7 @@ sub cleanup
 
 sub rm_worktree
 {
-	my $self   = shift;
+	my $self = shift;
 	my $target = $self->{target};
 	chdir $target;
 	foreach my $f (glob(".[a-z]* *"))
@@ -1268,7 +1268,7 @@ sub rm_worktree
 
 sub get_branches
 {
-	my $self   = shift;
+	my $self = shift;
 	my $prefix = shift;
 	my $target = $self->{target};
 	chdir $target;
@@ -1317,12 +1317,12 @@ sub parse_log
 
 sub find_changed
 {
-	my $self                  = shift;
-	my $target                = $self->{target};
-	my $current_snap          = shift;
-	my $last_run_snap         = shift;
-	my $last_success_snap     = shift || 0;
-	my $changed_files         = shift;
+	my $self = shift;
+	my $target = $self->{target};
+	my $current_snap = shift;
+	my $last_run_snap = shift;
+	my $last_success_snap = shift || 0;
+	my $changed_files = shift;
 	my $changed_since_success = shift;
 
 	# too trivial to use run_log
@@ -1358,14 +1358,14 @@ sub find_changed
 		$self->{changed_since_last_run} = {};
 	}
 
-	@$changed_files         = sort keys %{ $self->{changed_since_last_run} };
+	@$changed_files = sort keys %{ $self->{changed_since_last_run} };
 	@$changed_since_success = sort keys %{ $self->{changed_since_success} };
 	return;
 }
 
 sub get_versions
 {
-	my $self  = shift;
+	my $self = shift;
 	my $flist = shift;
 	return unless @$flist;
 	my @repoversions;

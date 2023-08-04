@@ -42,9 +42,9 @@ sub setup
 	my $class = __PACKAGE__;
 
 	my $buildroot = shift;    # where we're building
-	my $branch    = shift;    # The branch of Postgres that's being built.
-	my $conf      = shift;    # ref to the whole config object
-	my $pgsql     = shift;    # postgres build dir
+	my $branch = shift;       # The branch of Postgres that's being built.
+	my $conf = shift;         # ref to the whole config object
+	my $pgsql = shift;        # postgres build dir
 
 	# this obviates the need of any meson support in this module, as
 	# this has been in since release 15
@@ -57,9 +57,9 @@ sub setup
 	# could even set up several of these (e.g. for different branches)
 	my $self = {
 		buildroot => $buildroot,
-		pgbranch  => $branch,
-		bfconf    => $conf,
-		pgsql     => $pgsql
+		pgbranch => $branch,
+		bfconf => $conf,
+		pgsql => $pgsql
 	};
 	bless($self, $class);
 
@@ -89,7 +89,7 @@ sub check
 	  $temp_inst_ok
 	  ? "tmp_install"
 	  : "src/bin/pg_upgrade/tmp_check/install";
-	my $tmp_bin_dir  = "$self->{pgsql}/$binloc/$installdir/bin";
+	my $tmp_bin_dir = "$self->{pgsql}/$binloc/$installdir/bin";
 	my $tmp_data_dir = "$self->{pgsql}/src/bin/pg_upgrade/tmp_check/data.old";
 
 	my $make = $self->{bfconf}->{make};

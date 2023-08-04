@@ -23,10 +23,10 @@ use warnings;
 our ($VERSION); $VERSION = 'REL_16';
 
 my $hooks = {
-	'checkout'     => \&checkout,
+	'checkout' => \&checkout,
 	'setup-target' => \&setup_target,
 	'installcheck' => \&installcheck,
-	'cleanup'      => \&cleanup,
+	'cleanup' => \&cleanup,
 };
 
 sub setup
@@ -34,9 +34,9 @@ sub setup
 	my $class = __PACKAGE__;
 
 	my $buildroot = shift;    # where we're building
-	my $branch    = shift;    # The branch of Postgres that's being built.
-	my $conf      = shift;    # ref to the whole config object
-	my $pgsql     = shift;    # postgres build dir
+	my $branch = shift;       # The branch of Postgres that's being built.
+	my $conf = shift;         # ref to the whole config object
+	my $pgsql = shift;        # postgres build dir
 
 	return unless $branch eq 'HEAD';
 
@@ -52,26 +52,26 @@ sub setup
 	{
 
 		my $self = {
-			buildroot  => $buildroot,
-			pgbranch   => $branch,
-			bfconf     => $conf,
-			pgsql      => $pgsql,
-			testset    => $name,
+			buildroot => $buildroot,
+			pgbranch => $branch,
+			bfconf => $conf,
+			pgsql => $pgsql,
+			testset => $name,
 			testparams => $params,
 		};
 		bless($self, $class);
 
 		my $scmconf = {
-			scm                       => 'git',
-			scmrepo                   => $params->{url},
-			git_reference             => undef,
-			git_keep_mirror           => 'true',
+			scm => 'git',
+			scmrepo => $params->{url},
+			git_reference => undef,
+			git_keep_mirror => 'true',
 			git_ignore_mirror_failure => 'true',
-			build_root                => $self->{buildroot},
+			build_root => $self->{buildroot},
 		};
 		$self->{scm} = PGBuild::SCM->new($scmconf, $name);
 		my $where = $self->{scm}->get_build_path();
-		$self->{where}     = $where;
+		$self->{where} = $where;
 		$self->{pg_config} = "$buildroot/$branch/inst/bin/pg_config";
 		register_module_hooks($self, $hooks);
 	}
@@ -80,7 +80,7 @@ sub setup
 
 sub checkout
 {
-	my $self       = shift;
+	my $self = shift;
 	my $savescmlog = shift;    # array ref to the log lines
 
 	my $cobranch = 'main';     # the default
@@ -145,8 +145,8 @@ sub setup_target
 
 sub installcheck
 {
-	my $self    = shift;
-	my $locale  = shift;
+	my $self = shift;
+	my $locale = shift;
 	my $testset = $self->{testset};
 
 	return unless $locale eq 'C';    # just run once
@@ -154,12 +154,12 @@ sub installcheck
 	print time_str(), "installchecking test set ", $testset, "\n"
 	  if $verbose;
 
-	my $cmd    = "make PG_CONFIG=$self->{pg_config} installcheck";
-	my @log    = run_log("cd $self->{where} && $cmd");
+	my $cmd = "make PG_CONFIG=$self->{pg_config} installcheck";
+	my @log = run_log("cd $self->{where} && $cmd");
 	my $status = $? >> 8;
 
 	my @logs = glob("$self->{where}/tmp_check/log/* $self->{where}/log/*");
-	my $log  = PGBuild::Log->new("$testset-installcheck");
+	my $log = PGBuild::Log->new("$testset-installcheck");
 	$log->add_log($_) foreach @logs;
 	push(@log, $log->log_string);
 	writelog("$testset-install-check", \@log);

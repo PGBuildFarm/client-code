@@ -25,16 +25,16 @@ use warnings;
 our ($VERSION); $VERSION = 'REL_16';
 
 my $hooks = {
-	'checkout'     => \&checkout,
+	'checkout' => \&checkout,
 	'setup-target' => \&setup_target,
-	'need-run'     => \&need_run,
-	'configure'    => \&configure,
-	'build'        => \&build,
-	'check'        => \&check,
-	'install'      => \&install,
+	'need-run' => \&need_run,
+	'configure' => \&configure,
+	'build' => \&build,
+	'check' => \&check,
+	'install' => \&install,
 	'installcheck' => \&installcheck,
-	'locale-end'   => \&locale_end,
-	'cleanup'      => \&cleanup,
+	'locale-end' => \&locale_end,
+	'cleanup' => \&cleanup,
 };
 
 sub setup
@@ -42,16 +42,16 @@ sub setup
 	my $class = __PACKAGE__;
 
 	my $buildroot = shift;    # where we're building
-	my $branch    = shift;    # The branch of Postgres that's being built.
-	my $conf      = shift;    # ref to the whole config object
-	my $pgsql     = shift;    # postgres build dir
+	my $branch = shift;       # The branch of Postgres that's being built.
+	my $conf = shift;         # ref to the whole config object
+	my $pgsql = shift;        # postgres build dir
 
 	# could even set up several of these (e.g. for different branches)
 	my $self = {
 		buildroot => $buildroot,
-		pgbranch  => $branch,
-		bfconf    => $conf,
-		pgsql     => $pgsql
+		pgbranch => $branch,
+		bfconf => $conf,
+		pgsql => $pgsql
 	};
 	bless($self, $class);
 
@@ -62,7 +62,7 @@ sub setup
 
 sub checkout
 {
-	my $self       = shift;
+	my $self = shift;
 	my $savescmlog = shift;    # array ref to the log lines
 
 	print time_str(), "checking out ", __PACKAGE__, "\n" if $verbose;
@@ -84,7 +84,7 @@ sub setup_target
 
 sub need_run
 {
-	my $self       = shift;
+	my $self = shift;
 	my $run_needed = shift;    # ref to flag
 
 	# to force a run do:
@@ -129,7 +129,7 @@ sub check
 
 sub installcheck
 {
-	my $self   = shift;
+	my $self = shift;
 	my $locale = shift;
 
 	print time_str(), "installchecking $locale", __PACKAGE__, "\n"
@@ -139,7 +139,7 @@ sub installcheck
 
 sub locale_end
 {
-	my $self   = shift;
+	my $self = shift;
 	my $locale = shift;
 
 	print time_str(), "end of locale $locale processing", __PACKAGE__, "\n"

@@ -31,14 +31,14 @@ sub setup
 	my $class = __PACKAGE__;
 
 	my $buildroot = shift;    # where we're building
-	my $branch    = shift;    # The branch of Postgres that's being built.
-	my $conf      = shift;    # ref to the whole config object
-	my $pgsql     = shift;    # postgres build dir
+	my $branch = shift;       # The branch of Postgres that's being built.
+	my $conf = shift;         # ref to the whole config object
+	my $pgsql = shift;        # postgres build dir
 	my @opts;
-	foreach my $k ('config_opts','meson_opts')
+	foreach my $k ('config_opts', 'meson_opts')
 	{
 		next unless exists $conf->{$k};
-		push @opts, @{ $conf->{$k} }
+		push @opts, @{ $conf->{$k} };
 	}
 
 	# for autoconf, we require --with-icu to be explicit even if it's the
@@ -48,9 +48,9 @@ sub setup
 	# could even set up several of these (e.g. for different branches)
 	my $self = {
 		buildroot => $buildroot,
-		pgbranch  => $branch,
-		bfconf    => $conf,
-		pgsql     => $pgsql
+		pgbranch => $branch,
+		bfconf => $conf,
+		pgsql => $pgsql
 	};
 	bless($self, $class);
 
@@ -61,15 +61,15 @@ sub setup
 
 sub installcheck
 {
-	my $self   = shift;
+	my $self = shift;
 	my $locale = shift;
 
 	return unless $locale =~ /utf8/i;
 
-	my $pgsql      = $self->{pgsql};
-	my $branch     = $self->{pgbranch};
-	my $buildroot  = "$self->{buildroot}/$branch";
-	my $binswitch  = 'bindir';
+	my $pgsql = $self->{pgsql};
+	my $branch = $self->{pgbranch};
+	my $buildroot = "$self->{buildroot}/$branch";
+	my $binswitch = 'bindir';
 	my $installdir = "$buildroot/inst";
 
 	return unless $locale =~ /utf8$/i;

@@ -38,9 +38,9 @@ my ($enable, $disable);
 
 GetOptions(
 	'config=s' => \$buildconf,
-	'help'     => \$help,
-	'enable'   => \$enable,
-	'disable'  => \$disable,
+	'help' => \$help,
+	'enable' => \$enable,
+	'disable' => \$disable,
 ) || usage("bad command line");
 
 usage("No extra args allowed")
@@ -101,7 +101,7 @@ unless ($response->is_success)
 	  "Target: $target/$sig\n",
 	  "Query Content: $content\n";
 	print "Status Line: ", $response->status_line, "\n";
-	print "Content: \n",   $response->content,     "\n";
+	print "Content: \n", $response->content, "\n";
 	exit 1;
 }
 

@@ -36,12 +36,12 @@ my $buildconf = "build-farm.conf";    # default value
 my ($os_version, $compiler_version, $owner_name, $owner_email, $help);
 
 GetOptions(
-	'config=s'           => \$buildconf,
-	'help'               => \$help,
-	'os-version=s'       => \$os_version,
+	'config=s' => \$buildconf,
+	'help' => \$help,
+	'os-version=s' => \$os_version,
 	'compiler-version=s' => \$compiler_version,
-	'owner-name=s'       => \$owner_name,
-	'owner-email=s'      => \$owner_email,
+	'owner-name=s' => \$owner_name,
+	'owner-email=s' => \$owner_email,
 ) || usage("bad command line");
 
 usage("No extra args allowed")
@@ -81,10 +81,10 @@ do { $_ ||= ""; $_ = encode_base64($_, ""); tr/+=/$@/; }
 my $ts = time;
 
 my $content = "animal=$animal\&ts=$ts";
-$content .= "\&new_os=$os_version"             if $os_version;
+$content .= "\&new_os=$os_version" if $os_version;
 $content .= "\&new_compiler=$compiler_version" if $compiler_version;
-$content .= "\&new_owner=$owner_name"          if $owner_name;
-$content .= "\&new_email=$owner_email"         if $owner_email;
+$content .= "\&new_owner=$owner_name" if $owner_name;
+$content .= "\&new_email=$owner_email" if $owner_email;
 
 my $sig = sha1_hex($content, $secret);
 
@@ -115,7 +115,7 @@ unless ($response->is_success)
 	  "Target: $upgrade_target/$sig\n",
 	  "Query Content: $content\n";
 	print "Status Line: ", $response->status_line, "\n";
-	print "Content: \n",   $response->content,     "\n";
+	print "Content: \n", $response->content, "\n";
 	exit 1;
 }
 

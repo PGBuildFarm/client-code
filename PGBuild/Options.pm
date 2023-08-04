@@ -37,49 +37,49 @@ BEGIN
 use Exporter qw(import);
 our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 
-@EXPORT      = @option_list;
+@EXPORT = @option_list;
 %EXPORT_TAGS = ();
-@EXPORT_OK   = ();
+@EXPORT_OK = ();
 
 our (
-	$forcerun,          $buildconf,      $keepall,
-	$help,              $quiet,          $from_source,
-	$from_source_clean, $testmode,       $skip_steps,
-	$only_steps,        $find_typedefs,  $nosend,
-	$nostatus,          $verbose,        @config_set,
-	$schedule,          $tests,          $check_warnings,
-	$delay_check,       $show_error_log, $avoid_ts_collisions,
+	$forcerun, $buildconf, $keepall,
+	$help, $quiet, $from_source,
+	$from_source_clean, $testmode, $skip_steps,
+	$only_steps, $find_typedefs, $nosend,
+	$nostatus, $verbose, @config_set,
+	$schedule, $tests, $check_warnings,
+	$delay_check, $show_error_log, $avoid_ts_collisions,
 	$skip_suites
 );
 
 my (%standard_options);
 
 %standard_options = (
-	'nosend'              => \$nosend,
-	'config=s'            => \$buildconf,
-	'from-source=s'       => \$from_source,
+	'nosend' => \$nosend,
+	'config=s' => \$buildconf,
+	'from-source=s' => \$from_source,
 	'from-source-clean=s' => \$from_source_clean,
-	'force'               => \$forcerun,
-	'find-typedefs'       => \$find_typedefs,
-	'keepall!'            => \$keepall,               # allow --no-keepall
-	'verbose:i'           => \$verbose,
-	'nostatus'            => \$nostatus,
-	'test'                => \$testmode,
-	'help'                => \$help,
-	'quiet'               => \$quiet,
-	'skip-steps=s'        => \$skip_steps,
-	'only-steps=s'        => \$only_steps,
-	'skip-suites=s'       => \$skip_suites,
-	'config-set=s'        => \@config_set,
-	'schedule=s'          => \$schedule,
-	'tests=s'             => \$tests,
-	'check-warnings!'     => \$check_warnings,        # allow --nocheck-warnings
-	'delay-check'         => \$delay_check,
-	'show-error-log'      => \$show_error_log,
+	'force' => \$forcerun,
+	'find-typedefs' => \$find_typedefs,
+	'keepall!' => \$keepall,                  # allow --no-keepall
+	'verbose:i' => \$verbose,
+	'nostatus' => \$nostatus,
+	'test' => \$testmode,
+	'help' => \$help,
+	'quiet' => \$quiet,
+	'skip-steps=s' => \$skip_steps,
+	'only-steps=s' => \$only_steps,
+	'skip-suites=s' => \$skip_suites,
+	'config-set=s' => \@config_set,
+	'schedule=s' => \$schedule,
+	'tests=s' => \$tests,
+	'check-warnings!' => \$check_warnings,    # allow --nocheck-warnings
+	'delay-check' => \$delay_check,
+	'show-error-log' => \$show_error_log,
 	'avoid-ts-collisions' => \$avoid_ts_collisions,
 );
 
-$buildconf = "build-farm.conf";                       # default value
+$buildconf = "build-farm.conf";               # default value
 
 # extra options can be used by a wrapper program, such as
 # the one that will do the global lock and election, and it will

@@ -35,15 +35,15 @@ our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
   check_install_is_complete spawn save_install copydir
 );
 %EXPORT_TAGS = qw();
-@EXPORT_OK   = qw($st_prefix $logdirname $branch_root $steps_completed
+@EXPORT_OK = qw($st_prefix $logdirname $branch_root $steps_completed
   %skip_steps %only_steps $tmpdir $devnull $send_result_routine $ts_prefix
 );
 
 my %module_hooks;
 our (
-	$core_file_glob,      $st_prefix,  $logdirname,      $branch_root,
-	$steps_completed,     %skip_steps, %only_steps,      $tmpdir,
-	$send_result_routine, $devnull,    $log_file_marker, $ts_prefix,
+	$core_file_glob, $st_prefix, $logdirname, $branch_root,
+	$steps_completed, %skip_steps, %only_steps, $tmpdir,
+	$send_result_routine, $devnull, $log_file_marker, $ts_prefix,
 );
 
 my $saved;    # have we already saved the binaries
@@ -51,7 +51,7 @@ my $saved;    # have we already saved the binaries
 BEGIN
 {
 	$log_file_marker = "==~_~===-=-===~_~==";
-	$ts_prefix       = "";
+	$ts_prefix = "";
 }
 
 # wrap the main program's send_res routine (formerly send_result)
@@ -69,7 +69,7 @@ sub run_log
 	my $command = shift;
 	my $filedir = "$branch_root/$st_prefix$logdirname";
 	mkpath($filedir);
-	my $file   = "$filedir/lastcommand.log";
+	my $file = "$filedir/lastcommand.log";
 	my $stfile = "$filedir/laststatus";
 	unlink $file;
 	unlink $stfile;
@@ -81,7 +81,7 @@ sub run_log
 	}
 	else
 	{
-		my $ucmd    = "{ $command; echo \$? > $stfile; }";
+		my $ucmd = "{ $command; echo \$? > $stfile; }";
 		my $getstat = "read st < $stfile; exit \$st";
 
 		if ($ENV{BF_LOG_TIME} && -x "/usr/bin/ts")
@@ -124,7 +124,7 @@ sub time_str
 
 sub register_module_hooks
 {
-	my $who  = shift;
+	my $who = shift;
 	my $what = shift;
 	while (my ($hook, $func) = each %$what)
 	{
@@ -270,8 +270,8 @@ sub cleanlogs
 
 sub writelog
 {
-	my $stage    = shift;
-	my $fname    = "$stage.log";
+	my $stage = shift;
+	my $fname = "$stage.log";
 	my $loglines = shift;
 	my $handle;
 	my $lrname = $st_prefix . $logdirname;
@@ -283,11 +283,11 @@ sub writelog
 
 sub check_make_log_warnings
 {
-	my $stage   = shift;
+	my $stage = shift;
 	my $verbose = shift;
-	my $fname   = "$stage.log";
-	my $lrname  = $st_prefix . $logdirname;
-	my @lines   = grep { /warning/i } file_lines("$lrname/$fname");
+	my $fname = "$stage.log";
+	my $lrname = $st_prefix . $logdirname;
+	my @lines = grep { /warning/i } file_lines("$lrname/$fname");
 	print @lines if $verbose;
 	return scalar(@lines);
 }
@@ -297,7 +297,7 @@ sub check_make_log_warnings
 sub file_lines
 {
 	my $filename = shift;
-	my $filepos  = shift;
+	my $filepos = shift;
 	my $handle;
 	open($handle, '<', $filename) || croak "opening $filename: $!";
 	seek($handle, $filepos, SEEK_SET) if $filepos;
@@ -311,7 +311,7 @@ sub file_lines
 sub file_contents
 {
 	my $filename = shift;
-	my $filepos  = shift;
+	my $filepos = shift;
 	my $handle;
 	open($handle, '<', $filename) || croak "opening $filename: $!";
 	seek($handle, $filepos, SEEK_SET) if $filepos;
@@ -323,7 +323,7 @@ sub file_contents
 
 sub find_last
 {
-	my $which  = shift;
+	my $which = shift;
 	my $stname = $st_prefix . "last.$which";
 	my $handle;
 	open($handle, '<', $stname) or return;
@@ -335,7 +335,7 @@ sub find_last
 
 sub set_last
 {
-	my $which  = shift;
+	my $which = shift;
 	my $stname = $st_prefix . "last.$which";
 	my $st_now = shift || time;
 	my $handle;
@@ -347,7 +347,7 @@ sub set_last
 
 sub set_last_stage
 {
-	my $stage  = shift;
+	my $stage = shift;
 	my $stname = $st_prefix . "last.stage";
 	my $handle;
 	open($handle, '>', $stname) or die "opening $stname: $!";
@@ -372,7 +372,7 @@ sub get_last_stage
 sub step_wanted
 {
 	my $step = shift;
-	return $only_steps{$step}  if (keys %only_steps);
+	return $only_steps{$step} if (keys %only_steps);
 	return !$skip_steps{$step} if (keys %skip_steps);
 	return 1;    # default is everything is wanted
 }
@@ -380,7 +380,7 @@ sub step_wanted
 sub find_in_path
 {
 	my $what = shift;
-	my $sep  = $Config{path_sep};
+	my $sep = $Config{path_sep};
 	my @elements;
 	if ($sep eq ';')
 	{
@@ -399,14 +399,14 @@ sub find_in_path
 
 sub check_install_is_complete
 {
-	my $build_dir   = shift;
+	my $build_dir = shift;
 	my $install_dir = shift;
 
 	# settings that apply for MSVC
 	my $tmp_loc = "$build_dir/tmp_install";
-	my $bindir  = "$tmp_loc/bin";
-	my $libdir  = "$tmp_loc/lib";
-	my $suffix  = '.dll';
+	my $bindir = "$tmp_loc/bin";
+	my $libdir = "$tmp_loc/lib";
+	my $suffix = '.dll';
 
 	# adjust settings for non-MSVC
 
@@ -414,8 +414,8 @@ sub check_install_is_complete
 	if (-e "$build_dir/meson-private")
 	{
 		$tmp_loc = "$tmp_loc/$install_dir";
-		$bindir  = "$tmp_loc/bin";
-		$libdir  = "$tmp_loc/lib/postgresql";
+		$bindir = "$tmp_loc/bin";
+		$libdir = "$tmp_loc/lib/postgresql";
 		return (-d $bindir && -d $libdir);
 	}
 	elsif (-e "$build_dir/src/Makefile.global")    # i.e. not msvc
@@ -425,8 +425,8 @@ sub check_install_is_complete
 		$suffix = `cd $build_dir && $make show_dl_suffix`;
 		chomp $suffix;
 		$tmp_loc = "$tmp_loc/$install_dir";
-		$bindir  = "$tmp_loc/bin";
-		$libdir  = "$tmp_loc/lib/postgresql";
+		$bindir = "$tmp_loc/bin";
+		$libdir = "$tmp_loc/lib/postgresql";
 	}
 
 	# these files should be present if we've temp_installed everything,
@@ -442,7 +442,7 @@ sub check_install_is_complete
 sub spawn
 {
 	my $coderef = shift;
-	my $pid     = fork;
+	my $pid = fork;
 	if (defined($pid) && $pid == 0)
 	{
 		# call this rather than plain exit so we don't run the
@@ -455,11 +455,11 @@ sub spawn
 sub save_install
 {
 	my $buildroot = shift;
-	my $branch    = shift;
-	my $pgsql     = shift;
-	my $logfile   = shift;
+	my $branch = shift;
+	my $pgsql = shift;
+	my $logfile = shift;
 	my $prefix = shift;
-	my $animal    = $PGBuild::conf{animal};
+	my $animal = $PGBuild::conf{animal};
 
 	my $dest = "$buildroot/$prefix.$animal/$branch";
 
