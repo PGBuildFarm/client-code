@@ -13,6 +13,8 @@
 #
 # $ git log --pretty=format:"%H # %cd%n# %s" $PERLTIDYGITHASH -1 --date=iso
 
+2c09eb2ffe931c9094b8061f14725e0fb4c21870 # 2023-08-04 10:16:36 -0400
+# Adopt postgres' recent changes for perl vertical alignment
 f03a2cdd3fdccc660b3ab6d5b39c9fdbf5a1d587 # 2023-01-13 12:17:35 -0500
 # perltidy run
 b6a07245fe1e720a0ce0fd175c5fc136d2831efb # 2022-12-05 08:21:31 -0500
