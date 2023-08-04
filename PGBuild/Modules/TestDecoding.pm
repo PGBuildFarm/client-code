@@ -18,7 +18,7 @@ use File::Basename;
 use strict;
 use warnings;
 
-our ($VERSION); $VERSION = 'REL_16';
+our ($VERSION); $VERSION = 'REL_17';
 
 my $hooks = { 'check' => \&check, };
 

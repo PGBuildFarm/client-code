@@ -11,7 +11,7 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
-our ($VERSION); $VERSION = 'REL_16';
+our ($VERSION); $VERSION = 'REL_17';
 
 use LWP;
 use HTTP::Request::Common;
