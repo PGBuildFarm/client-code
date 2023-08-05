@@ -564,15 +564,6 @@ if (-e $forcefile)
 	unlink $forcefile;
 }
 
-# if it's not a regular run, make sure we force the next run
-# this run could defeat the up-to-date checks
-# unless it's in testmode, which uses a different prefix
-if (($nosend || $nostatus) && !$from_source && !$testmode)
-{
-	open(my $fh, '>', $forcefile) || die "opening $forcefile: $!";
-	close($fh);
-}
-
 # try to allow core files to be produced.
 # another way would be for the calling environment
 # to call ulimit. We do this in an eval so failure is
@@ -777,6 +768,8 @@ my $savescmlog = "";
 
 $ENV{PGUSER} = 'buildfarm';
 
+my $idname = ($nosend || $nostatus) ? 'ns-githead' : 'githead';
+
 if ($from_source_clean)
 {
 	die "configure step needed for --from-source-clean"
@@ -872,7 +865,7 @@ elsif (!$from_source)
 	# if no build required do nothing
 	if ($last_status && !@filtered_files && !$modules_need_run)
 	{
-		$scm->log_id();    # update the githead.log for up-to-date checks
+		$scm->log_id($idname);    # update the githead.log for up-to-date checks
 		print time_str(),
 		  "No build required: last status = ", scalar(gmtime($last_status)),
 		  " GMT, current snapshot = ", scalar(gmtime($current_snap)), " GMT,",
@@ -893,7 +886,7 @@ elsif (!$from_source)
 cleanlogs() unless ($from_source_clean || !step_wanted('configure'));
 
 writelog('SCM-checkout', $savescmlog) unless $from_source;
-$scm->log_id() unless $from_source;
+$scm->log_id($idname) unless $from_source;
 
 # copy/create according to vpath/scm settings
 

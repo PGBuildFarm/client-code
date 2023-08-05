@@ -574,7 +574,8 @@ sub check_access
 sub log_id
 {
 	my $self = shift;
-	writelog('githead', [ $self->{headref} ])
+	my $name = shift || 'githead';
+	writelog($name, [ $self->{headref} ])
 	  if $self->{headref};
 	return;
 }
