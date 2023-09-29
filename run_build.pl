@@ -1630,7 +1630,7 @@ sub start_valgrind_db
 	chdir 'inst';
 	my $source = $from_source || '../pgsql';
 	open(STDOUT, ">", "logfile") || die "opening valgrind log";
-	open(STDERR, ">&STDOUT")    # allowed by perlcritic
+	open(STDERR, ">&STDOUT")    ## no critic (InputOutput::ProhibitTwoArgOpen)
 	  || die "duping STDOUT for valgrind";
 	my $supp = "--suppressions=$source/src/tools/valgrind.supp";
 	my $markers = "--error-markers=VALGRINDERROR-BEGIN,VALGRINDERROR-END";
