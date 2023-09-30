@@ -492,6 +492,8 @@ unless ($using_msvc || $using_meson)
 # set up modules
 foreach my $module (@{ $PGBuild::conf{modules} })
 {
+	# TestDecoding is now redundant.
+	next if $module eq 'TestDecoding';
 
 	# fill in the name of the module here, so use double quotes
 	# so everything BUT the module name needs to be escaped
