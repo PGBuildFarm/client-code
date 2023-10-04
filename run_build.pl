@@ -1960,7 +1960,7 @@ sub run_meson_install_checks
 	foreach my $dir (glob("$pgsql/testrun/*/*"))
 	{
 		# suppress success logs for now.
-		## no critic (ControlStructures::ProhibitUnreachableCode(
+		## no critic (ControlStructures::ProhibitUnreachableCode)
 		last;
 
 		next unless -e "$dir/test.success";
@@ -2067,7 +2067,7 @@ sub run_meson_noninst_checks
 	foreach my $dir (glob("$pgsql/testrun/*/*"))
 	{
 		# log is too big, making web server barf. Suppress success logs for now.
-		## no critic (ControlStructures::ProhibitUnreachableCode(
+		## no critic (ControlStructures::ProhibitUnreachableCode)
 		last;
 
 		next unless -e "$dir/test.success";
