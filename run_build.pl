@@ -1959,6 +1959,10 @@ sub run_meson_install_checks
 	# add all the rest of the logs after the failure logs
 	foreach my $dir (glob("$pgsql/testrun/*/*"))
 	{
+		# suppress success logs for now.
+		## no critic (ControlStructures::ProhibitUnreachableCode(
+		last;
+
 		next unless -e "$dir/test.success";
 		$log->add_log($_) foreach ("$dir/regression.diffs", glob("$dir/log/*"));
 	}
@@ -2062,6 +2066,10 @@ sub run_meson_noninst_checks
 	# add all the rest of the logs after the failure logs
 	foreach my $dir (glob("$pgsql/testrun/*/*"))
 	{
+		# log is too big, making web server barf. Suppress success logs for now.
+		## no critic (ControlStructures::ProhibitUnreachableCode(
+		last;
+
 		next unless -e "$dir/test.success";
 		$log->add_log($_) foreach ("$dir/regression.diffs", glob("$dir/log/*"));
 	}
@@ -3051,6 +3059,13 @@ sub send_res
 	print "======== log passed to send_result ===========\n", @$log
 	  if ($verbose > 1)
 	  or ($status && $show_error_log);
+
+	# the log should still be in the stage logs and thus in runlogs.tgz.
+	# this just stops us from trying to send a huge uncompressed log entry
+	# that might make the web server barf.
+	my $loglen = 0;
+	$loglen += length($_) foreach (@$log);
+	$log = [ "log too long - see stage log\n" ] if $loglen > 20_000_000;
 
 	unshift(@$log,
 		"Last file mtime in snapshot: ",
