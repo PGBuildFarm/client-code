@@ -357,6 +357,10 @@ sub save_for_testing
 		  . qq{>> "$upgrade_loc/ctl2.log" 2>&1});
 	return if $?;
 
+	open(my $ok, '>', "$upgrade_loc/save.ok") || return 1;
+	print $ok "ok\n";
+	close($ok);
+
 	return 1;
 
 }
@@ -783,6 +787,10 @@ sub installcheck
 		my $oversion = basename $other_branch;
 
 		next unless -d $other_branch;    # will skip lockfiles
+
+		# don't check unless there is a save.ok file for newer branches
+		next unless -e "$other_branch/save.ok" ||
+		  ($oversion ne "HEAD" && $oversion lt "REL_11_STABLE");
 
 		# don't self-test from-source builds
 		next if $from_source && $this_branch eq $oversion;
