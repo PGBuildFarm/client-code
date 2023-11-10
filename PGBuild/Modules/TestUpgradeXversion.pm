@@ -91,7 +91,7 @@ sub setup
 sub run_psql    ## no critic (Subroutines::ProhibitManyArgs)
 {
 	my ($psql, $flags, $sql, $database, $logfile, $append) = @_;
-	my ($fh, $filename) = tempfile('bfsql-XXXX', UNLINK => 1);
+	my ($fh, $filename) = tempfile('bfsql-XXXX', UNLINK => 1, TMPDIR => 1);
 	print $fh $sql;
 	close $fh;
 	my $rd = $append ? '>>' : '>';
