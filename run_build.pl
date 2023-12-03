@@ -470,6 +470,14 @@ foreach my $oldfile (glob("last*"))
 	move $oldfile, "$st_prefix$oldfile";
 }
 
+# cleanup old kept error directories. 10 days should be plenty
+foreach my $kdir (glob("instkeep.* pgsqlkeep.*"))
+{
+	next unless -d $kdir;
+	next unless -M _ > 10;
+	rmtree($kdir);
+}
+
 $branch_root = getcwd();
 
 my $pgsql;
