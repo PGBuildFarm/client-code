@@ -625,6 +625,8 @@ my $extraconf;
 my $main_pid = $$;
 my $waiter_pid;
 
+my $exit_stage = "OK";
+
 # cleanup handler for all exits
 END
 {
@@ -662,7 +664,7 @@ END
 			}
 			chdir $branch_root;
 		}
-		if (!$from_source && $keep_errs)
+		if (!$from_source && $keep_errs && $exit_stage ne 'OK')
 		{
 			print "moving kept error trees\n" if $verbose;
 			my $timestr = strftime "%Y-%m-%d_%H-%M-%S", localtime($now);
@@ -3060,6 +3062,7 @@ sub send_res
 	my $stage = shift;
 
 	set_last_stage($stage);
+	$exit_stage = $stage;
 
 	my $ts = $now || time;
 	my $status = shift || 0;
