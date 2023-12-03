@@ -312,6 +312,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# explicitly enabled here.
 	# see meson docs re interaction of buildtype, debug and
 	# optimization settings. debugoptimised = debug:on + optimisation:2
+	# Note: debugoptimized is the default, set in postgres' meson.build.
 	meson_opts => [
 		qw(
 		  -Dcassert=true
