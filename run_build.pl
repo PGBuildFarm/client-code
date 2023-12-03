@@ -1320,7 +1320,10 @@ sub make_doc
 	if ($using_meson)
 	{
 		my $extra_targets = $PGBuild::conf{extra_doc_targets} || "";
-		@makeout = run_log("meson compile -C $pgsql html $extra_targets");
+		my @targs = split(/\s+/, $extra_targets);
+		s!^!doc/src/sgml/! foreach @targs;
+		$extra_targets=join(' ', @targs) ;
+		@makeout = run_log("cd $pgsql && ninja doc/src/sgml/html $extra_targets");
 	}
 	elsif ($using_msvc)
 	{
