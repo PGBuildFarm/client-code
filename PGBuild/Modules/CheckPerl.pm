@@ -53,6 +53,7 @@ sub setup
 sub find_perl_files
 {
 	my $pgsql = shift;
+	my $branch = shift;
 
 	my %files;
 
@@ -61,6 +62,9 @@ sub find_perl_files
 
 		($dev, $ino, $mode, $nlink, $uid, $gid) = lstat($_);
 		-f _ || return;
+		# requires a library we no longer shift a ummy for
+		return if ($branch eq 'HEAD' || $branch gt 'REL_16_STABLE') &&
+		  $_ eq 'win32tzlist.pl';
 		if (/\.p[lm]\z/)
 		{
 			$files{$File::Find::name} = 1;
@@ -100,7 +104,7 @@ sub build
 
 	my $perlcritic = $ENV{PERLCRITIC} || 'perlcritic';
 
-	my @files = find_perl_files('pgsql');
+	my @files = find_perl_files('pgsql', $self->{pgbranch});
 	my $files = join(' ', @files);
 
 	my @criticlog =
