@@ -70,16 +70,13 @@ sub build
 	my $status;
 	my @diffs;
 
-	my $cmd = "src/tools/pgindent/pgindent --show-diff .";
+	my $cmd = "src/tools/pgindent/pgindent --diff --check .";
 
 	@diffs = run_log("cd pgsql && $cmd");
 	$status = $? >> 8;
 
 	my $log = PGBuild::Log->new("indent-check");
 	$log->add_log_lines("indent.diff", \@diffs);
-
-	# --show-diff doesn't exit with error, unlike --silent-diff
-	$status ||= 1 if @diffs;
 
 	@diffs = ("============ pgindent check ======\n", $log->log_string);
 
