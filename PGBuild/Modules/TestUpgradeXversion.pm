@@ -560,13 +560,13 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	if (-e "$installdir/analyze_new_cluster.sh")
 	{
 		system( "cd $installdir && sh ./analyze_new_cluster.sh "
-			  . qq{> "$upgrade_loc/$oversion-analyse.log"2>&1 });
+			  . qq{> "$upgrade_loc/$oversion-analyse.log" 2>&1 });
 		return if $?;
 	}
 	else
 	{
 		system( qq{"$installdir/bin/vacuumdb" --all --analyze-only }
-			  . qq{> "$upgrade_loc/$oversion-analyse.log"2>&1 });
+			  . qq{> "$upgrade_loc/$oversion-analyse.log" 2>&1 });
 		return if $?;
 	}
 
@@ -578,7 +578,8 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 
 	system( "pg_dumpall $extra_digits -f "
-		  . qq{"$upgrade_loc/converted-$oversion-to-$this_branch.sql"});
+			. qq{"$upgrade_loc/converted-$oversion-to-$this_branch.sql "}
+			. qq{> "$upgrade_loc/converted-$oversion-$this_branch.log" 2>&1});
 	return if $?;
 
 	# run amcheck before updating extensions if any
