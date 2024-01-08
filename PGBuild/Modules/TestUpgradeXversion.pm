@@ -578,7 +578,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 
 	system( "pg_dumpall $extra_digits -f "
-			. qq{"$upgrade_loc/converted-$oversion-to-$this_branch.sql "}
+			. qq{"$upgrade_loc/converted-$oversion-to-$this_branch.sql" }
 			. qq{> "$upgrade_loc/converted-$oversion-$this_branch.log" 2>&1});
 	return if $?;
 
