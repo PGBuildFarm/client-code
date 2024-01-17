@@ -156,10 +156,10 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# include / exclude patterns for files that trigger a build
 	# if both are specified then they are both applied as filters
 	# undef means don't ignore anything.
-	# exclude qr[^doc/|\.po$] to ignore changes to docs and po files
-	# (recommended)
+	# exclude qr[^doc/|/README$|\.po$] to ignore changes to docs, po files
+	# and README files (recommended)
 	# undef means null filter.
-	trigger_exclude => qr[^doc/|\.po$],
+	trigger_exclude => qr[^doc/|/README$|\.po$],
 	trigger_include => undef,
 
 	# settings for mail notices - default to notifying nobody
