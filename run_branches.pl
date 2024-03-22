@@ -66,7 +66,7 @@ PGBuild::Options::fetch_options(%extra_options);
 my $explicit_branches = [@ARGV];
 
 my $mode_sum = ($run_all + $run_one + $run_parallel + $check_for_work);
-my $mode_string = "--run-all, --run-one, --run_parallel, check-for-work";
+my $mode_string = "--run-all, --run-one, --run_parallel, --check-for-work";
 if ($mode_sum > 1)
 {
 	die "only one of $mode_string permitted";
