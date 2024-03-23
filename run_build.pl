@@ -1620,12 +1620,14 @@ sub _meson_env
 	# these should be safe to appear on the log and could be required
 	# for running tests
 	my @safe_set = qw(
-	  PATH
-	  PGUSER PGHOST PG_TEST_PORT_DIR PG_TEST_EXTRA
+	  PATH PGUSER PGHOST
 	  PG_TEST_USE_UNIX_SOCKETS PG_REGRESS_SOCK_DIR
-	  SystemRoot TEMP TMP MSYS
-	  TEMP_CONFIG  PGCTLTIMEOUT
+	  SystemRoot TEMP TMP MSYS TEMP_CONFIG
 	  USER USERNAME USERDOMAIN);
+
+	# variables specified in build_env are always required by definition
+	# and should be safe to appear in the logs, too.
+	push(@safe_set, keys %{$PGBuild::conf{build_env}});
 
 	foreach my $setting (@safe_set)
 	{
