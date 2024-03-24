@@ -1627,7 +1627,7 @@ sub _meson_env
 	  TEMP_CONFIG  PGCTLTIMEOUT
 	  USER USERNAME USERDOMAIN);
 
-	foreach my $setting (@safe_set)
+	foreach my $setting (@safe_set, keys %{$PGBuild::conf{build_env}})
 	{
 		my $v = $ENV{$setting};
 		$env{$setting} = $v if $v;
