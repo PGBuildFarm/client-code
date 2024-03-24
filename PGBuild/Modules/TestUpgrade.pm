@@ -48,7 +48,8 @@ sub setup
 
 	# this obviates the need of any meson support in this module, as
 	# this has been in since release 15
-	return if -d "$buildroot/$branch/pgsql/src/bin/pg_upgrade/t";
+	my $srcdir = $from_source || "$buildroot/$branch/pgsql";
+	return if -d "$srcdir/src/bin/pg_upgrade/t";
 
 	die
 	  "overly long build root $buildroot will cause upgrade problems - try something shorter than 46 chars"
