@@ -287,8 +287,8 @@ sub check_make_log_warnings
 	my $verbose = shift;
 	my $fname = "$stage.log";
 	my $lrname = $st_prefix . $logdirname;
-	my @lines = grep { /warning/i } file_lines("$lrname/$fname");
-	print @lines if $verbose;
+	my @lines = grep { /(?<!-)warning/i } file_lines("$lrname/$fname");
+	print "Found warnings:\n", @lines if $verbose && @lines;
 	return scalar(@lines);
 }
 
