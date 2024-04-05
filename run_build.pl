@@ -2092,11 +2092,11 @@ sub run_meson_noninst_checks
 		if ($dir =~ m!/pg_upgrade/!)
 		{
 			my $proc = sub  {
-				$File::Find::Name =~ m!/pg_upgrade_output.d/! &&
-				  -f $File::Find::Name &&
-				  $log->add_log($File::Find::Name);
+				$File::Find::name =~ m!/pg_upgrade_output.d/! &&
+				  -f $File::Find::name &&
+				  $log->add_log($File::Find::name);
 			};
-			File::Find::Find($dir, $proc);
+			File::Find::find($dir, $proc);
 		}
 	}
 
