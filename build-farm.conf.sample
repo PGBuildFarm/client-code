@@ -81,7 +81,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	max_load_avg => undef,
 
 	# max time in seconds allowed for a single branch run
-	# undef/0 means unlimited
+	# undef means default, which is 4 hours. For unlimited specify 0
 	wait_timeout => undef,
 
 	# if true run installcheck-parallel instead of installcheck

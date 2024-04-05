@@ -107,7 +107,9 @@ $send_result_routine = \&send_res;
 # remove the inst and pgsql directories
 # so the next run can start clean.
 
-foreach my $sig (qw(INT TERM HUP QUIT))
+# can't rely on USR1 being present on Windows
+my @usig = $Config{osname} !~ /msys|MSWin/ ? qw(USR1) : ();
+foreach my $sig (qw(INT TERM HUP QUIT), @usig)
 {
 	$SIG{$sig} = \&interrupt_exit;
 }
@@ -209,6 +211,9 @@ my (
 
 $using_meson = undef unless $branch eq 'HEAD' || $branch ge 'REL_16_STABLE';
 $meson_test_timeout //= 3;
+
+ # default is 4 hours
+$wait_timeout //= 4 * 60 * 60;
 
 $ts_prefix = sprintf('%s:%-13s ', $animal, $branch);
 
@@ -711,7 +716,7 @@ END
 	$? = $exit_status;    ## no critic (RequireLocalizedPunctuationVars)
 }
 
-$waiter_pid = spawn(\&wait_timeout, $wait_timeout) if $wait_timeout;
+$waiter_pid = spawn(\&wait_timeout, $wait_timeout) if $wait_timeout > 0;
 
 # Prepend the DEFAULT settings (if any) to any settings for the
 # branch. Since we're mangling this, deep clone $extra_config
@@ -1259,6 +1264,14 @@ sub interrupt_exit
 {
 	my $signame = shift;
 	print "Exiting on signal $signame\n";
+	if ($signame eq 'USR1')
+	{
+		send_result("timedout", 1 ,["timed out after $wait_timeout secs"]);
+	}
+	elsif ($Config{osname} =~ /msys|MSWin/ && $signame eq 'TERM')
+	{
+		send_result("terminated", 1 ,["terminated, possibly after $wait_timeout secs"]);
+	}
 	exit(1);
 }
 
@@ -3328,14 +3341,14 @@ sub silent_terminate
 sub wait_timeout
 {
 	my $wait_time = shift;
-	$waiter_pid = $$;
-	foreach my $sig (qw(INT HUP QUIT))
+	foreach my $sig (qw(INT HUP QUIT), @usig)
 	{
 		$SIG{$sig} = 'DEFAULT';
 	}
 	$SIG{'TERM'} = \&silent_terminate;
 	sleep($wait_time);
-	print STDERR "Run timed out, aborting.\n";
-	kill 'TERM', $main_pid;
+	print STDERR "Run timed out, terminating.\n";
+	my $sig = scalar(@usig) ? 'USR1' : 'TERM';
+	kill $sig, $main_pid;
 	return 0;
 }
