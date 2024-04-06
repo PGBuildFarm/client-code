@@ -2096,7 +2096,7 @@ sub run_meson_noninst_checks
 				  -f $File::Find::name &&
 				  $log->add_log($File::Find::name);
 			};
-			File::Find::find($dir, $proc);
+			File::Find::find($proc, $dir);
 		}
 	}
 
