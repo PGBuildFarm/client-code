@@ -212,8 +212,16 @@ my (
 $using_meson = undef unless $branch eq 'HEAD' || $branch ge 'REL_16_STABLE';
 $meson_test_timeout //= 3;
 
- # default is 4 hours
-$wait_timeout //= 4 * 60 * 60;
+# default is 4 hours, except on Windows, where it doesn't work
+if ($Config{osname} !~ /msys|MSWin/)
+{
+	$wait_timeout //= 4 * 60 * 60;
+}
+elsif ($wait_timeout || 0 > 0)
+{
+	print "wait_timeout not supported on Windows, ignoring\n";
+	$wait_timeout = 0;
+}
 
 $ts_prefix = sprintf('%s:%-13s ', $animal, $branch);
 
@@ -1267,10 +1275,6 @@ sub interrupt_exit
 	if ($signame eq 'USR1')
 	{
 		send_result("timedout", 1 ,["timed out after $wait_timeout secs"]);
-	}
-	elsif ($Config{osname} =~ /msys|MSWin/ && $signame eq 'TERM')
-	{
-		send_result("terminated", 1 ,["terminated, possibly after $wait_timeout secs"]);
 	}
 	exit(1);
 }
@@ -3348,7 +3352,7 @@ sub wait_timeout
 	$SIG{'TERM'} = \&silent_terminate;
 	sleep($wait_time);
 	print STDERR "Run timed out, terminating.\n";
-	my $sig = scalar(@usig) ? 'USR1' : 'TERM';
+	my $sig = $usig[0] ||  'TERM';
 	kill $sig, $main_pid;
 	return 0;
 }
