@@ -793,8 +793,11 @@ sub installcheck
 		next unless -e "$other_branch/save.ok" ||
 		  ($oversion ne "HEAD" && $oversion lt "REL_11_STABLE");
 
-		# don't self-test from-source builds
-		next if $from_source && $this_branch eq $oversion;
+		# self-test from-source builds against the correct save.
+		if ($from_source && $this_branch eq $oversion)
+		{
+			$other_branch = "$self->{fs_upgrade_install_root}/$this_branch";
+		}
 
 		next
 		  unless (($this_branch eq 'HEAD')
