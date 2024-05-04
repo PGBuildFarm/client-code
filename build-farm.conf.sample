@@ -308,7 +308,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	],
 
 	# Note, for meson we turn off all the auto options and then selectively
-	# re-enable them using these options, so zlib and readline have to be
+	# re-enable them using these options, so zlib, icu, and readline have to be
 	# explicitly enabled here.
 	# see meson docs re interaction of buildtype, debug and
 	# optimization settings. debugoptimised = debug:on + optimisation:2
@@ -328,6 +328,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		  -Dlibxslt=enabled
 		  -Dzlib=enabled
 		  -Dreadline=enabled
+		  -Dicu=enabled
 		  ),
 
 		# could for example add -Dtap_tests=enabled
