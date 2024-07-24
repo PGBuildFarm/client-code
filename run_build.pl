@@ -1945,7 +1945,8 @@ sub run_meson_install_checks
 		"meson test -t $meson_test_timeout $jflag -C $pgsql --setup running --print-errorlogs --no-rebuild --logbase installcheckworld $skip"
 	);
 
-	my @fails = glob("$pgsql/testrun/*/*/test.fail");
+	my @fails = grep { ! -e (dirname($_) . "/test.success") }
+	  glob("$pgsql/testrun/*/*/test.start");
 
 	my $status = (0 < @fails);
 
@@ -2048,7 +2049,8 @@ sub run_meson_noninst_checks
 		"meson test -t $meson_test_timeout $jflag -C $pgsql --print-errorlogs --no-rebuild --logbase checkworld $skip"
 	);
 
-	my @fails = glob("$pgsql/testrun/*/*/test.fail");
+	my @fails = grep { ! -e (dirname($_) . "/test.success") }
+	  glob("$pgsql/testrun/*/*/test.start");
 
 	my $status = (0 < @fails);
 
