@@ -422,7 +422,7 @@ $ENV{PG_TEST_PORT_DIR} ||= $buildroot;
 
 # default value - supply unless set via the config file
 # or calling environment
-$ENV{PGCTLTIMEOUT} = 120 unless exists $ENV{PGCTLTIMEOUT};
+$ENV{PGCTLTIMEOUT} = 180 unless exists $ENV{PGCTLTIMEOUT};
 
 # change to buildroot for this branch or die
 
