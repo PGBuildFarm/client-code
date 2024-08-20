@@ -1848,7 +1848,9 @@ sub make_install_check
 		@checklog = run_log("cd $pgsql/src/test/regress && $make $chktarget");
 	}
 	my $status = $? >> 8;
-	my @logfiles = ("$pgsql/src/test/regress/regression.diffs", "inst/logfile");
+	my @logfiles = ("$pgsql/src/test/regress/regression.diffs",
+					"$pgsql/testrun/regress-running/regress/regression.diffs",
+					"inst/logfile");
 	my $log = PGBuild::Log->new("check");
 	$log->add_log($_) foreach (@logfiles);
 	if ($status)
@@ -1991,12 +1993,8 @@ sub run_meson_install_checks
 	# add all the rest of the logs after the failure logs
 	foreach my $dir (glob("$pgsql/testrun/*/*"))
 	{
-		# suppress success logs for now.
-		## no critic (ControlStructures::ProhibitUnreachableCode)
-		last;
-
 		next unless -e "$dir/test.success";
-		$log->add_log($_) foreach ("$dir/regression.diffs", glob("$dir/log/*"));
+		$log->add_log($_) foreach (glob("$dir/log/regress_log*"));
 	}
 	push(@checklog, $log->log_string);
 
@@ -2110,12 +2108,8 @@ sub run_meson_noninst_checks
 	# add all the rest of the logs after the failure logs
 	foreach my $dir (glob("$pgsql/testrun/*/*"))
 	{
-		# log is too big, making web server barf. Suppress success logs for now.
-		## no critic (ControlStructures::ProhibitUnreachableCode)
-		last;
-
 		next unless -e "$dir/test.success";
-		$log->add_log($_) foreach ("$dir/regression.diffs", glob("$dir/log/*"));
+		$log->add_log($_) foreach (glob("$dir/log/regress_log*"));
 	}
 	push(@checklog, $log->log_string);
 
@@ -2178,6 +2172,12 @@ sub make_testmodules_install_check
 {
 	my $locale = shift;
 	return unless step_wanted('testmodules-install-check');
+	# remove logs from previous steps
+	foreach my $olog (glob("$pgsql/src/test/modules/*/regression.diffs"),
+					  glob("$pgsql/src/test/modules/*/tmp_check/log/*"))
+	{
+		rm $olog;
+	}
 	my @checklog;
 	unless ($using_msvc)
 	{
@@ -2193,7 +2193,8 @@ sub make_testmodules_install_check
 	}
 	my $status = $? >> 8;
 	my $log = PGBuild::Log->new("testmodules-install-check-$locale");
-	my @logs = glob("$pgsql/src/test/modules/*/regression.diffs");
+	my @logs = (glob("$pgsql/src/test/modules/*/regression.diffs"),
+				glob("$pgsql/src/test/modules/*/tmp_check/log/*"));
 	push(@logs, "inst/logfile");
 	$log->add_log($_) foreach (@logs);
 	if ($status)
