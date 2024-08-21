@@ -2176,7 +2176,7 @@ sub make_testmodules_install_check
 	foreach my $olog (glob("$pgsql/src/test/modules/*/regression.diffs"),
 					  glob("$pgsql/src/test/modules/*/tmp_check/log/*"))
 	{
-		rm $olog;
+		unlink $olog;
 	}
 	my @checklog;
 	unless ($using_msvc)
