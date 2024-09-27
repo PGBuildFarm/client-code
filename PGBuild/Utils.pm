@@ -508,6 +508,8 @@ sub rmtree
 {
 	my $dir = shift;
 
+	return unless -d $dir;
+
 	# some Windows perls choke when calling rmtree if there are junctions
 	# so we provide our own.
 	if ($PGBuild::conf{using_msvc})
