@@ -16,7 +16,7 @@ use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils;
 
-use File::Path;
+use File::Path 'mkpath';
 use Fcntl qw(:seek);
 
 use strict;

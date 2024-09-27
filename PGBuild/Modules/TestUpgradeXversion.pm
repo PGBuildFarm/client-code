@@ -26,7 +26,7 @@ use PGBuild::Utils qw(:DEFAULT $tmpdir $steps_completed);
 use Cwd qw(abs_path);
 use Fcntl qw(:flock :seek);
 use File::Copy;
-use File::Path;
+use File::Path 'mkpath';
 use File::Basename;
 use File::Temp qw(tempfile);
 

@@ -17,7 +17,7 @@ use PGBuild::Log;
 use PGBuild::SCM;
 use PGBuild::Utils;
 
-use File::Path;
+use File::Path 'mkpath';
 
 use strict;
 use warnings;

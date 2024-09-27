@@ -41,7 +41,7 @@ our ($VERSION); $VERSION = 'REL_17';
 use v5.14;    ## no critic (ProhibitVersionStrings)
 use Config;
 use Fcntl qw(:flock :seek);
-use File::Path;
+use File::Path 'mkpath';
 use File::Copy;
 use File::Basename;
 use File::Temp;

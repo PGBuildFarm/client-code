@@ -19,7 +19,7 @@ use v5.14;    ## no critic (ProhibitVersionStrings)
 use Fcntl qw(:flock :seek);
 use File::Spec;
 use File::Basename;
-use File::Path;
+use File::Path 'mkpath';
 use Cwd qw(abs_path getcwd);
 use POSIX ':sys_wait_h';
 use JSON::PP;

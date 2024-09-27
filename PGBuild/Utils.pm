@@ -18,7 +18,7 @@ use Carp;
 use Config;
 use Fcntl qw(:seek);
 use File::Find qw();
-use File::Path;
+use File::Path 'mkpath';
 use File::Copy;
 use File::Temp qw(tempfile);
 
@@ -33,6 +33,7 @@ our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
   file_lines file_contents check_make_log_warnings
   find_in_path $log_file_marker set_last_stage get_last_stage
   check_install_is_complete spawn save_install copydir
+  rmtree
 );
 %EXPORT_TAGS = qw();
 @EXPORT_OK = qw($st_prefix $logdirname $branch_root $steps_completed
@@ -500,6 +501,23 @@ sub copydir
 	system(qq{$cp "$from" "$to" $rd 2>&1});
 	## no critic (RequireLocalizedPunctuationVars)
 	$? = 0 if ($cp =~ /robocopy/ && $? >> 8 == 1);
+	return;
+}
+
+sub rmtree
+{
+	my $dir = shift;
+
+	# some Windows perls choke when calling rmtree if there are junctions
+	# so we provide our own.
+	if ($PGBuild::conf{using_msvc})
+	{
+		system(qq{rmdir /q /s "$dir"});
+	}
+	else
+	{
+		File::Path::rmtree($dir);
+	}
 	return;
 }
 
