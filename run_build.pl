@@ -1915,7 +1915,14 @@ sub meson_test_setup
 	local %ENV = _meson_env();
 	my @log = run_log("meson test -C $pgsql --no-rebuild --suite setup");
 
-	# XXX fixme: logging etc.
+	my $status = $? >> 8;
+
+	writelog('test-setup', \@log);
+	print "======== meson test setup log ===========\n", @log
+	  if ($verbose > 1);
+
+	send_result('TestSetup', $status, \@log) if $status;
+	$steps_completed .= " TestSetup";
 	return;
 }
 
