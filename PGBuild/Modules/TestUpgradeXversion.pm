@@ -494,7 +494,15 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	return if $?;
 	setinstenv($self, $installdir, $save_env);
 
-	system( qq{initdb -A trust -U buildfarm --locale=C }
+	# data checksums are on by default from version 18
+	my $nocsum = "";
+	if (($this_branch eq 'HEAD' || $this_branch gt 'REL_17_STABLE') &&
+		($oversion ne 'HEAD' && $oversion le 'REL_17_STABLE'))
+	{
+		$nocsum = '--no-data-checksums';
+	}
+
+	system( qq{initdb -A trust -U buildfarm --locale=C $nocsum }
 		  . qq{"$installdir/$oversion-upgrade" }
 		  . qq{> "$upgrade_loc/$oversion-initdb.log" 2>&1});
 	return if $?;
