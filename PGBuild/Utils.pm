@@ -3,7 +3,7 @@ package PGBuild::Utils;
 
 =comment
 
-Copyright (c) 2003-2022, Andrew Dunstan
+Copyright (c) 2003-2024, Andrew Dunstan
 
 See accompanying License file for license details
 

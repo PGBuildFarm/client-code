@@ -1,6 +1,15 @@
 
 package PGBuild::Modules::Dist;
 
+
+=comment
+
+Copyright (c) 2003-2024, Andrew Dunstan
+
+See accompanying License file for license details
+
+=cut
+
 use PGBuild::Options;
 use PGBuild::SCM;
 
