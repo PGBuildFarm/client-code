@@ -16,7 +16,7 @@ use PGBuild::SCM;
 use strict;
 use warnings;
 
-our ($VERSION); $VERSION = 'REL_17';
+our ($VERSION); $VERSION = 'REL_18';
 
 my $hooks = {
 	'build' => \&build,
