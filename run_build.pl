@@ -49,7 +49,7 @@ use File::Spec;
 use IO::Handle;
 use POSIX qw(:signal_h strftime);
 use Data::Dumper;
-use Cwd qw(abs_path getcwd);
+use Cwd        qw(abs_path getcwd);
 use File::Find ();
 
 use FindBin;
@@ -1274,7 +1274,7 @@ sub interrupt_exit
 	print "Exiting on signal $signame\n";
 	if ($signame eq 'USR1')
 	{
-		send_result("timedout", 1 ,["timed out after $wait_timeout secs"]);
+		send_result("timedout", 1, ["timed out after $wait_timeout secs"]);
 	}
 	exit(1);
 }
@@ -1339,8 +1339,9 @@ sub make_doc
 		my $extra_targets = $PGBuild::conf{extra_doc_targets} || "";
 		my @targs = split(/\s+/, $extra_targets);
 		s!^!doc/src/sgml/! foreach @targs;
-		$extra_targets=join(' ', @targs) ;
-		@makeout = run_log("cd $pgsql && ninja doc/src/sgml/html $extra_targets");
+		$extra_targets = join(' ', @targs);
+		@makeout =
+		  run_log("cd $pgsql && ninja doc/src/sgml/html $extra_targets");
 	}
 	elsif ($using_msvc)
 	{
@@ -1645,7 +1646,7 @@ sub _meson_env
 	  TEMP_CONFIG  PGCTLTIMEOUT
 	  USER USERNAME USERDOMAIN);
 
-	foreach my $setting (@safe_set, keys %{$PGBuild::conf{build_env}})
+	foreach my $setting (@safe_set, keys %{ $PGBuild::conf{build_env} })
 	{
 		my $v = $ENV{$setting};
 		$env{$setting} = $v if $v;
@@ -1848,9 +1849,11 @@ sub make_install_check
 		@checklog = run_log("cd $pgsql/src/test/regress && $make $chktarget");
 	}
 	my $status = $? >> 8;
-	my @logfiles = ("$pgsql/src/test/regress/regression.diffs",
-					"$pgsql/testrun/regress-running/regress/regression.diffs",
-					"inst/logfile");
+	my @logfiles = (
+		"$pgsql/src/test/regress/regression.diffs",
+		"$pgsql/testrun/regress-running/regress/regression.diffs",
+		"inst/logfile"
+	);
 	my $log = PGBuild::Log->new("check");
 	$log->add_log($_) foreach (@logfiles);
 	if ($status)
@@ -1954,7 +1957,7 @@ sub run_meson_install_checks
 		"meson test -t $meson_test_timeout $jflag -C $pgsql --setup running --print-errorlogs --no-rebuild --logbase installcheckworld $skip"
 	);
 
-	my @fails = grep { ! -e (dirname($_) . "/test.success") }
+	my @fails = grep { !-e (dirname($_) . "/test.success") }
 	  glob("$pgsql/testrun/*/*/test.start");
 
 	my $status = (0 < @fails);
@@ -2054,7 +2057,7 @@ sub run_meson_noninst_checks
 		"meson test -t $meson_test_timeout $jflag -C $pgsql --print-errorlogs --no-rebuild --logbase checkworld $skip"
 	);
 
-	my @fails = grep { ! -e (dirname($_) . "/test.success") }
+	my @fails = grep { !-e (dirname($_) . "/test.success") }
 	  glob("$pgsql/testrun/*/*/test.start");
 
 	my $status = (0 < @fails);
@@ -2103,10 +2106,10 @@ sub run_meson_noninst_checks
 		# need to look for pg_upgrade output buried deep
 		if ($dir =~ m!/pg_upgrade/!)
 		{
-			my $proc = sub  {
-				$File::Find::name =~ m!/pg_upgrade_output.d/! &&
-				  -f $File::Find::name &&
-				  $log->add_log($File::Find::name);
+			my $proc = sub {
+				$File::Find::name =~ m!/pg_upgrade_output.d/!
+				  && -f $File::Find::name
+				  && $log->add_log($File::Find::name);
 			};
 			File::Find::find($proc, $dir);
 		}
@@ -2163,7 +2166,8 @@ sub make_misc_check
 		my @out = run_log("cd $dir && $make $instflags TAP_TESTS= check");
 		$status ||= $? >> 8;
 		push(@checklog, "=========== Module $test check =============\n", @out);
-		my @logs = glob("$dir/*.diffs $dir/*/*.diffs $dir/log/*.log $dir/*/log/*.log");
+		my @logs =
+		  glob("$dir/*.diffs $dir/*/*.diffs $dir/log/*.log $dir/*/log/*.log");
 		$log->add_log($_) foreach (@logs);
 	}
 	push(@checklog, $log->log_string);
@@ -2179,9 +2183,12 @@ sub make_testmodules_install_check
 {
 	my $locale = shift;
 	return unless step_wanted('testmodules-install-check');
+
 	# remove logs from previous steps
-	foreach my $olog (glob("$pgsql/src/test/modules/*/regression.diffs"),
-					  glob("$pgsql/src/test/modules/*/tmp_check/log/*"))
+	foreach my $olog (
+		glob("$pgsql/src/test/modules/*/regression.diffs"),
+		glob("$pgsql/src/test/modules/*/tmp_check/log/*")
+	  )
 	{
 		unlink $olog;
 	}
@@ -2200,8 +2207,10 @@ sub make_testmodules_install_check
 	}
 	my $status = $? >> 8;
 	my $log = PGBuild::Log->new("testmodules-install-check-$locale");
-	my @logs = (glob("$pgsql/src/test/modules/*/regression.diffs"),
-				glob("$pgsql/src/test/modules/*/tmp_check/log/*"));
+	my @logs = (
+		glob("$pgsql/src/test/modules/*/regression.diffs"),
+		glob("$pgsql/src/test/modules/*/tmp_check/log/*")
+	);
 	push(@logs, "inst/logfile");
 	$log->add_log($_) foreach (@logs);
 	if ($status)
@@ -3118,7 +3127,7 @@ sub send_res
 	# that might make the web server barf.
 	my $loglen = 0;
 	$loglen += length($_) foreach (@$log);
-	$log = [ "log too long - see stage log\n" ] if $loglen > 20_000_000;
+	$log = ["log too long - see stage log\n"] if $loglen > 20_000_000;
 
 	unshift(@$log,
 		"Last file mtime in snapshot: ",
@@ -3363,7 +3372,7 @@ sub wait_timeout
 	$SIG{'TERM'} = \&silent_terminate;
 	sleep($wait_time);
 	print STDERR "Run timed out, terminating.\n";
-	my $sig = $usig[0] ||  'TERM';
+	my $sig = $usig[0] || 'TERM';
 	kill $sig, $main_pid;
 	return 0;
 }

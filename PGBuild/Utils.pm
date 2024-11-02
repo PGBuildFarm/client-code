@@ -16,7 +16,7 @@ use warnings;
 
 use Carp;
 use Config;
-use Fcntl qw(:seek);
+use Fcntl      qw(:seek);
 use File::Find qw();
 use File::Path 'mkpath';
 use File::Copy;

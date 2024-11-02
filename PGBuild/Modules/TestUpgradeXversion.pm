@@ -23,7 +23,7 @@ use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils qw(:DEFAULT $tmpdir $steps_completed);
 
-use Cwd qw(abs_path);
+use Cwd   qw(abs_path);
 use Fcntl qw(:flock :seek);
 use File::Copy;
 use File::Path 'mkpath';
@@ -496,8 +496,8 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	# data checksums are on by default from version 18
 	my $nocsum = "";
-	if (($this_branch eq 'HEAD' || $this_branch gt 'REL_17_STABLE') &&
-		($oversion ne 'HEAD' && $oversion le 'REL_17_STABLE'))
+	if (   ($this_branch eq 'HEAD' || $this_branch gt 'REL_17_STABLE')
+		&& ($oversion ne 'HEAD' && $oversion le 'REL_17_STABLE'))
 	{
 		$nocsum = '--no-data-checksums';
 	}
@@ -586,8 +586,8 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 
 	system( "pg_dumpall $extra_digits -f "
-			. qq{"$upgrade_loc/converted-$oversion-to-$this_branch.sql" }
-			. qq{> "$upgrade_loc/converted-$oversion-$this_branch.log" 2>&1});
+		  . qq{"$upgrade_loc/converted-$oversion-to-$this_branch.sql" }
+		  . qq{> "$upgrade_loc/converted-$oversion-$this_branch.log" 2>&1});
 	return if $?;
 
 	# run amcheck before updating extensions if any
@@ -798,8 +798,9 @@ sub installcheck
 		next unless -d $other_branch;    # will skip lockfiles
 
 		# don't check unless there is a save.ok file for newer branches
-		next unless -e "$other_branch/save.ok" ||
-		  ($oversion ne "HEAD" && $oversion lt "REL_11_STABLE");
+		next
+		  unless -e "$other_branch/save.ok"
+		  || ($oversion ne "HEAD" && $oversion lt "REL_11_STABLE");
 
 		# self-test from-source builds against the correct save.
 		if ($from_source && $this_branch eq $oversion)
