@@ -372,7 +372,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 
 	base_port => 5678,
 
-	modules => [qw(TestUpgrade TestDecoding)],
+	modules => [qw(TestUpgrade)],
 
 	# settings used by run_branches.pl
 	global => {
