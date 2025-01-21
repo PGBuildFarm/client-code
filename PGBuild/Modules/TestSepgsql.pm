@@ -42,6 +42,9 @@ sub setup
 	my $conf = shift;         # ref to the whole config object
 	my $pgsql = shift;        # postgres build dir
 
+	# test is obsoleted by TAP test.
+	return if -d "$buildroot/$branch/pgsql/contrib/sepgsql/t";
+
 	die "vpath testing not supported for SELinux tests"
 	  if $conf->{use_vpath};
 
