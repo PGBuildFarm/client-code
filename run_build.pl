@@ -2476,6 +2476,10 @@ sub run_misc_tests
 	{
 		next unless -d "$testdir/t";
 		my $testname = basename($testdir);
+		# can't test it if we haven't built it
+		next unless scalar glob("$testdir/*.o $testdir/*.obj");
+		# skip sepgsql unless it's marked for testing
+		next if $testname eq 'sepgsql' && $ENV{PG_TEST_EXTRA} !~ /\bsepgsql\b/;
 		next unless step_wanted("contrib-$testname");
 		print time_str(), "running contrib test $testname ...\n" if $verbose;
 		run_tap_test("$testdir", "contrib-$testname", undef);
