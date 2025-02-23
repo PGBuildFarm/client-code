@@ -415,6 +415,11 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	local $ENV{PGHOST} = $using_localhost ? "localhost" : $ENV{PGHOST};
 
+	open(my $opgconf, ">>",
+		 "$other_branch/inst/$upgrade_test/postgresql.conf")
+	  || die "opening $other_branch/inst/$upgrade_test/postgresql.conf: $!";
+	print $opgconf "\n# Configuration added by buildfarm client\n\n";
+
 	# The old version will have the unix sockets point to tmpdir from the
 	# run in which it was set up, which will be gone by now, so we repoint
 	# it to the current run's tmpdir.
@@ -423,17 +428,15 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	{
 		my $tdir = $tmpdir;
 		$tdir =~ s!\\!/!g;
-
-		open(my $opgconf, ">>",
-			"$other_branch/inst/$upgrade_test/postgresql.conf")
-		  || die "opening $other_branch/inst/$upgrade_test/postgresql.conf: $!";
 		my $param = "unix_socket_directories";
 		$param = "unix_socket_directory"
 		  if $oversion ne 'HEAD' && $oversion lt 'REL9_3_STABLE';
-		print $opgconf "\n# Configuration added by buildfarm client\n\n";
 		print $opgconf "$param = '$tdir'\n";
-		close($opgconf);
 	}
+
+	print $opgconf "autovacuum = off\n";
+
+	close($opgconf);
 
 	setinstenv($self, "$other_branch/inst", $save_env);
 
@@ -507,29 +510,27 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		  . qq{> "$upgrade_loc/$oversion-initdb.log" 2>&1});
 	return if $?;
 
+	open(my $pgconf, ">>", "$installdir/$oversion-upgrade/postgresql.conf")
+	  || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
+	print $pgconf "\n# Configuration added by buildfarm client\n\n";
+
 	unless ($using_localhost)
 	{
-		open(my $pgconf, ">>", "$installdir/$oversion-upgrade/postgresql.conf")
-		  || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
 		my $tmp_param = "unix_socket_directories";
 		$tmp_param = "unix_socket_directory"
 		  if $this_branch ne 'HEAD' && $this_branch lt 'REL9_3_STABLE';
-		print $pgconf "\n# Configuration added by buildfarm client\n\n";
 		print $pgconf "listen_addresses = ''\n";
 		print $pgconf "$tmp_param = '$tmpdir'\n";
-		close($pgconf);
 	}
+
+	print  $pgconf "autovacuum = off\n";
 
 	if ($oversion ge 'REL9_5_STABLE' || $oversion eq 'HEAD')
 	{
-		my $handle;
-		open($handle, ">>", "$installdir/$oversion-upgrade/postgresql.conf")
-		  || die "opening $installdir/$oversion-upgrade/postgresql.conf: $!";
-		print $handle "\n# Configuration added by buildfarm client\n\n"
-		  if ($self->{bfconf}->{using_msvc} || $^O eq 'msys');
-		print $handle "shared_preload_libraries = 'dummy_seclabel'\n";
-		close $handle;
+		print $pgconf "shared_preload_libraries = 'dummy_seclabel'\n";
 	}
+
+	close($pgconf);
 
 	# remove any vestigial scripts etc
 	unlink(glob("$installdir/*.sql $installdir/*.sh $installdir/*.bat"));
@@ -565,17 +566,20 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		  . qq{>> "$upgrade_loc/$oversion-ctl3.log" 2>&1});
 	return if $?;
 
-	if (-e "$installdir/analyze_new_cluster.sh")
+	unless ($this_branch ge 'REL_18_STABLE' || $this_branch eq 'HEAD')
 	{
-		system( "cd $installdir && sh ./analyze_new_cluster.sh "
-			  . qq{> "$upgrade_loc/$oversion-analyse.log" 2>&1 });
-		return if $?;
-	}
-	else
-	{
-		system( qq{"$installdir/bin/vacuumdb" --all --analyze-only }
-			  . qq{> "$upgrade_loc/$oversion-analyse.log" 2>&1 });
-		return if $?;
+		if (-e "$installdir/analyze_new_cluster.sh")
+		{
+			system( "cd $installdir && sh ./analyze_new_cluster.sh "
+					. qq{> "$upgrade_loc/$oversion-analyse.log" 2>&1 });
+			return if $?;
+		}
+		else
+		{
+			system( qq{"$installdir/bin/vacuumdb" --all --analyze-only }
+					. qq{> "$upgrade_loc/$oversion-analyse.log" 2>&1 });
+			return if $?;
+		}
 	}
 
 	if (-e "$installdir/reindex_hash.sql")
@@ -789,9 +793,9 @@ sub installcheck
 	# for other branches ignore the from-source root if it's being used
 	my $stable_root = $self->{upgrade_install_root};
 
-	foreach my $other_branch (
+	foreach my $other_branch (reverse(
 		sort { $a =~ "HEAD" ? 999 : $b =~ "HEAD" ? -999 : $a cmp $b }
-		glob("$stable_root/*"))
+		glob("$stable_root/*")))
 	{
 		my $oversion = basename $other_branch;
 
