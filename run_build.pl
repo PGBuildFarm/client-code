@@ -483,7 +483,22 @@ foreach my $oldfile (glob("last*"))
 	move $oldfile, "$st_prefix$oldfile";
 }
 
-# cleanup old kept error directories. 10 days should be plenty
+# cleanup old kept error directories. First prune by number
+if ($keep_errs >= 0)
+{
+	foreach my $pref ('inst','pgsql')
+	{
+		# relies on glob returning data in name order, so essentially date order
+		my @dirs = glob("${pref}keep.*");
+		splice(@dirs, -$keep_errs);
+		foreach my $dir (@dirs)
+		{
+			next unless -d $dir;
+			rmtree($dir);
+		}
+	}
+}
+# then prune by age - 10 days should be plenty
 foreach my $kdir (glob("instkeep.* pgsqlkeep.*"))
 {
 	next unless -d $kdir;

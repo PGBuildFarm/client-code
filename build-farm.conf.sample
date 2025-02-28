@@ -114,7 +114,9 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# Now only used on older Msys installations
 	# aux_path => "../..",
 
-	keep_error_builds => 0,
+	# keep recent error builds - they are pruned after they are 10 days old
+	keep_error_builds => 0, # 0 = none, < 0 = unlimited, > 0 = max to keep
+
 	core_file_glob => "*core*",    # should work for both Linux and *BSD
 
 	# where to report status
