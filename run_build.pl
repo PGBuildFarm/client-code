@@ -51,6 +51,7 @@ use POSIX qw(:signal_h strftime);
 use Data::Dumper;
 use Cwd        qw(abs_path getcwd);
 use File::Find ();
+use Scalar::Util qw(looks_like_number);
 
 use FindBin;
 use lib $FindBin::RealBin;
@@ -484,13 +485,13 @@ foreach my $oldfile (glob("last*"))
 }
 
 # cleanup old kept error directories. First prune by number
-if ($keep_errs >= 0)
+if (looks_like_number($keep_errs) && $keep_errs >= 0)
 {
 	foreach my $pref ('inst','pgsql')
 	{
 		# relies on glob returning data in name order, so essentially date order
 		my @dirs = glob("${pref}keep.*");
-		splice(@dirs, -$keep_errs);
+		splice(@dirs, -$keep_errs) if $keep_errs > 0;
 		foreach my $dir (@dirs)
 		{
 			next unless -d $dir;
