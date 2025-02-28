@@ -491,7 +491,8 @@ if (looks_like_number($keep_errs) && $keep_errs >= 0)
 	{
 		# relies on glob returning data in name order, so essentially date order
 		my @dirs = glob("${pref}keep.*");
-		splice(@dirs, -$keep_errs) if $keep_errs > 0;
+		my $k = $keep_errs < @dirs ? $keep_errs : @dirs;
+		splice(@dirs, -$k) if $k > 0;
 		foreach my $dir (@dirs)
 		{
 			next unless -d $dir;
