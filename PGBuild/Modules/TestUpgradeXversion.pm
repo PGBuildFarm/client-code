@@ -415,8 +415,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	local $ENV{PGHOST} = $using_localhost ? "localhost" : $ENV{PGHOST};
 
-	open(my $opgconf, ">>",
-		 "$other_branch/inst/$upgrade_test/postgresql.conf")
+	open(my $opgconf, ">>", "$other_branch/inst/$upgrade_test/postgresql.conf")
 	  || die "opening $other_branch/inst/$upgrade_test/postgresql.conf: $!";
 	print $opgconf "\n# Configuration added by buildfarm client\n\n";
 
@@ -523,7 +522,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		print $pgconf "$tmp_param = '$tmpdir'\n";
 	}
 
-	print  $pgconf "autovacuum = off\n";
+	print $pgconf "autovacuum = off\n";
 
 	if ($oversion ge 'REL9_5_STABLE' || $oversion eq 'HEAD')
 	{
@@ -571,13 +570,13 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		if (-e "$installdir/analyze_new_cluster.sh")
 		{
 			system( "cd $installdir && sh ./analyze_new_cluster.sh "
-					. qq{> "$upgrade_loc/$oversion-analyse.log" 2>&1 });
+				  . qq{> "$upgrade_loc/$oversion-analyse.log" 2>&1 });
 			return if $?;
 		}
 		else
 		{
 			system( qq{"$installdir/bin/vacuumdb" --all --analyze-only }
-					. qq{> "$upgrade_loc/$oversion-analyse.log" 2>&1 });
+				  . qq{> "$upgrade_loc/$oversion-analyse.log" 2>&1 });
 			return if $?;
 		}
 	}
@@ -793,9 +792,12 @@ sub installcheck
 	# for other branches ignore the from-source root if it's being used
 	my $stable_root = $self->{upgrade_install_root};
 
-	foreach my $other_branch (reverse(
-		sort { $a =~ "HEAD" ? 999 : $b =~ "HEAD" ? -999 : $a cmp $b }
-		glob("$stable_root/*")))
+	foreach my $other_branch (
+		reverse(
+			sort { $a =~ "HEAD" ? 999 : $b =~ "HEAD" ? -999 : $a cmp $b }
+			  glob("$stable_root/*")
+		)
+	  )
 	{
 		my $oversion = basename $other_branch;
 

@@ -49,8 +49,8 @@ use File::Spec;
 use IO::Handle;
 use POSIX qw(:signal_h strftime);
 use Data::Dumper;
-use Cwd        qw(abs_path getcwd);
-use File::Find ();
+use Cwd          qw(abs_path getcwd);
+use File::Find   ();
 use Scalar::Util qw(looks_like_number);
 
 use FindBin;
@@ -487,7 +487,7 @@ foreach my $oldfile (glob("last*"))
 # cleanup old kept error directories. First prune by number
 if (looks_like_number($keep_errs) && $keep_errs >= 0)
 {
-	foreach my $pref ('inst','pgsql')
+	foreach my $pref ('inst', 'pgsql')
 	{
 		# relies on glob returning data in name order, so essentially date order
 		my @dirs = glob("${pref}keep.*");
@@ -500,6 +500,7 @@ if (looks_like_number($keep_errs) && $keep_errs >= 0)
 		}
 	}
 }
+
 # then prune by age - 10 days should be plenty
 foreach my $kdir (glob("instkeep.* pgsqlkeep.*"))
 {
@@ -2493,8 +2494,10 @@ sub run_misc_tests
 	{
 		next unless -d "$testdir/t";
 		my $testname = basename($testdir);
+
 		# can't test it if we haven't built it
 		next unless scalar glob("$testdir/*.o $testdir/*.obj");
+
 		# skip sepgsql unless it's marked for testing
 		next if $testname eq 'sepgsql' && $ENV{PG_TEST_EXTRA} !~ /\bsepgsql\b/;
 		next unless step_wanted("contrib-$testname");
