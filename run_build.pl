@@ -1934,7 +1934,14 @@ sub meson_test_setup
 	# we run test setup separately so we can pass test arguments
 	# in the check stage
 	local %ENV = _meson_env();
-	my @log = run_log("meson test -C $pgsql --no-rebuild --suite setup");
+	my @log = run_log("meson test -C $pgsql --logbase testsetup --no-rebuild --suite setup");
+
+	print time_str(), "running meson test setup ...\n"
+	  if $verbose;
+
+	my $log = PGBuild::Log->new("testsetup");
+	$log->add_log("$pgsql/meson-logs/testsetup.txt");
+	push(@log, $log->log_string);
 
 	my $status = $? >> 8;
 
