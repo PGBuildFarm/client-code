@@ -417,7 +417,7 @@ sub check_install_is_complete
 		$tmp_loc = "$tmp_loc/$install_dir";
 		$bindir = "$tmp_loc/bin";
 		$libdir = "$tmp_loc/lib";
-		$libdir .= '/postgresql' unless $libdir =~ /postgres|pgsql/;
+		$libdir .= '/postgresql' unless $install_dir =~ /postgres|pgsql/;
 		return (-d $bindir && -d $libdir);
 	}
 	elsif (-e "$build_dir/src/Makefile.global")    # i.e. not msvc
@@ -429,7 +429,7 @@ sub check_install_is_complete
 		$tmp_loc = "$tmp_loc/$install_dir";
 		$bindir = "$tmp_loc/bin";
 		$libdir = "$tmp_loc/lib";
-		$libdir .= '/postgresql' unless $libdir =~ /postgres|pgsql/;
+		$libdir .= '/postgresql' unless $install_dir =~ /postgres|pgsql/;
 	}
 
 	# these files should be present if we've temp_installed everything,
