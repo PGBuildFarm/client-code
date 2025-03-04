@@ -35,7 +35,7 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
-our ($VERSION); $VERSION = 'REL_18';
+our ($VERSION); $VERSION = 'REL_19';
 
 # minimum version supported
 use v5.14;    ## no critic (ProhibitVersionStrings)
