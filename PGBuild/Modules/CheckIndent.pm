@@ -22,7 +22,7 @@ use Cwd qw(abs_path getcwd);
 use strict;
 use warnings;
 
-our ($VERSION); $VERSION = 'REL_19';
+our ($VERSION); $VERSION = 'REL_19_1';
 
 my $hooks = { 'build' => \&build, };
 

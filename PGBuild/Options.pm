@@ -15,7 +15,7 @@ use strict;
 use warnings;
 use Getopt::Long;
 
-our ($VERSION); $VERSION = 'REL_19';
+our ($VERSION); $VERSION = 'REL_19_1';
 
 our (@option_list);
 
