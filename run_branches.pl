@@ -210,7 +210,7 @@ elsif ($branches_to_build =~
 	splice(@branches, -1)
 	  if ($branches_to_build =~ /STABLE|UP_TO/);
 	@branches = grep { $_ le $up_to } @branches
-	  if $branches =~ /UP_TO/;
+	  if $branches_to_build =~ /UP_TO/;
 }
 
 @branches = apply_filters(@branches);
