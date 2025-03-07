@@ -380,9 +380,11 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	global => {
 		branches_to_build => 'ALL',
 
+		# or 'OLD' (very old branches we're still kind of interested in)
 		# or 'HEAD_PLUS_LATEST' or 'HEAD_PLUS_LATEST2'
 		# or 'STABLE' (i.e. live branches other than  HEAD)
-		# or [qw( HEAD RELx_y_STABLE etc )]
+		# or 'UP_TO_REL_x_STABLE' (just this branch or older)
+		# or [qw( HEAD RELx_y_STABLE etc )] (explicit list of branches)
 
 		# set this if running multiple animals to have them coordinated
 		# default is this animal's buildroot.

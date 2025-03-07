@@ -151,7 +151,7 @@ $branches_to_build = $explicit_branches if @{$explicit_branches};
 
 unless (((ref $branches_to_build) eq 'ARRAY' && @{$branches_to_build})
 	|| (ref $branches_to_build) =~ /Regexp/i
-	|| $branches_to_build =~ /^(ALL|OLD|STABLE|HEAD_PLUS_LATEST(\d?))$/)
+	|| $branches_to_build =~ /^(ALL|OLD|STABLE|HEAD_PLUS_LATEST\d?|UP_TO_REL\w+)$/)
 {
 	die "no branches_to_build specified in $buildconf";
 }
@@ -193,11 +193,12 @@ elsif ((ref $branches_to_build) =~ /Regexp/i)
 	chdir $here;
 }
 elsif ($branches_to_build =~
-	/^(ALL|STABLE|OLD|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d))$/)
+	/^(ALL|STABLE|OLD|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d)|UP_TO_(REL\w+))$/) ## no critic(RegularExpressions::ProhibitComplexRegexes)
 {
 	$ENV{BF_CONF_BRANCHES} = $branches_to_build;
 	my $match = $1;
 	my $latest = $2;
+	my $up_to = $3;
 
 	@branches = get_branches_of_interest($match);
 
@@ -207,7 +208,9 @@ elsif ($branches_to_build =~
 	splice(@branches, 0, 0 - ($latest + 1))
 	  if $branches_to_build =~ /^HEAD_PLUS_LATEST\d$/;
 	splice(@branches, -1)
-	  if ($branches_to_build eq 'STABLE');
+	  if ($branches_to_build =~ /STABLE|UP_TO/);
+	@branches = grep { $_ le $up_to } @branches
+	  if $branches =~ /UP_TO/;
 }
 
 @branches = apply_filters(@branches);
