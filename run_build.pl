@@ -2881,12 +2881,13 @@ sub meson_setup
 
 	move "$pgsql/meson-logs/meson-log.txt", "$pgsql/meson-logs/setup.log";
 
-	if (-s "$pgsql/meson-logs/setup.log")
+	my $log = PGBuild::Log->new("setup");;
+	foreach my $logfile ("$pgsql/meson-logs/setup.log",
+						 "$pgsql/src/include/pg_config.h")
 	{
-		my $log = PGBuild::Log->new("setup");
-		$log->add_log("$pgsql/meson-logs/setup.log");
-		push(@confout, $log->log_string);
+		$log->add_log($logfile) if -s $logfile;
 	}
+	push(@confout, $log->log_string);
 
 	print "======== setup output ===========\n", @confout
 	  if ($verbose > 1);
