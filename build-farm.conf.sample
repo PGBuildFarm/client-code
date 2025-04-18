@@ -220,8 +220,8 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		# see below for MSVC settings
 
 		# possibly set this to something high if you get pg_ctl failures
-		# default is 120
-		# PGCTLTIMEOUT => '120',
+		# default is 180
+		# PGCTLTIMEOUT => '180',
 
 		# run extra TAP tests if listed here
 		# These are the ones omitted without the setting
