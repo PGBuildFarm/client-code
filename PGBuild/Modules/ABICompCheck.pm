@@ -46,6 +46,7 @@ sub setup
 	my $conf = shift;         # ref to the whole config object
 	my $pgsql = shift;        # postgres build dir
 
+    # We are only testing HEAD and stable branches, so ignore all others.
 	return if $branch !~ /^(?:HEAD|REL_?\d+(?:_\d+)?_STABLE)$/;
 
 	my $animal = $conf->{animal};
