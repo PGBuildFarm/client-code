@@ -76,6 +76,14 @@ sub setup
 	mkdir "$abi_compare_root/diffs"
 	  unless -d "$abi_compare_root/diffs";
 
+	my $last_commit_hash_file = "$abi_compare_root/githead.log";
+	my $last_commit_hash;
+	if (-f $last_commit_hash_file)
+	{
+		$last_commit_hash = file_contents($last_commit_hash_file);
+		chomp $last_commit_hash if defined $last_commit_hash;
+	}
+
 	my $scm = PGBuild::SCM->new(\%PGBuild::conf);
 	my $self = {
 		buildroot => $buildroot,
@@ -86,6 +94,8 @@ sub setup
 		scm => $scm,
 		binaries_rel_path => \%binaries_rel_path,
 		abidw_flags_list => \@abidw_flags_list,
+		clone_name => 'pgsql',
+		last_commit_hash => $last_commit_hash,
 	};
 	bless($self, $class);
 
@@ -102,58 +112,80 @@ sub need_run
 	print time_str(), "checking if run needed by ", __PACKAGE__, "\n"
 	  if $verbose;
 
-	my $buildroot = $self->{buildroot};        # Build root directory
-	my $branch = $self->{pgbranch};            # PostgreSQL branch/tag/commit
 	my $abi_compare_root = $self->{abi_compare_root};
-	my $pg_checkout_dir = $self->{pgsql};      # PostgreSQL checkout directory
-	my $pg_branch_name = $self->{pgbranch};    # PostgreSQL branch/tag/commit
-	my $last_commit_hash_file =
-	  "$abi_compare_root/$branch/last_pg_commit_hash.txt";
-	my $animal = $self->{bfconf}->{animal};
+	my $clone_name = $self->{clone_name};
+	my $mirror_base = $self->{scm}->{mirror};
+	my $branch = $self->{pgbranch};
+	my $git_repo_path = "$abi_compare_root/$clone_name";
 
-	if (-f $last_commit_hash_file)
+	my @clonelog;
+	my $status;
+	if (-d $git_repo_path)
 	{
-		my $last_commit_hash = file_contents($last_commit_hash_file);
-
-		chomp $last_commit_hash if defined $last_commit_hash;
-
-
-		my $head_commit_hash =
-		  file_contents("$buildroot/$branch/$animal.lastrun-logs/githead.log");
-
-		chomp $head_commit_hash if defined $head_commit_hash;
-
-		$self->{last_commit_hash} = $last_commit_hash;
-		$self->{head_commit_hash} = $head_commit_hash;
-
-		if (   defined $last_commit_hash
-			&& $last_commit_hash ne ''
-			&& $last_commit_hash eq $head_commit_hash)
+		print time_str(),
+		  "ABICompCheck: $clone_name directory already exists, fetching updates.\n"
+		  if $verbose;
+		my @fetch_log = run_log(qq{git -C "$git_repo_path" fetch});
+		$status = $? >> 8;
+		print_logs(\@fetch_log);
+		if ($status)
 		{
-			# Hashes match, so this module does not require a run.
-			# $$run_needed remains unchanged (it might be true due to other modules or settings).
-			print time_str(),
-			  "ABICompCheck: PostgreSQL commit hash ($head_commit_hash) matches stored hash. Run not needed by this module.\n"
-			  if $verbose;
-		}
-		else
-		{
-			# Hashes differ or stored hash was unreadable/empty.
-			my $reason =
-			  (defined $last_commit_hash && $last_commit_hash ne '')
-			  ? "differs from stored hash ('$last_commit_hash')"
-			  : "stored hash file is empty or unreadable";
-			print time_str(),
-			  "ABICompCheck: PostgreSQL commit hash ($head_commit_hash) $reason. Run needed.\n"
-			  if $verbose;
-			$$run_needed = 1;
+			die "git fetch failed with status $status";
 		}
 	}
 	else
 	{
-		# Last commit hash file does not exist, so a run is needed.
+		print "running ", qq{git clone -q  "$mirror_base" "$clone_name"}, "\n";
+		@clonelog =
+		  run_log(qq{git clone -q "$mirror_base" "$git_repo_path"});
+		$status = $? >> 8;
+		print_logs(\@clonelog);
+		if ($status)
+		{
+			die "clone failed with status: $status";
+		}
+	}
+
+	my @checkout_log = run_log(qq{git -C "$git_repo_path" checkout -q "$branch"});
+	$status = $? >> 8;
+	print_logs(\@checkout_log);
+	if ($status)
+	{
+		die "git checkout failed with status $status";
+	}
+	# my @pull_log = run_log(qq{git -C "$git_repo_path" pull});
+	# $status = $? >> 8;
+	# print_logs(\@pull_log);
+	# if ($status)
+	# {
+	# 	die "git pull failed with status $status";
+	# }
+
+	my $head_commit_hash = `git -C "$git_repo_path" rev-parse HEAD`;
+	chomp $head_commit_hash;
+
+	$self->{head_commit_hash} = $head_commit_hash;
+	my $last_commit_hash = $self->{last_commit_hash};
+
+	if (   defined $last_commit_hash
+		&& $last_commit_hash ne ''
+		&& $last_commit_hash eq $head_commit_hash)
+	{
+		# Hashes match, so this module does not require a run.
+		# $$run_needed remains unchanged (it might be true due to other modules or settings).
 		print time_str(),
-		  "ABICompCheck: Stored PostgreSQL commit hash file ('$last_commit_hash_file') not found. Run needed.\n"
+		  "ABICompCheck: PostgreSQL commit hash ($head_commit_hash) matches stored hash. Run not needed by this module.\n"
+		  if $verbose;
+	}
+	else
+	{
+		# Hashes differ or stored hash was unreadable/empty.
+		my $reason =
+		  (defined $last_commit_hash && $last_commit_hash ne '')
+		  ? "differs from stored hash ('$last_commit_hash')"
+		  : "stored hash file is empty or unreadable";
+		print time_str(),
+		  "ABICompCheck: PostgreSQL commit hash ($head_commit_hash) $reason. Run needed.\n"
 		  if $verbose;
 		$$run_needed = 1;
 	}
@@ -209,6 +241,7 @@ sub _configure_make_and_build
 {
 	my ($self, $commit_hash) = @_;    # Added $commit_hash argument
 	my $abi_compare_root = $self->{abi_compare_root};
+	my $clone_name = $self->{clone_name};
 	my $log_dir = "$abi_compare_root/logs/$commit_hash";
 
 	print time_str(),
@@ -216,9 +249,9 @@ sub _configure_make_and_build
 	  __PACKAGE__, "\n"
 	  if $verbose;
 
-	chdir "$abi_compare_root/pgsql"
+	chdir "$abi_compare_root/$clone_name"
 	  or die
-	  "Cannot change to PostgreSQL source directory: $abi_compare_root/pgsql for commit $commit_hash";
+	  "Cannot change to PostgreSQL source directory: $abi_compare_root/$clone_name for commit $commit_hash";
 
 	_log_command_output($self,
 		qq{./configure CFLAGS="-Og -g" --prefix=$abi_compare_root/install/},
@@ -397,7 +430,6 @@ sub print_logs
 {
 	my ($logss) = @_;
 
-	# Print the git clone log if it exists
 	if (@$logss)
 	{
 		print "ABICompCheck:";
@@ -413,91 +445,48 @@ sub install
 	my $self = shift;
 	my $abi_compare_root = $self->{abi_compare_root};
 	my $branch = $self->{pgbranch};
-	my $animal = $self->{bfconf}->{animal};
 	my $last_commit_hash = $self->{last_commit_hash};
 	my $head_commit_hash = $self->{head_commit_hash};
-	my $buildroot = $self->{buildroot};
-	my $pgsql = $self->{pgsql};
-	my $mirror_base = $self->{scm}->{mirror};
+	my $clone_name = $self->{clone_name};
 
 	print time_str(), "building ", __PACKAGE__, "\n" if $verbose;
 
-	my @clonelog;
-	my $status;
-	if (-d "$abi_compare_root/pgsql")
+	chdir "$abi_compare_root/$clone_name"
+	  or die "Cannot change to PostgreSQL source directory: $!";
+
+	if (!defined $last_commit_hash || $last_commit_hash eq '')
 	{
 		print time_str(),
-		  "ABICompCheck: pgsql directory already exists, skipping clone.\n"
+		  "ABICompCheck: No previous commit hash found, comparing last 2 commits only.\n"
 		  if $verbose;
-		$status = 0;
+		my @two_commit_hashes = split /\n/,
+		  `git rev-list --max-count=2 HEAD^`;
+		print "Two commit hashes: @two_commit_hashes\n" if $verbose;
+		if (@two_commit_hashes < 2)
+		{
+			print time_str(),
+			  "ABICompCheck: Not enough commits found for comparison. Skipping build.\n"
+			  if $verbose;
+			return;
+		}
+		_process_commits_list($self, \@two_commit_hashes);
 	}
 	else
 	{
-		print "running ", qq{git clone -q  "$mirror_base" "pgsql"}, "\n";
-		@clonelog =
-		  run_log(qq{git clone -q "$mirror_base" "$abi_compare_root/pgsql"});
-		$status = $? >> 8;
-	}
-
-	print_logs(\@clonelog);
-
-	if (!$status)
-	{
-		chdir "$abi_compare_root/pgsql"
-		  or die "Cannot change to PostgreSQL source directory: $!";
-		print time_str(),
-		  "ABICompCheck: Cloned PostgreSQL source to $abi_compare_root/pgsql\n"
-		  if $verbose;
-
-		my @checkout_log = run_log(qq{git checkout -q "$branch"});
-		$status = $? >> 8;
-		print_logs(\@checkout_log);
-		if ($status)
-		{
-			die "git checkout failed with status $status";
-		}
-		print time_str(),
-		  "ABICompCheck: Checked out branch '$branch' in $abi_compare_root/pgsql\n"
-		  if $verbose;
-
-		if (!defined $last_commit_hash || $last_commit_hash eq '')
+		my @commits = `git rev-list --reverse $last_commit_hash..$head_commit_hash`;
+		chomp @commits;
+		if (!@commits)
 		{
 			print time_str(),
-			  "ABICompCheck: No previous commit hash found, comparing last 2 commits only.\n"
+			  "ABICompCheck: No new commits found since last run. Skipping build.\n"
 			  if $verbose;
-			my @two_commit_hashes = split /\n/,
-			  `git rev-list --max-count=2 HEAD^`;
-			print "Two commit hashes: @two_commit_hashes\n" if $verbose;
-			if (@two_commit_hashes < 2)
-			{
-				print time_str(),
-				  "ABICompCheck: Not enough commits found for comparison. Skipping build.\n"
-				  if $verbose;
-				return;
-			}
-			_process_commits_list($self, \@two_commit_hashes);
+			return;
 		}
-		else
-		{
-			my @commits = `git rev-list --reverse $last_commit_hash..HEAD`;
-			chomp @commits;
-			if (!@commits)
-			{
-				print time_str(),
-				  "ABICompCheck: No new commits found since last run. Skipping build.\n"
-				  if $verbose;
-				return;
-			}
 
-			print time_str(),
-			  "ABICompCheck: Found new commits since last run. Processing commits:\n"
-			  if $verbose;
-			_process_commits_list($self, @commits);
-		}
-	}
-	else
-	{
-		die "clone status: $status";
+		print time_str(),
+		  "ABICompCheck: Found new commits since last run. Processing " . scalar(@commits) . " commits:\n"
+		  if $verbose;
+		_process_commits_list($self, \@commits);
 	}
 	return;
 }
@@ -510,14 +499,11 @@ sub cleanup
 
 	my $head_commit_hash = $self->{head_commit_hash};
 	my $abi_compare_root = $self->{abi_compare_root};
+	chdir $abi_compare_root
+	  or die "Cannot change to ABI compare root directory: $abi_compare_root";
 	if (defined $head_commit_hash && $head_commit_hash ne '')
 	{
-		my $abi_compare_root = $self->{abi_compare_root};
-		my $branch = $self->{pgbranch};
-		my $commit_hash_dir = "$abi_compare_root/$branch";
-		my $last_commit_hash_file = "$commit_hash_dir/last_pg_commit_hash.txt";
-
-		mkdir $commit_hash_dir unless -d $commit_hash_dir;
+		my $last_commit_hash_file = "$abi_compare_root/githead.log";
 
 		open my $fh, '>', $last_commit_hash_file
 		  or die "Cannot open $last_commit_hash_file for write: $!";
@@ -527,10 +513,10 @@ sub cleanup
 		  "ABICompCheck: Stored commit hash $head_commit_hash in $last_commit_hash_file\n"
 		  if $verbose;
 	}
-	rmdir $abi_compare_root
-	  if -d $abi_compare_root
-	  && $abi_compare_root ne '.'
-	  && $abi_compare_root ne '/';
+	rmtree("$abi_compare_root/install")
+	  if -d "$abi_compare_root/install";
+	rmtree("$abi_compare_root/pgsql")
+	  if -d "$abi_compare_root/pgsql";
 	return;
 }
 
