@@ -2501,6 +2501,11 @@ sub run_misc_tests
 	  ? $config_opts->{openssl}
 	  : (grep { $_ eq '--with-openssl' } @$config_opts);
 
+	my $using_ldap =
+		$using_msvc
+	  ? $config_opts->{ldap}
+	  : (grep { $_ eq '--with-ldap' } @$config_opts);
+
 	## no critic (CodeLayout::ProhibitHardTabs)
 	foreach my $testdir (
 		glob(
@@ -2512,6 +2517,7 @@ sub run_misc_tests
 	{
 		my $testname = basename($testdir);
 		next if $testname =~ /ssl/ && !$using_ssl;
+		next if $testname =~ /ldap/ && !$using_ldap;
 		next unless -d "$testdir/t";
 		next if $using_msvc && $testname eq 'pg_bsd_indent';
 		next unless step_wanted("module-$testname");
