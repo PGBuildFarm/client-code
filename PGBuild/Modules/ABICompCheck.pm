@@ -255,7 +255,7 @@ sub _configure_make_and_build
 	  "Cannot change to PostgreSQL source directory: $abi_compare_root/$clone_name for commit $commit_hash";
 
 	_log_command_output($self,
-		qq{./configure CFLAGS="-Og -g" --prefix=$abi_compare_root/install/},
+		qq{./configure --enable-debug --prefix=$abi_compare_root/install/},
 		$log_dir, 'configure');
 	my $make_cmd = $make;
 	$make_cmd = "$make -j $make_jobs"
@@ -399,7 +399,7 @@ sub _compare_and_log_abi_diff
 		{
 			my $log_file =
 			  "$log_dir/$key-$old_commit_hash-$new_commit_hash.log";
-			my @output = run_log("abidiff \"$old_file\" \"$new_file\"");
+			my @output = run_log("abidiff \"$old_file\" \"$new_file\" --leaf-changes-only --no-added-syms --show-bytes");
 			my $exit_status = $? >> 8;
 			if ($exit_status != 0)
 			{
