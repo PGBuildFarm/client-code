@@ -39,7 +39,7 @@ sub setup
 	my $pgsql = shift;        # postgres build dir
 
 	# We are only testing HEAD and stable branches, so ignore all others.
-	return if $branch !~ /^(?:HEAD|REL_?\d+(?:_\d+)?_STABLE)$/;
+	return if $branch ne 'HEAD' && $branch !~ /_STABLE$/;
 
 	my $animal = $conf->{animal};
 	my $abi_compare_root =
@@ -52,19 +52,19 @@ sub setup
 		$abi_compare_root = "$buildroot/abicheck";
 	}
 
-	my %binaries_rel_path = $conf->{binaries_rel_path}
-	  || (
+	my $binaries_rel_path = $conf->{binaries_rel_path}
+	  || {
 		'postgres' => 'bin/postgres',
 		'ecpg' => 'bin/ecpg',
 		'libpq.so' => 'lib/libpq.so',
-	  );
+	  };
 
-	my @abidw_flags_list = $conf->{abidw_flags_list}
-	  || (
+	my $abidw_flags_list = $conf->{abidw_flags_list}
+	  || [
 		'--drop-undefined-syms', '--no-architecture', '--no-comp-dir-path',
 		'--no-elf-needed', '--no-show-locs', '--type-id-style',
 		'hash',
-	  );
+	  ];
 
 	mkdir $abi_compare_root
 	  unless -d $abi_compare_root;
@@ -91,8 +91,8 @@ sub setup
 		pgsql => $pgsql,
 		abi_compare_root => $abi_compare_root,
 		scm => $scm,
-		binaries_rel_path => \%binaries_rel_path,
-		abidw_flags_list => \@abidw_flags_list,
+		binaries_rel_path => $binaries_rel_path,
+		abidw_flags_list => $abidw_flags_list,
 		clone_name => 'pgsql',
 		last_commit_hash => $last_commit_hash,
 	};
@@ -243,7 +243,8 @@ sub _configure_make_and_build
 	my $abi_compare_root = $self->{abi_compare_root};
 	my $clone_name = $self->{clone_name};
 	my $log_dir = "$abi_compare_root/logs/$commit_hash";
-
+	my $make = $self->{bfconf}->{make};
+	my $make_jobs = $self->{bfconf}->{make_jobs};
 	print time_str(),
 	  "Configuring, making, and installing for commit $commit_hash in ",
 	  __PACKAGE__, "\n"
@@ -256,10 +257,12 @@ sub _configure_make_and_build
 	_log_command_output($self,
 		qq{./configure CFLAGS="-Og -g" --prefix=$abi_compare_root/install/},
 		$log_dir, 'configure');
+	my $make_cmd = $make;
+	$make_cmd = "$make -j $make_jobs"
+	  if ($make_jobs > 1);
+	_log_command_output($self, $make_cmd, $log_dir, 'make');
 
-	_log_command_output($self, qq{make}, $log_dir, 'make');
-
-	_log_command_output($self, q{make install}, $log_dir, 'makeinstall');
+	_log_command_output($self, qq{$make install}, $log_dir, 'makeinstall');
 
 	return;
 }
