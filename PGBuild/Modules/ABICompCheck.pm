@@ -95,6 +95,7 @@ sub setup
 		abidw_flags_list => $abidw_flags_list,
 		clone_name => 'pgsql',
 		last_commit_hash => $last_commit_hash,
+		install_ok => 0,
 	};
 	bless($self, $class);
 
@@ -609,6 +610,7 @@ sub install
 		  if $verbose;
 		_process_commits_list($self, \@commits, $last_commit_hash);
 	}
+	$self->{install_ok} = 1;
 	return;
 }
 
@@ -622,7 +624,7 @@ sub cleanup
 	my $abi_compare_root = $self->{abi_compare_root};
 	chdir $abi_compare_root
 	  or die "Cannot change to ABI compare root directory: $abi_compare_root";
-	if (defined $head_commit_hash && $head_commit_hash ne '')
+	if (defined $head_commit_hash && $head_commit_hash ne '' && $self->{install_ok})
 	{
 		my $last_commit_hash_file = "$abi_compare_root/githead.log";
 
