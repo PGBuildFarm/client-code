@@ -52,14 +52,14 @@ sub setup
 		$abi_compare_root = "$buildroot/abicheck";
 	}
 
-	my $binaries_rel_path = $conf->{binaries_rel_path}
+	my $binaries_rel_path = $conf->{abi_comp_check}->{binaries_rel_path}
 	  || {
 		'postgres' => 'bin/postgres',
 		'ecpg' => 'bin/ecpg',
 		'libpq.so' => 'lib/libpq.so',
 	  };
 
-	my $abidw_flags_list = $conf->{abidw_flags_list}
+	my $abidw_flags_list = $conf->{abi_comp_check}->{abidw_flags_list}
 	  || [
 		'--drop-undefined-syms', '--no-architecture', '--no-comp-dir-path',
 		'--no-elf-needed', '--no-show-locs', '--type-id-style',
@@ -240,24 +240,32 @@ sub _log_command_output
 
 sub _configure_make_and_build
 {
-	my ($self, $commit_hash) = @_;    # Added $commit_hash argument
+	my ($self, $commit_hash) = @_;
 	my $abi_compare_root = $self->{abi_compare_root};
-	my $clone_name = $self->{clone_name};
-	my $log_dir = "$abi_compare_root/logs/$commit_hash";
-	my $make = $self->{bfconf}->{make};
-	my $make_jobs = $self->{bfconf}->{make_jobs};
 	print time_str(),
 	  "Configuring, making, and installing for commit $commit_hash in ",
 	  __PACKAGE__, "\n"
 	  if $verbose;
 
-	chdir "$abi_compare_root/$clone_name"
+	chdir $abi_compare_root . '/' . $self->{clone_name}
 	  or die
-	  "Cannot change to PostgreSQL source directory: $abi_compare_root/$clone_name for commit $commit_hash";
+	  "Cannot change to PostgreSQL source directory: $abi_compare_root/$self->{clone_name} for commit $commit_hash";
 
-	_log_command_output($self,
-		qq{./configure --enable-debug --prefix=$abi_compare_root/install/},
-		$log_dir, 'configure');
+	my $log_dir = "$abi_compare_root/logs/$commit_hash";
+	my $make = $self->{bfconf}->{make};
+	my $make_jobs = $self->{bfconf}->{make_jobs};
+	my $config_opts = $self->{bfconf}->{config_opts} || [];
+
+	if (!grep { $_ eq '--enable-debug' } @$config_opts)
+	{
+		push @$config_opts, '--enable-debug';
+	}
+	my $configure_options = join(' ', @$config_opts);
+
+	my $cmdd =
+	  qq{./configure $configure_options --prefix=$abi_compare_root/install/};
+
+	_log_command_output($self, $cmdd, $log_dir, 'configure');
 	my $make_cmd = $make;
 	$make_cmd = "$make -j $make_jobs"
 	  if ($make_jobs > 1);
@@ -271,8 +279,7 @@ sub _configure_make_and_build
 sub _generate_abidw_xml
 {
 	my $self = shift;
-	my $abidw_flags_list = $self->{abidw_flags_list};
-	my $abidw_flags_str = join(' ', @$abidw_flags_list);
+	my $abidw_flags_str = join ' ', @{ $self->{abidw_flags_list} };
 	my $commit_hash = shift;
 
 	print time_str(), "Generating ABIDW XML for commit $commit_hash in ",
@@ -302,19 +309,33 @@ sub _generate_abidw_xml
 	}
 
 	my @targets_to_process = ();
-	foreach my $target_name (keys %$binaries_rel_path)
+	while (my ($target_name, $rel_path) = each %{$binaries_rel_path})
 	{
-		my $input_path = "$install_dir/$binaries_rel_path->{$target_name}";
+		my $input_path = "$install_dir/$rel_path";
 		my $output_file = "$commit_xml_dir/$target_name.abi";
 
-		if (-e $input_path)
+		if (-e $input_path && -f $input_path)
 		{
-			push @targets_to_process,
-			  {
-				name => $target_name,
-				input_path => $input_path,
-				output_file => $output_file,
-			  };
+			my $cmd =
+			  qq{abidw --out-file "$output_file" "$input_path" $abidw_flags_str};
+			print time_str(), "Executing: $cmd\n" if $verbose;
+
+			my @abidw_log = run_log($cmd);
+			my $exit_status = $? >> 8;
+
+			print_logs(\@abidw_log);
+
+			if ($exit_status)
+			{
+				die
+				  "abidw failed for $target_name (from $input_path) with status $exit_status. Commit: $commit_hash";
+			}
+			else
+			{
+				print time_str(),
+				  "Successfully generated ABI XML for $target_name to $output_file\n"
+				  if $verbose;
+			}
 		}
 		else
 		{
@@ -324,46 +345,6 @@ sub _generate_abidw_xml
 		}
 	}
 
-	if (!@targets_to_process)
-	{
-		die "No valid targets found for ABI generation in commit $commit_hash.";
-	}
-
-	foreach my $target (@targets_to_process)
-	{
-		my $target_name = $target->{name};
-		my $input_file_path = $target->{input_path};
-		my $output_abi_file = $target->{output_file};
-
-		unless (-e $input_file_path && -f $input_file_path)
-		{
-			print time_str(),
-			  "Warning: Input file '$input_file_path' for $target_name not found or is not a regular file. Skipping ABI generation for this target (commit $commit_hash).\n"
-			  if $verbose;
-			next;
-		}
-
-		my $cmd =
-		  qq{abidw --out-file "$output_abi_file" "$input_file_path" $abidw_flags_str};
-		print time_str(), "Executing: $cmd\n" if $verbose;
-
-		my @abidw_log = run_log($cmd);
-		my $exit_status = $? >> 8;
-
-		print_logs(\@abidw_log);
-
-		if ($exit_status)
-		{
-			die
-			  "abidw failed for $target_name (from $input_file_path) with status $exit_status. Commit: $commit_hash";
-		}
-		else
-		{
-			print time_str(),
-			  "Successfully generated ABI XML for $target_name to $output_abi_file\n"
-			  if $verbose;
-		}
-	}
 	return;
 }
 
@@ -400,7 +381,9 @@ sub _compare_and_log_abi_diff
 		{
 			my $log_file =
 			  "$log_dir/$key-$old_commit_hash-$new_commit_hash.log";
-			my @output = run_log("abidiff \"$old_file\" \"$new_file\" --leaf-changes-only --no-added-syms --show-bytes");
+			my @output = run_log(
+				"abidiff \"$old_file\" \"$new_file\" --leaf-changes-only --no-added-syms --show-bytes"
+			);
 			my $exit_status = $? >> 8;
 			if ($exit_status != 0)
 			{
@@ -551,14 +534,7 @@ sub print_logs
 {
 	my ($logss) = @_;
 
-	if (@$logss)
-	{
-		print "ABICompCheck:";
-		foreach my $line (@$logss)
-		{
-			print $line;
-		}
-	}
+	print "ABICompCheck: ", @$logss if @$logss;
 }
 
 sub install
@@ -624,7 +600,9 @@ sub cleanup
 	my $abi_compare_root = $self->{abi_compare_root};
 	chdir $abi_compare_root
 	  or die "Cannot change to ABI compare root directory: $abi_compare_root";
-	if (defined $head_commit_hash && $head_commit_hash ne '' && $self->{install_ok})
+	if (   defined $head_commit_hash
+		&& $head_commit_hash ne ''
+		&& $self->{install_ok})
 	{
 		my $last_commit_hash_file = "$abi_compare_root/githead.log";
 
