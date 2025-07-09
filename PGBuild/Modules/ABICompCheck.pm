@@ -11,12 +11,14 @@ See accompanying License file for license details
 
 package PGBuild::Modules::ABICompCheck;
 
+use PGBuild::Log;
 use PGBuild::Options;
 use PGBuild::SCM;
-use PGBuild::Utils;
+use PGBuild::Utils qw(:DEFAULT $tmpdir $steps_completed);
 
 use strict;
 use warnings;
+use File::Basename;
 
 # strip required namespace from package name
 (my $MODULE = __PACKAGE__) =~ s/PGBuild::Modules:://;
@@ -96,6 +98,7 @@ sub setup
 		clone_name => 'pgsql',
 		last_commit_hash => $last_commit_hash,
 		install_ok => 0,
+		logs => PGBuild::Log->new("abi-comp-check-$branch")
 	};
 	bless($self, $class);
 
@@ -215,18 +218,24 @@ sub _checkout_commit
 
 sub _log_command_output
 {
-	my ($self, $cmd, $log_dir, $cmd_desc) = @_;
-
-	# Ensure log directory exists
-	mkdir $log_dir unless -d $log_dir;
-
-	my $log_file = "$log_dir/$cmd_desc.log";
+	my ($self, $cmd, $log_file, $cmd_desc, $no_die) = @_;
 
 	print time_str(), "Executing: $cmd_desc\n" if $verbose;
 
-	run_log(qq{$cmd > "$log_file" 2>&1});
+	my @output = run_log(qq{$cmd});
 	my $exit_status = $? >> 8;
-	if ($exit_status)
+
+	if (@output)
+	{
+		open my $fh, '>', $log_file or warn "could not open $log_file: $!";
+		if ($fh)
+		{
+			print $fh @output;
+			close $fh;
+		}
+	}
+
+	if ($exit_status && !$no_die)
 	{
 		die "$cmd_desc failed with status $exit_status. Log: $log_file";
 	}
@@ -235,7 +244,7 @@ sub _log_command_output
 		print time_str(), "Successfully executed $cmd_desc\n"
 		  if $verbose;
 	}
-	return;
+	return $exit_status;
 }
 
 sub _configure_make_and_build
@@ -252,6 +261,7 @@ sub _configure_make_and_build
 	  "Cannot change to PostgreSQL source directory: $abi_compare_root/$self->{clone_name} for commit $commit_hash";
 
 	my $log_dir = "$abi_compare_root/logs/$commit_hash";
+	mkdir $log_dir unless -d $log_dir;
 	my $make = $self->{bfconf}->{make};
 	my $make_jobs = $self->{bfconf}->{make_jobs};
 	my $config_opts = $self->{bfconf}->{config_opts} || [];
@@ -265,13 +275,14 @@ sub _configure_make_and_build
 	my $cmdd =
 	  qq{./configure $configure_options --prefix=$abi_compare_root/install/};
 
-	_log_command_output($self, $cmdd, $log_dir, 'configure');
+	_log_command_output($self, $cmdd, "$log_dir/configure.log", 'configure');
 	my $make_cmd = $make;
 	$make_cmd = "$make -j $make_jobs"
 	  if ($make_jobs > 1);
-	_log_command_output($self, $make_cmd, $log_dir, 'make');
+	_log_command_output($self, $make_cmd, "$log_dir/make.log", 'make');
 
-	_log_command_output($self, qq{$make install}, $log_dir, 'makeinstall');
+	_log_command_output($self, qq{$make install},
+		"$log_dir/makeinstall.log", 'makeinstall');
 
 	return;
 }
@@ -318,12 +329,11 @@ sub _generate_abidw_xml
 		{
 			my $cmd =
 			  qq{abidw --out-file "$output_file" "$input_path" $abidw_flags_str};
-			print time_str(), "Executing: $cmd\n" if $verbose;
-
-			my @abidw_log = run_log($cmd);
-			my $exit_status = $? >> 8;
-
-			print_logs(\@abidw_log);
+			my $log_dir = "$abi_compare_root/logs/$commit_hash";
+			my $log_file = "$log_dir/abidw-$target_name.log";
+			my $exit_status =
+			  _log_command_output($self, $cmd, $log_file,
+				"abidw for $target_name", 1);
 
 			if ($exit_status)
 			{
@@ -351,7 +361,6 @@ sub _generate_abidw_xml
 sub _compare_and_log_abi_diff
 {
 	my ($self, $old_commit_hash, $new_commit_hash, $fail_fast) = @_;
-
 	if (!defined $old_commit_hash || !defined $new_commit_hash)
 	{
 		print time_str(),
@@ -371,6 +380,7 @@ sub _compare_and_log_abi_diff
 	my $log_dir = "$abi_compare_root/diffs";
 	mkdir $log_dir unless -d $log_dir;
 	my $diff_found = 0;
+	my @diff_logs;
 
 	foreach my $key (keys %{ $self->{binaries_rel_path} })
 	{
@@ -381,17 +391,18 @@ sub _compare_and_log_abi_diff
 		{
 			my $log_file =
 			  "$log_dir/$key-$old_commit_hash-$new_commit_hash.log";
-			my @output = run_log(
-				"abidiff \"$old_file\" \"$new_file\" --leaf-changes-only --no-added-syms --show-bytes"
+			my $exit_status = _log_command_output(
+				$self,
+				qq{abidiff "$old_file" "$new_file" --leaf-changes-only --no-added-syms --show-bytes},
+				$log_file,
+				"abidiff for $key",
+				1
 			);
-			my $exit_status = $? >> 8;
+
 			if ($exit_status != 0)
 			{
 				$diff_found = 1;
-				open my $fh, '>', $log_file
-				  or warn "could not open $log_file: $!";
-				print $fh @output if $fh;
-				close $fh if $fh;
+				push @diff_logs, $log_file;
 				print time_str(),
 				  "ABI difference found for $key. Log: $log_file\n"
 				  if $verbose;
@@ -401,11 +412,11 @@ sub _compare_and_log_abi_diff
 		elsif (-e $old_file xor -e $new_file)
 		{
 			$diff_found = 1;
+			my $log_file =
+			  "$log_dir/$key-$old_commit_hash-$new_commit_hash.log";
 			print time_str(),
 			  "ABI difference for $key: one file is missing (old: $old_file, new: $new_file). Comparison skipped.\n"
 			  if $verbose;
-			my $log_file =
-			  "$log_dir/$key-$old_commit_hash-$new_commit_hash.log";
 			open my $fh, '>', $log_file
 			  or warn "could not open $log_file: $!";
 			if ($fh)
@@ -417,11 +428,38 @@ sub _compare_and_log_abi_diff
 				  . (-e $new_file) . ")\n";
 				close $fh;
 			}
+			push @diff_logs, $log_file;
 			return 1 if $fail_fast;
 		}
 	}
 
-	if (!$diff_found)
+	my $branch = $self->{pgbranch};
+	my $commit_info_file = "$log_dir/commit-info-$new_commit_hash.log";
+	_log_command_output(
+		$self,
+		qq{git show $new_commit_hash --quiet --pretty=format:"%cn%n%ce%n%cd%n%s%n%n%b"},
+		$commit_info_file,
+		"git show for $new_commit_hash",
+		1
+	);
+
+	if ($diff_found)
+	{
+		my $log = $self->{logs};
+		my @saveout;
+		foreach my $diff_log (@diff_logs)
+		{
+			$log->add_log($diff_log);
+		}
+
+		$log->add_log($commit_info_file);
+		push(@saveout, $log->log_string);
+		my $orig_dir = Cwd::cwd();
+		chdir $self->{buildroot} . "/" . $self->{pgbranch};
+		writelog("abi-comp-check-$new_commit_hash", \@saveout);
+		chdir $orig_dir;
+	}
+	else
 	{
 		print time_str(),
 		  "No ABI differences found between $old_commit_hash and $new_commit_hash\n"
@@ -533,8 +571,8 @@ sub _process_commits_list
 sub print_logs
 {
 	my ($logss) = @_;
-
 	print "ABICompCheck: ", @$logss if @$logss;
+	return;
 }
 
 sub install
@@ -556,7 +594,8 @@ sub install
 		print time_str(),
 		  "ABICompCheck: No previous commit hash found, comparing last 2 commits only.\n"
 		  if $verbose;
-		my @two_commit_hashes = split /\n/, `git rev-list --max-count=2 HEAD`;
+		my @two_commit_hashes = split /\n/,
+		  `git rev-list --max-count=2 --abbrev-commit HEAD`;
 		print "Two commit hashes: @two_commit_hashes\n" if $verbose;
 		if (@two_commit_hashes < 2)
 		{
@@ -570,7 +609,7 @@ sub install
 	else
 	{
 		my @commits =
-		  `git rev-list --reverse $last_commit_hash..$head_commit_hash`;
+		  `git rev-list --reverse --abbrev-commit $last_commit_hash..$head_commit_hash`;
 		chomp @commits;
 		if (!@commits)
 		{
@@ -586,6 +625,7 @@ sub install
 		  if $verbose;
 		_process_commits_list($self, \@commits, $last_commit_hash);
 	}
+	$steps_completed .= " ABICompCheck";
 	$self->{install_ok} = 1;
 	return;
 }
