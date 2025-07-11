@@ -77,7 +77,9 @@ sub setup
 	mkdir "$abi_compare_root/install"
 	  unless -d "$abi_compare_root/install";
 
-	my $last_commit_hash_file = "$abi_compare_root/githead.log";
+	my $last_commit_hash_file = $abi_compare_root."/githead-".$branch.".log";
+			print("=================================$last_commit_hash_file=========================\n");
+
 	my $last_commit_hash;
 	if (-f $last_commit_hash_file)
 	{
@@ -165,7 +167,7 @@ sub need_run
 	# 	die "git pull failed with status $status";
 	# }
 
-	my $head_commit_hash = `git -C "$git_repo_path" rev-parse HEAD`;
+	my $head_commit_hash = `git -C "$git_repo_path" rev-list --max-count=1 --abbrev-commit HEAD`;
 	chomp $head_commit_hash;
 
 	$self->{head_commit_hash} = $head_commit_hash;
@@ -433,18 +435,17 @@ sub _compare_and_log_abi_diff
 		}
 	}
 
-	my $branch = $self->{pgbranch};
-	my $commit_info_file = "$log_dir/commit-info-$new_commit_hash.log";
-	_log_command_output(
-		$self,
-		qq{git show $new_commit_hash --quiet --pretty=format:"%cn%n%ce%n%cd%n%s%n%n%b"},
-		$commit_info_file,
-		"git show for $new_commit_hash",
-		1
-	);
 
 	if ($diff_found)
 	{
+		my $commit_info_file = "$log_dir/commit-info-$new_commit_hash.log";
+		_log_command_output(
+			$self,
+			qq{git show $new_commit_hash --quiet --pretty=format:"%cn%n%ce%n%cd%n%s%n%n%b"},
+			$commit_info_file,
+			"git show for $new_commit_hash",
+			1
+		);
 		my $log = $self->{logs};
 		my @saveout;
 		foreach my $diff_log (@diff_logs)
@@ -644,8 +645,7 @@ sub cleanup
 		&& $head_commit_hash ne ''
 		&& $self->{install_ok})
 	{
-		my $last_commit_hash_file = "$abi_compare_root/githead.log";
-
+		my $last_commit_hash_file = $abi_compare_root."/githead-".$self->{pgbranch}.".log";
 		open my $fh, '>', $last_commit_hash_file
 		  or die "Cannot open $last_commit_hash_file for write: $!";
 		print $fh "$head_commit_hash\n";
