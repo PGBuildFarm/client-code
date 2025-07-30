@@ -90,7 +90,8 @@ sub setup
 		abi_compare_root => $abi_compare_root,
 		binaries_rel_path => $binaries_rel_path,
 		abidw_flags_list => $abidw_flags_list
-		# fs_abi_compare_root => $fs_abi_compare_root,
+
+		  # fs_abi_compare_root => $fs_abi_compare_root,
 	};
 	bless($self, $class);
 
@@ -120,47 +121,54 @@ sub install
 	my $scm = PGBuild::SCM->new($self->{bfconf});
 
 	my $abi_compare_root = $self->{abi_compare_root};
-	my $pgbranch         = $self->{pgbranch};
-	my $abi_compare_loc  = "$abi_compare_root/$pgbranch";
+	my $pgbranch = $self->{pgbranch};
+	my $abi_compare_loc = "$abi_compare_root/$pgbranch";
 	mkdir $abi_compare_loc unless -d $abi_compare_loc;
 
 	my $latest_tag = run_log(qq{git -C ./pgsql describe --tags --abbrev=0});
 	chomp $latest_tag;
-	
+
 	my $latest_tag_file = "$abi_compare_loc/latest_tag";
-	
+
 	# Only proceed if the file doesn't exist or has no content
-	if (!-e $latest_tag_file || !-s $latest_tag_file) {
+	if (!-e $latest_tag_file || !-s $latest_tag_file)
+	{
 		# Store latest tag to file
-		open my $tag_fh, '>', $latest_tag_file or die "Could not open $latest_tag_file: $!";
+		open my $tag_fh, '>', $latest_tag_file
+		  or die "Could not open $latest_tag_file: $!";
 		print $tag_fh $latest_tag;
 		close $tag_fh;
 
 		my $tag_build_dir = "$abi_compare_loc/$latest_tag";
-		my $tag_log_dir   = "$tag_build_dir/build_logs";
+		my $tag_log_dir = "$tag_build_dir/build_logs";
 
 		mkpath($tag_log_dir)
 		  unless -d $tag_log_dir;
 
 		run_log(qq{git -C ./pgsql checkout $latest_tag});
+
 		# got this git save peice of code from PGBuild::SCM::Git::copy_source
 		move "./pgsql/.git", "./git-save";
-		PGBuild::SCM::copy_source($self->{bfconf}->{using_msvc},"./pgsql", "$tag_build_dir/pgsql");
+		PGBuild::SCM::copy_source($self->{bfconf}->{using_msvc},
+			"./pgsql", "$tag_build_dir/pgsql");
+
 		# finally restore the original branch
 		move "./git-save", "./pgsql/.git";
 
 		run_log(qq{git -C ./pgsql checkout bf_$pgbranch});
+
 		# now run the build steps
 		$self->configure($abi_compare_loc, $latest_tag);
 		$self->make($abi_compare_loc, $latest_tag);
 		$self->make_install($abi_compare_loc, $latest_tag);
-		
+
 		# Generate ABIDW XML files after installation
 		my $installdir = "$abi_compare_loc/$latest_tag/inst";
 		$self->_generate_abidw_xml($installdir, $abi_compare_loc, $latest_tag);
 	}
 
-	if (-d "./inst") {
+	if (-d "./inst")
+	{
 		$self->_generate_abidw_xml("./inst", $abi_compare_loc, $pgbranch);
 	}
 
@@ -175,8 +183,9 @@ sub meson_setup
 	my $self = shift;
 	my $installdir = shift;
 	my $env = $self->{bfconf}->{config_env};
-	$env = {%$env};                      # clone it
-	delete $env->{CC} if $self->{bfconf}->{using_msvc};    # this can confuse meson in this case
+	$env = {%$env};    # clone it
+	delete $env->{CC}
+	  if $self->{bfconf}->{using_msvc};    # this can confuse meson in this case
 	local %ENV = (%ENV, %$env);
 	$ENV{MSYS2_ARG_CONV_EXCL} = "-Dextra";
 
@@ -205,7 +214,8 @@ sub meson_setup
 	  if $docs_opts && ($self->{bfconf}->{extra_doc_targets} || "") =~ /[.]pdf/;
 
 	my $confstr = join(" ",
-		"-Dauto_features=disabled", @quoted_opts, $docs_opts, "-Dlibdir=lib",
+		"-Dauto_features=disabled", @quoted_opts,
+		$docs_opts, "-Dlibdir=lib",
 		qq{-Dprefix="$installdir"});
 
 	my $srcdir = $self->{bfconf}->{from_source} || 'pgsql';
@@ -220,7 +230,7 @@ sub meson_setup
 
 	my $log = PGBuild::Log->new("setup");
 	foreach my $logfile ("$pgsql/meson-logs/setup.log",
-						 "$pgsql/src/include/pg_config.h")
+		"$pgsql/src/include/pg_config.h")
 	{
 		$log->add_log($logfile) if -s $logfile;
 	}
@@ -244,7 +254,7 @@ sub msvc_setup
 {
 	my $self = shift;
 	my $config_opts = $self->{bfconf}->{config_opts} || {};
-	my $lconfig = { %$config_opts };
+	my $lconfig = {%$config_opts};
 	my $conf = Data::Dumper->Dump([$lconfig], ['config']);
 	my @text = (
 		"# Configuration arguments for vcbuild.\n",
@@ -277,7 +287,8 @@ sub configure
 	my $branch = $self->{pgbranch};
 	my $tag_log_dir = "$abi_compare_loc/$latest_tag/build_logs";
 
-	if ($self->{bfconf}->{using_meson} && ($branch eq 'HEAD' || $branch ge 'REL_16_STABLE'))
+	if ($self->{bfconf}->{using_meson}
+		&& ($branch eq 'HEAD' || $branch ge 'REL_16_STABLE'))
 	{
 		$self->meson_setup("$abi_compare_loc/$latest_tag/inst");
 		return;
@@ -305,14 +316,15 @@ sub configure
 		}
 	}
 
-	my $confstr = join(" ",
-		@quoted_opts, "--prefix=$abi_compare_loc/$latest_tag/inst");
+	my $confstr =
+	  join(" ", @quoted_opts, "--prefix=$abi_compare_loc/$latest_tag/inst");
 
 	# The use of accache kind of looks useless for this module since it will be a single build to be made, that too in only the first run case
 
 	my $env = $self->{bfconf}->{config_env};
 	$env = {%$env};    # shallow clone it
-	if ($self->{bfconf}->{use_valgrind} && exists $self->{bfconf}->{valgrind_config_env_extra})
+	if ($self->{bfconf}->{use_valgrind}
+		&& exists $self->{bfconf}->{valgrind_config_env_extra})
 	{
 		my $vgenv = $self->{bfconf}->{valgrind_config_env_extra};
 		while (my ($key, $val) = each %$vgenv)
@@ -334,7 +346,9 @@ sub configure
 		$envstr .= "$key='$val' ";
 	}
 
-	my @confout = run_log("$envstr cd $abi_compare_loc/$latest_tag/pgsql && ./configure $confstr");
+	my @confout = run_log(
+		"$envstr cd $abi_compare_loc/$latest_tag/pgsql && ./configure $confstr"
+	);
 
 	my $status = $? >> 8;
 
@@ -343,13 +357,14 @@ sub configure
 
 	if (-s "$abi_compare_loc/$latest_tag/pgsql/config.log")
 	{
-		my $log = PGBuild::Log->new($latest_tag."_configure");
+		my $log = PGBuild::Log->new($latest_tag . "_configure");
 		$log->add_log("config.log");
 		push(@confout, $log->log_string);
 	}
 
-	writelog($latest_tag."_configure", \@confout);
-	open my $fh, '>', "$tag_log_dir/configure.log" or die "Could not open $tag_log_dir/configure.log: $!";
+	writelog($latest_tag . "_configure", \@confout);
+	open my $fh, '>', "$tag_log_dir/configure.log"
+	  or die "Could not open $tag_log_dir/configure.log: $!";
 	print $fh @confout;
 	close $fh;
 
@@ -400,12 +415,15 @@ sub make
 		@makeout = run_log("cd $pgsql && $make_cmd");
 	}
 	my $status = $? >> 8;
-	writelog($latest_tag."_build", \@makeout);
-	open my $fh, '>', "$tag_log_dir/build.log" or die "Could not open $tag_log_dir/build.log: $!";
+	writelog($latest_tag . "_build", \@makeout);
+	open my $fh, '>', "$tag_log_dir/build.log"
+	  or die "Could not open $tag_log_dir/build.log: $!";
 	print $fh @makeout;
 	close $fh;
 	print "======== make log ===========\n", @makeout if ($verbose > 1);
-	$status ||= check_make_log_warnings('latestbuild', $verbose) if $check_warnings;
+	$status ||= check_make_log_warnings('latestbuild', $verbose)
+	  if $check_warnings;
+
 	# send_result('Build', $status, \@makeout) if $status;
 	return;
 }
@@ -444,11 +462,13 @@ sub make_install
 		@makeout = run_log("cd $pgsql && $make install");
 	}
 	my $status = $? >> 8;
-	writelog($latest_tag.'_make-install', \@makeout);
-	open my $fh, '>', "$tag_log_dir/install.log" or die "Could not open $tag_log_dir/install.log: $!";
+	writelog($latest_tag . '_make-install', \@makeout);
+	open my $fh, '>', "$tag_log_dir/install.log"
+	  or die "Could not open $tag_log_dir/install.log: $!";
 	print $fh @makeout;
 	close $fh;
 	print "======== make install log ===========\n", @makeout if ($verbose > 1);
+
 	# send_result('Install', $status, \@makeout) if $status;
 
 	# On Windows and Cygwin avoid path problems associated with DLLs
@@ -478,15 +498,18 @@ sub _generate_abidw_xml
 
 	my $binaries_rel_path = $self->{binaries_rel_path};
 	my $abidw_flags_str = join ' ', @{ $self->{abidw_flags_list} };
-	
+
 	# Determine if this is for a tag or current branch
 	my $xml_dir;
 	my $log_dir;
-	if ($version_identifier eq $self->{pgbranch}) {
+	if ($version_identifier eq $self->{pgbranch})
+	{
 		# Current branch
 		$xml_dir = "$abi_compare_loc/xmls";
 		$log_dir = "$abi_compare_loc/logs";
-	} else {
+	}
+	else
+	{
 		# Latest tag
 		$xml_dir = "$abi_compare_loc/$version_identifier/xmls";
 		$log_dir = "$abi_compare_loc/$version_identifier/build_logs";
@@ -505,7 +528,7 @@ sub _generate_abidw_xml
 			my $cmd =
 			  qq{abidw --out-file "$output_file" "$input_path" $abidw_flags_str};
 			my $log_file = "$log_dir/abidw-$target_name.log";
-			
+
 			my $exit_status =
 			  $self->_log_command_output($cmd, $log_file,
 				"abidw for $target_name", 1);
@@ -597,13 +620,10 @@ sub _compare_and_log_abi_diff
 
 		if (-e $tag_file && -e $branch_file)
 		{
-			my $log_file =
-			  "$log_dir/$key-$latest_tag-$current_branch.log";
+			my $log_file = "$log_dir/$key-$latest_tag-$current_branch.log";
 			my $exit_status = $self->_log_command_output(
 				qq{abidiff "$tag_file" "$branch_file" --leaf-changes-only --no-added-syms --show-bytes},
-				$log_file,
-				"abidiff for $key",
-				1
+				$log_file, "abidiff for $key", 1
 			);
 
 			if ($exit_status != 0)
@@ -618,8 +638,7 @@ sub _compare_and_log_abi_diff
 		elsif (-e $tag_file xor -e $branch_file)
 		{
 			$diff_found = 1;
-			my $log_file =
-			  "$log_dir/$key-$latest_tag-$current_branch.log";
+			my $log_file = "$log_dir/$key-$latest_tag-$current_branch.log";
 			print time_str(),
 			  "ABI difference for $key: one file is missing (tag: $tag_file, branch: $branch_file). Comparison skipped.\n"
 			  if $verbose;
