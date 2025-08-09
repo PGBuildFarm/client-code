@@ -132,7 +132,7 @@ sub install
 	chomp $latest_tag;
 
 	my $latest_tag_file = "$abi_compare_loc/latest_tag";
-
+	#git rev-list --reverse bf_REL_14_STABLE | head -n 1 # dont know how to use this here
 	# Only proceed if the file doesn't exist or has no content
 	my $previous_tag = '';
 	if (-e $latest_tag_file)
@@ -182,6 +182,25 @@ sub install
 		# Generate ABIDW XML files after installation
 		my $installdir = "$abi_compare_loc/$latest_tag/inst";
 		$self->_generate_abidw_xml($installdir, $abi_compare_loc, $latest_tag);
+	}
+	else
+	{
+		# Check if XML files for latest tag exist, generate if missing
+		my $tag_inst_dir = "$abi_compare_loc/$latest_tag/inst";
+		my $tag_xml_dir = "$abi_compare_loc/$latest_tag/xmls";
+		if (-d $tag_inst_dir)
+		{
+			foreach my $key (keys %{ $self->{binaries_rel_path} })
+			{
+				my $xml_file = "$tag_xml_dir/$key.abi";
+				if (!-e $xml_file)
+				{
+					emit "regenerating missing ABI XML for $latest_tag for $key binary";
+					$self->_generate_abidw_xml($tag_inst_dir,
+						$abi_compare_loc, $latest_tag);
+				}
+			}
+		}
 	}
 
 	if (-d "./inst")
@@ -689,7 +708,7 @@ sub cleanup
 		}
 		return unless $current_tag; # this could happen only in some worst case
 
-		rmtree("$abi_compare_loc/$current_tag/inst") if -d "$abi_compare_loc/$current_tag/inst";
+		# rmtree("$abi_compare_loc/$current_tag/inst") if -d "$abi_compare_loc/$current_tag/inst";
 		rmtree("$abi_compare_loc/$current_tag/pgsql") if -d "$abi_compare_loc/$current_tag/pgsql";
 		rmtree("$abi_compare_loc/$current_tag/build_logs") if -d "$abi_compare_loc/$current_tag/build_logs";
 	}
