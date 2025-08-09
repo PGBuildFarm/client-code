@@ -27,6 +27,10 @@ use Cwd qw(abs_path getcwd);
 
 our ($VERSION); $VERSION = 'REL_19_1';
 
+sub emit {
+	print time_str(), "ABICompCheck ::  ", @_, "\n" if $verbose;
+}
+
 my $hooks = {
 	'need-run' => \&need_run,
 	'install' => \&install,
@@ -42,9 +46,11 @@ sub setup
 	my $conf = shift;         # ref to the whole config object
 	my $pgsql = shift;        # postgres build dir
 
-	# We are only testing HEAD and stable branches, so ignore all others.
-	return if $branch ne 'HEAD' && $branch !~ /_STABLE$/;
-	print $buildroot, " ", $branch, " ", $conf, " ", $pgsql, "\n" if $verbose;
+	# We are only testing stable branches, so ignore all others.
+	return if $branch !~ /_STABLE$/;
+	return if $conf->{using_msvc};
+	return if $conf->{scm} ne 'git';
+	# print $buildroot, " ", $branch, " ", $conf, " ", $pgsql, "\n" if $verbose;
 
 	my $abi_compare_root =
 	  $conf->{abi_compare_root} || "$buildroot/abicheck.$conf->{animal}";
@@ -106,8 +112,7 @@ sub need_run
 	my $run_needed = shift;    # ref to flag
 	my $abi_compare_loc = "$self->{abi_compare_root}/$self->{pgbranch}";
 
-	print time_str(), "checking if run needed by ", __PACKAGE__, "\n"
-	  if $verbose;
+	emit "checking if run needed";
 	return;
 }
 
@@ -116,13 +121,11 @@ sub install
 	my $self = shift;
 	return unless step_wanted('abi_comp-check');
 
-	print time_str(), "install", __PACKAGE__, "\n"
-	  if $verbose;
+	emit "install";
 	my $scm = PGBuild::SCM->new($self->{bfconf});
 
-	my $abi_compare_root = $self->{abi_compare_root};
 	my $pgbranch = $self->{pgbranch};
-	my $abi_compare_loc = "$abi_compare_root/$pgbranch";
+	my $abi_compare_loc = "$self->{abi_compare_root}/$pgbranch";
 	mkdir $abi_compare_loc unless -d $abi_compare_loc;
 
 	my $latest_tag = run_log(qq{git -C ./pgsql describe --tags --abbrev=0});
@@ -131,8 +134,22 @@ sub install
 	my $latest_tag_file = "$abi_compare_loc/latest_tag";
 
 	# Only proceed if the file doesn't exist or has no content
-	if (!-e $latest_tag_file || !-s $latest_tag_file)
+	my $previous_tag = '';
+	if (-e $latest_tag_file)
 	{
+		open my $fh, '<', $latest_tag_file
+		  or die "Cannot open $latest_tag_file: $!";
+		$previous_tag = <$fh>;
+		close $fh;
+		chomp $previous_tag if $previous_tag;
+	}
+
+	if (   !-e $latest_tag_file
+		|| !-s $latest_tag_file
+		|| $previous_tag ne $latest_tag)
+	{
+		rmtree("$abi_compare_loc/$previous_tag")
+		  if $previous_tag && -d "$abi_compare_loc/$previous_tag";
 		# Store latest tag to file
 		open my $tag_fh, '>', $latest_tag_file
 		  or die "Could not open $latest_tag_file: $!";
@@ -182,6 +199,7 @@ sub meson_setup
 {
 	my $self = shift;
 	my $installdir = shift;
+	my $latest_tag = shift;
 	my $env = $self->{bfconf}->{config_env};
 	$env = {%$env};    # clone it
 	delete $env->{CC}
@@ -228,7 +246,7 @@ sub meson_setup
 
 	move "$pgsql/meson-logs/meson-log.txt", "$pgsql/meson-logs/setup.log";
 
-	my $log = PGBuild::Log->new("setup");
+	my $log = PGBuild::Log->new($latest_tag . "setup");
 	foreach my $logfile ("$pgsql/meson-logs/setup.log",
 		"$pgsql/src/include/pg_config.h")
 	{
@@ -236,10 +254,9 @@ sub meson_setup
 	}
 	push(@confout, $log->log_string);
 
-	print "======== setup output ===========\n", @confout
-	  if ($verbose > 1);
+	emit "======== setup output ===========\n", @confout if ($verbose > 1);
 
-	writelog('configure', \@confout);
+	writelog($latest_tag . 'configure', \@confout);
 
 	# if ($status)
 	# {
@@ -283,7 +300,7 @@ sub configure
 	my $self = shift;
 	my $abi_compare_loc = shift;
 	my $latest_tag = shift;
-	print time_str(), "running configure ...\n" if $verbose;
+	emit "running configure ...";
 	my $branch = $self->{pgbranch};
 	my $tag_log_dir = "$abi_compare_loc/$latest_tag/build_logs";
 
@@ -302,7 +319,7 @@ sub configure
 
 	# autoconf/configure setup
 	my $config_opts = $self->{bfconf}->{config_opts} || [];
-	print "Config opts: ", join(", ", @$config_opts), "\n";
+
 	my @quoted_opts;
 	foreach my $c_opt (@$config_opts)
 	{
@@ -352,8 +369,7 @@ sub configure
 
 	my $status = $? >> 8;
 
-	print "======== configure output ===========\n", @confout
-	  if ($verbose > 1);
+	emit "======== configure output ===========\n", @confout  if ($verbose > 1);
 
 	if (-s "$abi_compare_loc/$latest_tag/pgsql/config.log")
 	{
@@ -381,7 +397,7 @@ sub make
 	my $self = shift;
 	my $abi_compare_loc = shift;
 	my $latest_tag = shift;
-	print time_str(), "running build ...\n" if $verbose;
+	emit "running build ...";
 
 	my $pgsql = "$abi_compare_loc/$latest_tag/pgsql";
 	my $tag_log_dir = "$abi_compare_loc/$latest_tag/build_logs";
@@ -420,7 +436,7 @@ sub make
 	  or die "Could not open $tag_log_dir/build.log: $!";
 	print $fh @makeout;
 	close $fh;
-	print "======== make log ===========\n", @makeout if ($verbose > 1);
+	emit "======== make log ===========\n", @makeout if ($verbose > 1);
 	$status ||= check_make_log_warnings('latestbuild', $verbose)
 	  if $check_warnings;
 
@@ -433,7 +449,7 @@ sub make_install
 	my $self = shift;
 	my $abi_compare_loc = shift;
 	my $latest_tag = shift;
-	print time_str(), "running install ...\n" if $verbose;
+	emit "running install ...";
 
 	my $pgsql = "$abi_compare_loc/$latest_tag/pgsql";
 	my $installdir = "$abi_compare_loc/$latest_tag/inst";
@@ -467,7 +483,7 @@ sub make_install
 	  or die "Could not open $tag_log_dir/install.log: $!";
 	print $fh @makeout;
 	close $fh;
-	print "======== make install log ===========\n", @makeout if ($verbose > 1);
+	emit "======== make install log ===========\n", @makeout if ($verbose > 1);
 
 	# send_result('Install', $status, \@makeout) if $status;
 
@@ -492,9 +508,7 @@ sub _generate_abidw_xml
 	my $abi_compare_loc = shift;
 	my $version_identifier = shift;
 
-	print time_str(), "Generating ABIDW XML for $version_identifier in ",
-	  __PACKAGE__, "\n"
-	  if $verbose;
+	emit "Generating ABIDW XML for $version_identifier";
 
 	my $binaries_rel_path = $self->{binaries_rel_path};
 	my $abidw_flags_str = join ' ', @{ $self->{abidw_flags_list} };
@@ -535,22 +549,16 @@ sub _generate_abidw_xml
 
 			if ($exit_status)
 			{
-				print time_str(),
-				  "abidw failed for $target_name (from $input_path) with status $exit_status. Version: $version_identifier\n"
-				  if $verbose;
+				emit "abidw failed for $target_name (from $input_path) with status $exit_status. Version: $version_identifier";
 			}
 			else
 			{
-				print time_str(),
-				  "Successfully generated ABI XML for $target_name to $output_file\n"
-				  if $verbose;
+				emit "Successfully generated ABI XML for $target_name";
 			}
 		}
 		else
 		{
-			print time_str(),
-			  "Warning: Input file '$input_path' for $target_name not found. Skipping ABI generation for this target.\n"
-			  if $verbose;
+			emit "Warning: Input file '$input_path' for $target_name not found. Skipping ABI generation for this target.";
 		}
 	}
 
@@ -561,7 +569,7 @@ sub _log_command_output
 {
 	my ($self, $cmd, $log_file, $cmd_desc, $no_die) = @_;
 
-	print time_str(), "Executing: $cmd_desc\n" if $verbose;
+	emit "Executing: $cmd_desc";
 
 	my @output = run_log(qq{$cmd});
 	my $exit_status = $? >> 8;
@@ -582,8 +590,7 @@ sub _log_command_output
 	}
 	else
 	{
-		print time_str(), "Successfully executed $cmd_desc\n"
-		  if $verbose;
+		emit "Successfully executed $cmd_desc";
 	}
 	return $exit_status;
 }
@@ -593,22 +600,20 @@ sub _compare_and_log_abi_diff
 	my ($self, $latest_tag, $current_branch) = @_;
 	if (!defined $latest_tag || !defined $current_branch)
 	{
-		print time_str(),
-		  "Warning: _compare_and_log_abi_diff called with undefined parameters. Skipping comparison.\n"
-		  if $verbose;
+		emit "Warning: _compare_and_log_abi_diff called with undefined parameters. Skipping comparison.";
 		return 0;
 	}
 
 	my $abi_compare_root = $self->{abi_compare_root};
 	my $pgbranch = $self->{pgbranch};
 
-	print time_str(),
-	  "Comparing ABI between latest tag $latest_tag and current branch $current_branch\n"
-	  if $verbose;
+	emit "Comparing ABI between latest tag $latest_tag and it's latest commit";
 
 	my $tag_xml_dir = "$abi_compare_root/$pgbranch/$latest_tag/xmls";
 	my $branch_xml_dir = "$abi_compare_root/$pgbranch/xmls";
 	my $log_dir = "$abi_compare_root/$pgbranch/diffs";
+
+	rmtree($log_dir) if -d $log_dir;
 	mkpath($log_dir) unless -d $log_dir;
 	my $diff_found = 0;
 	my $log = PGBuild::Log->new("abi-comp-check-$current_branch");
@@ -630,27 +635,23 @@ sub _compare_and_log_abi_diff
 			{
 				$diff_found = 1;
 				$log->add_log($log_file);
-				print time_str(),
-				  "ABI difference found for $key. Log: $log_file\n"
-				  if $verbose;
+				emit "ABI difference found for $key.abi";
 			}
 		}
 		elsif (-e $tag_file xor -e $branch_file)
 		{
 			$diff_found = 1;
 			my $log_file = "$log_dir/$key-$latest_tag-$current_branch.log";
-			print time_str(),
-			  "ABI difference for $key: one file is missing (tag: $tag_file, branch: $branch_file). Comparison skipped.\n"
-			  if $verbose;
+			emit "ABI difference for $key: one file is missing (tag: $tag_file, branch: $branch_file). Comparison skipped.";
 			open my $fh, '>', $log_file
 			  or warn "could not open $log_file: $!";
 			if ($fh)
 			{
 				print $fh "ABI difference: one file is missing.\n";
 				print $fh "Tag file: $tag_file (exists: "
-				  . (-e $tag_file) . ")\n";
+				  . ((-e $tag_file) ? 1 : 0) . ")\n";
 				print $fh "Branch file: $branch_file (exists: "
-				  . (-e $branch_file) . ")\n";
+				  . ((-e $branch_file) ? 1 : 0) . ")\n";
 				close $fh;
 			}
 		}
@@ -664,9 +665,7 @@ sub _compare_and_log_abi_diff
 	}
 	else
 	{
-		print time_str(),
-		  "No ABI differences found between $latest_tag and $current_branch\n"
-		  if $verbose;
+		emit "No ABI differences found between $latest_tag and $current_branch";
 	}
 	return $diff_found;
 }
@@ -674,8 +673,28 @@ sub _compare_and_log_abi_diff
 sub cleanup
 {
 	my $self = shift;
+	if (!$keepall) {
+		my $abi_compare_loc = "$self->{abi_compare_root}/$self->{pgbranch}";
+		my $latest_tag_file = "$abi_compare_loc/latest_tag";
 
-	print time_str(), "cleaning up ", __PACKAGE__, "\n" if $verbose > 1;
+		# Only proceed if the file doesn't exist or has no content
+		my $current_tag = '';
+		if (-e $latest_tag_file)
+		{
+			open my $fh, '<', $latest_tag_file
+			or die "Cannot open $latest_tag_file: $!";
+			$current_tag = <$fh>;
+			close $fh;
+			chomp $current_tag if $current_tag;
+		}
+		return unless $current_tag; # this could happen only in some worst case
+
+		rmtree("$abi_compare_loc/$current_tag/inst") if -d "$abi_compare_loc/$current_tag/inst";
+		rmtree("$abi_compare_loc/$current_tag/pgsql") if -d "$abi_compare_loc/$current_tag/pgsql";
+		rmtree("$abi_compare_loc/$current_tag/build_logs") if -d "$abi_compare_loc/$current_tag/build_logs";
+	}
+
+	emit "cleaning up" if $verbose > 1;
 	return;
 }
 
