@@ -28,7 +28,7 @@ use Cwd qw(abs_path getcwd);
 our ($VERSION); $VERSION = 'REL_19_1';
 
 sub emit {
-	print time_str(), "ABICompCheck ::  ", @_, "\n" if $verbose;
+	print time_str(), "ABICompCheck :: ", @_, "\n" if $verbose;
 }
 
 my $hooks = {
@@ -47,9 +47,38 @@ sub setup
 	my $pgsql = shift;        # postgres build dir
 
 	# We are only testing stable branches, so ignore all others.
-	return if $branch !~ /_STABLE$/;
-	return if $conf->{using_msvc};
-	return if $conf->{scm} ne 'git';
+	if ($conf->{scm} ne 'git')
+	{
+		emit("Only git SCM is supported for ABICompCheck Module, skipping.");
+		return;
+	}
+	if ($branch !~ /_STABLE$/)
+	{
+		emit("Skipping ABI check, '$branch' is not a stable branch.");
+		return;
+	}
+	if ($conf->{using_msvc})
+	{
+		emit("MSVC builds are not supported for ABICompCheck Module, skipping.");
+		return;
+	}
+	if ($conf->{using_meson})
+	{
+		# not working, can't understand why
+		my $meson_opts = $conf->{meson_opts} || [];
+		unless (grep { $_ eq '--debug' } @$meson_opts)
+		{
+			emit("--debug is required option for ABICompCheck with meson.");
+			return;
+		}
+	}else{
+		my $config_opts = $conf->{config_opts} || [];
+		unless (grep { $_ eq '--enable-debug' } @$config_opts)
+		{
+			emit("--enable-debug is required option for ABICompCheck.");
+			return;
+		}
+	}
 	# print $buildroot, " ", $branch, " ", $conf, " ", $pgsql, "\n" if $verbose;
 
 	my $abi_compare_root =
@@ -112,7 +141,7 @@ sub need_run
 	my $run_needed = shift;    # ref to flag
 	my $abi_compare_loc = "$self->{abi_compare_root}/$self->{pgbranch}";
 
-	emit "checking if run needed";
+	# emit "checking if run needed";
 	return;
 }
 
@@ -128,12 +157,24 @@ sub install
 	my $abi_compare_loc = "$self->{abi_compare_root}/$pgbranch";
 	mkdir $abi_compare_loc unless -d $abi_compare_loc;
 
-	my $latest_tag = run_log(qq{git -C ./pgsql describe --tags --abbrev=0});
+	my $latest_tag = run_log(qq{git -C ./pgsql describe --tags --abbrev=0 2>/dev/null});
 	chomp $latest_tag;
+	my $comparison_ref = '';
+	$comparison_ref = run_log(qq{git -C ./pgsql merge-base master bf_$pgbranch});
+	chomp $comparison_ref;
+
+	if ($latest_tag) {
+		my $tag_commit = run_log(qq{git -C ./pgsql rev-list -n 1 $latest_tag});
+		chomp $tag_commit;
+
+		my $is_ancestor = system(qq{git -C ./pgsql merge-base --is-ancestor $tag_commit $comparison_ref 2>/dev/null});
+		if ($is_ancestor != 0) {
+			$comparison_ref = $latest_tag;
+			emit "Latest tag: $latest_tag";
+		}
+	}
 
 	my $latest_tag_file = "$abi_compare_loc/latest_tag";
-	#git rev-list --reverse bf_REL_14_STABLE | head -n 1 # dont know how to use this here
-	# Only proceed if the file doesn't exist or has no content
 	my $previous_tag = '';
 	if (-e $latest_tag_file)
 	{
@@ -146,23 +187,23 @@ sub install
 
 	if (   !-e $latest_tag_file
 		|| !-s $latest_tag_file
-		|| $previous_tag ne $latest_tag)
+		|| $previous_tag ne $comparison_ref)
 	{
 		rmtree("$abi_compare_loc/$previous_tag")
 		  if $previous_tag && -d "$abi_compare_loc/$previous_tag";
 		# Store latest tag to file
 		open my $tag_fh, '>', $latest_tag_file
 		  or die "Could not open $latest_tag_file: $!";
-		print $tag_fh $latest_tag;
+		print $tag_fh $comparison_ref;
 		close $tag_fh;
 
-		my $tag_build_dir = "$abi_compare_loc/$latest_tag";
+		my $tag_build_dir = "$abi_compare_loc/$comparison_ref";
 		my $tag_log_dir = "$tag_build_dir/build_logs";
 
 		mkpath($tag_log_dir)
 		  unless -d $tag_log_dir;
 
-		run_log(qq{git -C ./pgsql checkout $latest_tag});
+		run_log(qq{git -C ./pgsql checkout $comparison_ref});
 
 		# got this git save peice of code from PGBuild::SCM::Git::copy_source
 		move "./pgsql/.git", "./git-save";
@@ -175,19 +216,19 @@ sub install
 		run_log(qq{git -C ./pgsql checkout bf_$pgbranch});
 
 		# now run the build steps
-		$self->configure($abi_compare_loc, $latest_tag);
-		$self->make($abi_compare_loc, $latest_tag);
-		$self->make_install($abi_compare_loc, $latest_tag);
+		$self->configure($abi_compare_loc, $comparison_ref);
+		$self->make($abi_compare_loc, $comparison_ref);
+		$self->make_install($abi_compare_loc, $comparison_ref);
 
 		# Generate ABIDW XML files after installation
-		my $installdir = "$abi_compare_loc/$latest_tag/inst";
-		$self->_generate_abidw_xml($installdir, $abi_compare_loc, $latest_tag);
+		my $installdir = "$abi_compare_loc/$comparison_ref/inst";
+		$self->_generate_abidw_xml($installdir, $abi_compare_loc, $comparison_ref);
 	}
 	else
 	{
 		# Check if XML files for latest tag exist, generate if missing
-		my $tag_inst_dir = "$abi_compare_loc/$latest_tag/inst";
-		my $tag_xml_dir = "$abi_compare_loc/$latest_tag/xmls";
+		my $tag_inst_dir = "$abi_compare_loc/$comparison_ref/inst";
+		my $tag_xml_dir = "$abi_compare_loc/$comparison_ref/xmls";
 		if (-d $tag_inst_dir)
 		{
 			foreach my $key (keys %{ $self->{binaries_rel_path} })
@@ -195,9 +236,9 @@ sub install
 				my $xml_file = "$tag_xml_dir/$key.abi";
 				if (!-e $xml_file)
 				{
-					emit "regenerating missing ABI XML for $latest_tag for $key binary";
+					emit "regenerating missing ABI XML for $comparison_ref for $key binary";
 					$self->_generate_abidw_xml($tag_inst_dir,
-						$abi_compare_loc, $latest_tag);
+						$abi_compare_loc, $comparison_ref);
 				}
 			}
 		}
@@ -209,7 +250,7 @@ sub install
 	}
 
 	# Compare ABI between current branch and latest tag
-	$self->_compare_and_log_abi_diff($latest_tag, $pgbranch);
+	$self->_compare_and_log_abi_diff($comparison_ref, $pgbranch);
 
 	return;
 }
@@ -508,7 +549,6 @@ sub make_install
 
 	# On Windows and Cygwin avoid path problems associated with DLLs
 	# by copying them to the bin dir where the system will pick them
-	# up regardless.
 
 	foreach my $dll (glob("$installdir/lib/*pq.dll"))
 	{
@@ -635,7 +675,7 @@ sub _compare_and_log_abi_diff
 	rmtree($log_dir) if -d $log_dir;
 	mkpath($log_dir) unless -d $log_dir;
 	my $diff_found = 0;
-	my $log = PGBuild::Log->new("abi-comp-check-$current_branch");
+	my $log = PGBuild::Log->new("abi-comp-check");
 
 	foreach my $key (keys %{ $self->{binaries_rel_path} })
 	{
@@ -644,7 +684,7 @@ sub _compare_and_log_abi_diff
 
 		if (-e $tag_file && -e $branch_file)
 		{
-			my $log_file = "$log_dir/$key-$latest_tag-$current_branch.log";
+			my $log_file = "$log_dir/$key-$latest_tag.log";
 			my $exit_status = $self->_log_command_output(
 				qq{abidiff "$tag_file" "$branch_file" --leaf-changes-only --no-added-syms --show-bytes},
 				$log_file, "abidiff for $key", 1
@@ -660,7 +700,7 @@ sub _compare_and_log_abi_diff
 		elsif (-e $tag_file xor -e $branch_file)
 		{
 			$diff_found = 1;
-			my $log_file = "$log_dir/$key-$latest_tag-$current_branch.log";
+			my $log_file = "$log_dir/$key-$latest_tag.log";
 			emit "ABI difference for $key: one file is missing (tag: $tag_file, branch: $branch_file). Comparison skipped.";
 			open my $fh, '>', $log_file
 			  or warn "could not open $log_file: $!";
