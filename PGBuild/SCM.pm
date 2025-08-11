@@ -1074,9 +1074,15 @@ sub _update_target
 	my @gitlog;
 
 	# If a run crashed during copy_source(), repair.
-	if (-d "./git-save" && !-d "$target/.git")
+	if (-d "./git-save")
 	{
-		move "./git-save", "$target/.git";
+		system(qq{git -C $target rev-parse --is-inside-work-tree > $devnull 2>&1});
+		if ($?)
+		{
+			require File::Path;
+			File::Path::remove_tree("$target/.git");
+			move "./git-save", "$target/.git";
+		}
 	}
 
 	chdir $target;
