@@ -473,18 +473,19 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 
 	# perform a dump from the old database for comparison purposes.
-	my $extra_digits = "";
+	# $dump_opts contains dump switches to use for both old and new databases.
+	my $dump_opts = ' --restrict-key=test';
 
 	if (   $oversion ne 'HEAD'
 		&& $oversion le 'REL_11_STABLE'
 		&& ($this_branch eq 'HEAD' || $this_branch gt 'REL_11_STABLE'))
 	{
-		$extra_digits = ' --extra-float-digits=0';
+		$dump_opts .= ' --extra-float-digits=0';
 	}
 
 	# use the NEW pg_dumpall so we're comparing apples with apples.
 	setinstenv($self, "$installdir", $save_env);
-	system( qq{"$installdir/bin/pg_dumpall" $extra_digits -p $sport -f }
+	system( qq{"$installdir/bin/pg_dumpall" $dump_opts -p $sport -f }
 		  . qq{"$upgrade_loc/origin-$oversion.sql" }
 		  . qq{> "$upgrade_loc/$oversion-dump1.log" 2>&1});
 	return if $?;
@@ -588,7 +589,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		return if $?;
 	}
 
-	system( "pg_dumpall $extra_digits -f "
+	system( "pg_dumpall $dump_opts -f "
 		  . qq{"$upgrade_loc/converted-$oversion-to-$this_branch.sql" }
 		  . qq{> "$upgrade_loc/converted-$oversion-$this_branch.log" 2>&1});
 	return if $?;
