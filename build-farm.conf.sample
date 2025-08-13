@@ -416,6 +416,16 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		#             },
 	},
 
+	abi_comp_check => {
+
+		# binaries_rel_path => {
+		# 	'postgres' => 'bin/postgres'
+		# },
+		# abidw_flags_list => [
+		# 	'--drop-undefined-syms'
+		# ]
+	}
+
 );
 
 
