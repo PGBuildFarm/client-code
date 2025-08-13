@@ -32,7 +32,7 @@ sub emit {
 }
 
 my $hooks = {
-	'need-run' => \&need_run,
+	# 'need-run' => \&need_run,
 	'install' => \&install,
 	'cleanup' => \&cleanup,
 };
@@ -91,19 +91,18 @@ sub setup
 		$abi_compare_root = "$buildroot/abicheck";
 	}
 
-	my $binaries_rel_path = $conf->{abi_comp_check}->{binaries_rel_path}
+	my $binaries_rel_path = $conf->{abi_comp_check}{binaries_rel_path}
 	  || {
 		'postgres' => 'bin/postgres',
 		'ecpg' => 'bin/ecpg',
 		'libpq.so' => 'lib/libpq.so',
 	  };
 
-	my $abidw_flags_list = $conf->{abi_comp_check}->{abidw_flags_list}
-	  || [
-		'--drop-undefined-syms', '--no-architecture', '--no-comp-dir-path',
-		'--no-elf-needed', '--no-show-locs', '--type-id-style',
-		'hash',
-	  ];
+	my $abidw_flags_list = $conf->{abi_comp_check}{abidw_flags_list}
+	  || [qw(  
+        --drop-undefined-syms --no-architecture --no-comp-dir-path  
+        --no-elf-needed --no-show-locs --type-id-style hash  
+      )];
 
 	mkdir $abi_compare_root
 	  unless -d $abi_compare_root;
@@ -132,16 +131,6 @@ sub setup
 
 	# for each instance you create, do:
 	register_module_hooks($self, $hooks);
-	return;
-}
-
-sub need_run
-{
-	my $self = shift;
-	my $run_needed = shift;    # ref to flag
-	my $abi_compare_loc = "$self->{abi_compare_root}/$self->{pgbranch}";
-
-	# emit "checking if run needed";
 	return;
 }
 
@@ -185,9 +174,7 @@ sub install
 		chomp $previous_tag if $previous_tag;
 	}
 
-	if (   !-e $latest_tag_file
-		|| !-s $latest_tag_file
-		|| $previous_tag ne $comparison_ref)
+	if ($previous_tag ne $comparison_ref)
 	{
 		rmtree("$abi_compare_loc/$previous_tag")
 		  if $previous_tag && -d "$abi_compare_loc/$previous_tag";
@@ -207,7 +194,7 @@ sub install
 
 		# got this git save peice of code from PGBuild::SCM::Git::copy_source
 		move "./pgsql/.git", "./git-save";
-		PGBuild::SCM::copy_source($self->{bfconf}->{using_msvc},
+		PGBuild::SCM::copy_source($self->{bfconf}{using_msvc},
 			"./pgsql", "$tag_build_dir/pgsql");
 
 		# finally restore the original branch
@@ -248,9 +235,11 @@ sub install
 	{
 		$self->_generate_abidw_xml("./inst", $abi_compare_loc, $pgbranch);
 	}
+	my $latest_commit_sha = run_log(qq{git -C ./pgsql rev-parse HEAD});
+	chomp $latest_commit_sha;
 
 	# Compare ABI between current branch and latest tag
-	$self->_compare_and_log_abi_diff($comparison_ref, $pgbranch);
+	$self->_compare_and_log_abi_diff($comparison_ref, $pgbranch, $latest_commit_sha);
 
 	return;
 }
@@ -260,14 +249,14 @@ sub meson_setup
 	my $self = shift;
 	my $installdir = shift;
 	my $latest_tag = shift;
-	my $env = $self->{bfconf}->{config_env};
+	my $env = $self->{bfconf}{config_env};
 	$env = {%$env};    # clone it
 	delete $env->{CC}
-	  if $self->{bfconf}->{using_msvc};    # this can confuse meson in this case
+	  if $self->{bfconf}{using_msvc};    # this can confuse meson in this case
 	local %ENV = (%ENV, %$env);
 	$ENV{MSYS2_ARG_CONV_EXCL} = "-Dextra";
 
-	my $meson_opts = $self->{bfconf}->{meson_opts} || [];
+	my $meson_opts = $self->{bfconf}{meson_opts} || [];
 	my @quoted_opts;
 	foreach my $c_opt (@$meson_opts)
 	{
@@ -275,7 +264,7 @@ sub meson_setup
 		{
 			push(@quoted_opts, $c_opt);
 		}
-		elsif ($self->{bfconf}->{using_msvc})
+		elsif ($self->{bfconf}{using_msvc})
 		{
 			push(@quoted_opts, qq{"$c_opt"});
 		}
@@ -287,16 +276,16 @@ sub meson_setup
 
 	my $docs_opts = "";
 	$docs_opts = "-Ddocs=enabled"
-	  if defined($self->{bfconf}->{optional_steps}->{build_docs});
+	  if defined($self->{bfconf}{optional_steps}{build_docs});
 	$docs_opts .= " -Ddocs_pdf=enabled"
-	  if $docs_opts && ($self->{bfconf}->{extra_doc_targets} || "") =~ /[.]pdf/;
+	  if $docs_opts && ($self->{bfconf}{extra_doc_targets} || "") =~ /[.]pdf/;
 
 	my $confstr = join(" ",
 		"-Dauto_features=disabled", @quoted_opts,
 		$docs_opts, "-Dlibdir=lib",
 		qq{-Dprefix="$installdir"});
 
-	my $srcdir = $self->{bfconf}->{from_source} || 'pgsql';
+	my $srcdir = $self->{bfconf}{from_source} || 'pgsql';
 	my $pgsql = $self->{pgsql};
 
 	# use default ninja backend on all platforms
@@ -330,7 +319,7 @@ sub meson_setup
 sub msvc_setup
 {
 	my $self = shift;
-	my $config_opts = $self->{bfconf}->{config_opts} || {};
+	my $config_opts = $self->{bfconf}{config_opts} || {};
 	my $lconfig = {%$config_opts};
 	my $conf = Data::Dumper->Dump([$lconfig], ['config']);
 	my @text = (
@@ -364,21 +353,21 @@ sub configure
 	my $branch = $self->{pgbranch};
 	my $tag_log_dir = "$abi_compare_loc/$latest_tag/build_logs";
 
-	if ($self->{bfconf}->{using_meson}
+	if ($self->{bfconf}{using_meson}
 		&& ($branch eq 'HEAD' || $branch ge 'REL_16_STABLE'))
 	{
 		$self->meson_setup("$abi_compare_loc/$latest_tag/inst");
 		return;
 	}
 
-	if ($self->{bfconf}->{using_msvc})
+	if ($self->{bfconf}{using_msvc})
 	{
 		$self->msvc_setup();
 		return;
 	}
 
 	# autoconf/configure setup
-	my $config_opts = $self->{bfconf}->{config_opts} || [];
+	my $config_opts = $self->{bfconf}{config_opts} || [];
 
 	my @quoted_opts;
 	foreach my $c_opt (@$config_opts)
@@ -398,12 +387,12 @@ sub configure
 
 	# The use of accache kind of looks useless for this module since it will be a single build to be made, that too in only the first run case
 
-	my $env = $self->{bfconf}->{config_env};
+	my $env = $self->{bfconf}{config_env};
 	$env = {%$env};    # shallow clone it
-	if ($self->{bfconf}->{use_valgrind}
-		&& exists $self->{bfconf}->{valgrind_config_env_extra})
+	if ($self->{bfconf}{use_valgrind}
+		&& exists $self->{bfconf}{valgrind_config_env_extra})
 	{
-		my $vgenv = $self->{bfconf}->{valgrind_config_env_extra};
+		my $vgenv = $self->{bfconf}{valgrind_config_env_extra};
 		while (my ($key, $val) = each %$vgenv)
 		{
 			if (defined $env->{$key})
@@ -462,9 +451,9 @@ sub make
 	my $pgsql = "$abi_compare_loc/$latest_tag/pgsql";
 	my $tag_log_dir = "$abi_compare_loc/$latest_tag/build_logs";
 	my (@makeout);
-	if ($self->{bfconf}->{using_meson})
+	if ($self->{bfconf}{using_meson})
 	{
-		my $meson_jobs = $self->{bfconf}->{meson_jobs};
+		my $meson_jobs = $self->{bfconf}{meson_jobs};
 		my $jflag = defined($meson_jobs) ? " --jobs=$meson_jobs" : "";
 		@makeout = run_log("meson compile -C $pgsql --verbose $jflag");
 		move "$pgsql/meson-logs/meson-log.txt", "$pgsql/meson-logs/compile.log";
@@ -475,7 +464,7 @@ sub make
 			push(@makeout, $log->log_string);
 		}
 	}
-	elsif ($self->{bfconf}->{using_msvc})
+	elsif ($self->{bfconf}{using_msvc})
 	{
 		chdir "$pgsql/src/tools/msvc";
 		@makeout = run_log("perl build.pl");
@@ -483,8 +472,8 @@ sub make
 	}
 	else
 	{
-		my $make = $self->{bfconf}->{make} || 'make';
-		my $make_jobs = $self->{bfconf}->{make_jobs} || 1;
+		my $make = $self->{bfconf}{make} || 'make';
+		my $make_jobs = $self->{bfconf}{make_jobs} || 1;
 		my $make_cmd = $make;
 		$make_cmd = "$make -j $make_jobs"
 		  if ($make_jobs > 1);
@@ -515,7 +504,7 @@ sub make_install
 	my $installdir = "$abi_compare_loc/$latest_tag/inst";
 	my $tag_log_dir = "$abi_compare_loc/$latest_tag/build_logs";
 	my @makeout;
-	if ($self->{bfconf}->{using_meson})
+	if ($self->{bfconf}{using_meson})
 	{
 		@makeout = run_log("meson install -C $pgsql ");
 		move "$pgsql/meson-logs/meson-log.txt", "$pgsql/meson-logs/install.log";
@@ -526,7 +515,7 @@ sub make_install
 			push(@makeout, $log->log_string);
 		}
 	}
-	elsif ($self->{bfconf}->{using_msvc})
+	elsif ($self->{bfconf}{using_msvc})
 	{
 		chdir "$pgsql/src/tools/msvc";
 		@makeout = run_log(qq{perl install.pl "$installdir"});
@@ -534,7 +523,7 @@ sub make_install
 	}
 	else
 	{
-		my $make = $self->{bfconf}->{make} || 'make';
+		my $make = $self->{bfconf}{make} || 'make';
 		@makeout = run_log("cd $pgsql && $make install");
 	}
 	my $status = $? >> 8;
@@ -656,7 +645,7 @@ sub _log_command_output
 
 sub _compare_and_log_abi_diff
 {
-	my ($self, $latest_tag, $current_branch) = @_;
+	my ($self, $latest_tag, $current_branch, $latest_commit_sha) = @_;
 	if (!defined $latest_tag || !defined $current_branch)
 	{
 		emit "Warning: _compare_and_log_abi_diff called with undefined parameters. Skipping comparison.";
@@ -675,7 +664,7 @@ sub _compare_and_log_abi_diff
 	rmtree($log_dir) if -d $log_dir;
 	mkpath($log_dir) unless -d $log_dir;
 	my $diff_found = 0;
-	my $log = PGBuild::Log->new("abi-comp-check");
+	my $log = PGBuild::Log->new("abi-compliance-check");
 
 	foreach my $key (keys %{ $self->{binaries_rel_path} })
 	{
@@ -697,7 +686,7 @@ sub _compare_and_log_abi_diff
 				emit "ABI difference found for $key.abi";
 			}
 		}
-		elsif (-e $tag_file xor -e $branch_file)
+		else
 		{
 			$diff_found = 1;
 			my $log_file = "$log_dir/$key-$latest_tag.log";
@@ -706,7 +695,7 @@ sub _compare_and_log_abi_diff
 			  or warn "could not open $log_file: $!";
 			if ($fh)
 			{
-				print $fh "ABI difference: one file is missing.\n";
+				print $fh "ABI difference: file is missing.\n";
 				print $fh "Tag file: $tag_file (exists: "
 				  . ((-e $tag_file) ? 1 : 0) . ")\n";
 				print $fh "Branch file: $branch_file (exists: "
@@ -718,9 +707,13 @@ sub _compare_and_log_abi_diff
 
 	if ($diff_found)
 	{
-		my @saveout;
+		my @saveout = (
+			"Branch: $current_branch\n",
+			"Git HEAD: $latest_commit_sha\n",
+			"Changes since: $latest_tag\n\n"
+		);
 		push(@saveout, $log->log_string);
-		writelog("abi-comp-check-$current_branch", \@saveout);
+		writelog("abi-compliance-check", \@saveout);
 	}
 	else
 	{
