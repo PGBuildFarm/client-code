@@ -173,8 +173,38 @@ sub install
 		close $fh;
 		chomp $previous_tag if $previous_tag;
 	}
-
+	my $latest_commit_sha = run_log(qq{git -C ./pgsql rev-parse HEAD});
+	chomp $latest_commit_sha;
+	my @saveout = (
+		"Branch: $pgbranch\n",
+		"Git HEAD: $latest_commit_sha\n",
+		"Changes since: $comparison_ref\n\n"
+	);
+	# my $log = PGBuild::Log->new("abi-compliance-check");
+	my $rebuild_tag = 0;
 	if ($previous_tag ne $comparison_ref)
+	{
+		push(@saveout,"latest_tag updated from $previous_tag to $comparison_ref\n");
+		$rebuild_tag = 1;
+	}
+	else
+	{
+		# Check if all XML files for the latest tag exist. If not, we need to rebuild.
+		my $tag_xml_dir = "$abi_compare_loc/$comparison_ref/xmls";
+		foreach my $key (keys %{ $self->{binaries_rel_path} })
+		{
+			my $xml_file = "$tag_xml_dir/$key.abi";
+			if (!-e $xml_file)
+			{
+				emit "ABI XML for '$key' is missing for tag '$comparison_ref'. Triggering rebuild.";
+				push(@saveout, "rebuild for tag '$comparison_ref' due to missing ABI XML for '$key'.\n");
+				$rebuild_tag = 1;
+				last;
+			}
+		}
+	}
+
+	if ($rebuild_tag)
 	{
 		rmtree("$abi_compare_loc/$previous_tag")
 		  if $previous_tag && -d "$abi_compare_loc/$previous_tag";
@@ -203,43 +233,48 @@ sub install
 		run_log(qq{git -C ./pgsql checkout bf_$pgbranch});
 
 		# now run the build steps
-		$self->configure($abi_compare_loc, $comparison_ref);
-		$self->make($abi_compare_loc, $comparison_ref);
-		$self->make_install($abi_compare_loc, $comparison_ref);
+		my @configure_log = $self->configure($abi_compare_loc, $comparison_ref);
+		my @make_log = $self->make($abi_compare_loc, $comparison_ref);
+		my @install_log = $self->make_install($abi_compare_loc, $comparison_ref);
 
 		# Generate ABIDW XML files after installation
 		my $installdir = "$abi_compare_loc/$comparison_ref/inst";
 		$self->_generate_abidw_xml($installdir, $abi_compare_loc, $comparison_ref);
-	}
-	else
-	{
-		# Check if XML files for latest tag exist, generate if missing
-		my $tag_inst_dir = "$abi_compare_loc/$comparison_ref/inst";
-		my $tag_xml_dir = "$abi_compare_loc/$comparison_ref/xmls";
-		if (-d $tag_inst_dir)
-		{
-			foreach my $key (keys %{ $self->{binaries_rel_path} })
-			{
-				my $xml_file = "$tag_xml_dir/$key.abi";
-				if (!-e $xml_file)
-				{
-					emit "regenerating missing ABI XML for $comparison_ref for $key binary";
-					$self->_generate_abidw_xml($tag_inst_dir,
-						$abi_compare_loc, $comparison_ref);
-				}
-			}
-		}
 	}
 
 	if (-d "./inst")
 	{
 		$self->_generate_abidw_xml("./inst", $abi_compare_loc, $pgbranch);
 	}
-	my $latest_commit_sha = run_log(qq{git -C ./pgsql rev-parse HEAD});
-	chomp $latest_commit_sha;
 
 	# Compare ABI between current branch and latest tag
-	$self->_compare_and_log_abi_diff($comparison_ref, $pgbranch, $latest_commit_sha);
+	my ($diff_found, $diff_log) = $self->_compare_and_log_abi_diff($comparison_ref, $pgbranch);
+
+	if ($diff_found)
+	{
+		push(@saveout, $diff_log->log_string);
+	}
+	else
+	{
+		push(@saveout, "no abi diffs found in this run\n");
+	}
+
+	if ($rebuild_tag)
+	{
+		my $tag_log_dir = "$abi_compare_loc/$comparison_ref/build_logs";
+		foreach my $log_name ('configure', 'build', 'install')
+		{
+			my $log_file = "$tag_log_dir/$log_name.log";
+			if (-e $log_file)
+			{
+				my $build_log = PGBuild::Log->new("${log_name}_log");
+				$build_log->add_log($log_file);
+				push(@saveout, $build_log->log_string);
+			}
+		}
+	}
+
+	writelog("abi-compliance-check", \@saveout);
 
 	return;
 }
@@ -305,14 +340,14 @@ sub meson_setup
 
 	emit "======== setup output ===========\n", @confout if ($verbose > 1);
 
-	writelog($latest_tag . 'configure', \@confout);
+	# writelog($latest_tag . 'configure', \@confout);
 
 	# if ($status)
 	# {
 	# 	send_result('Configure', $status, \@confout);
 	# }
 
-	return;
+	return @confout;
 }
 
 # non-meson MSVC setup
@@ -339,9 +374,9 @@ sub msvc_setup
 
 	push(@text, "# no configure step for MSCV - config file shown\n");
 
-	writelog('configure', \@text);
+	# writelog('configure', \@text);
 
-	return;
+	return @text;
 }
 
 sub configure
@@ -352,18 +387,19 @@ sub configure
 	emit "running configure ...";
 	my $branch = $self->{pgbranch};
 	my $tag_log_dir = "$abi_compare_loc/$latest_tag/build_logs";
+	my @confout;
 
 	if ($self->{bfconf}{using_meson}
 		&& ($branch eq 'HEAD' || $branch ge 'REL_16_STABLE'))
 	{
-		$self->meson_setup("$abi_compare_loc/$latest_tag/inst");
-		return;
+		@confout = $self->meson_setup("$abi_compare_loc/$latest_tag/inst");
+		return @confout;
 	}
 
 	if ($self->{bfconf}{using_msvc})
 	{
-		$self->msvc_setup();
-		return;
+		@confout = $self->msvc_setup();
+		return @confout;
 	}
 
 	# autoconf/configure setup
@@ -412,7 +448,7 @@ sub configure
 		$envstr .= "$key='$val' ";
 	}
 
-	my @confout = run_log(
+	@confout = run_log(
 		"$envstr cd $abi_compare_loc/$latest_tag/pgsql && ./configure $confstr"
 	);
 
@@ -427,7 +463,7 @@ sub configure
 		push(@confout, $log->log_string);
 	}
 
-	writelog($latest_tag . "_configure", \@confout);
+	# writelog($latest_tag . "_configure", \@confout);
 	open my $fh, '>', "$tag_log_dir/configure.log"
 	  or die "Could not open $tag_log_dir/configure.log: $!";
 	print $fh @confout;
@@ -438,7 +474,7 @@ sub configure
 	# 	send_result('Configure', $status, \@confout);
 	# }
 
-	return;
+	return @confout;
 }
 
 sub make
@@ -480,7 +516,7 @@ sub make
 		@makeout = run_log("cd $pgsql && $make_cmd");
 	}
 	my $status = $? >> 8;
-	writelog($latest_tag . "_build", \@makeout);
+	# writelog($latest_tag . "_build", \@makeout);
 	open my $fh, '>', "$tag_log_dir/build.log"
 	  or die "Could not open $tag_log_dir/build.log: $!";
 	print $fh @makeout;
@@ -490,7 +526,7 @@ sub make
 	  if $check_warnings;
 
 	# send_result('Build', $status, \@makeout) if $status;
-	return;
+	return @makeout;
 }
 
 sub make_install
@@ -527,7 +563,7 @@ sub make_install
 		@makeout = run_log("cd $pgsql && $make install");
 	}
 	my $status = $? >> 8;
-	writelog($latest_tag . '_make-install', \@makeout);
+	# writelog($latest_tag . '_make-install', \@makeout);
 	open my $fh, '>', "$tag_log_dir/install.log"
 	  or die "Could not open $tag_log_dir/install.log: $!";
 	print $fh @makeout;
@@ -546,7 +582,7 @@ sub make_install
 		chmod 0755, $dest;
 	}
 
-	return;
+	return @makeout;
 }
 
 sub _generate_abidw_xml
@@ -645,11 +681,11 @@ sub _log_command_output
 
 sub _compare_and_log_abi_diff
 {
-	my ($self, $latest_tag, $current_branch, $latest_commit_sha) = @_;
+	my ($self, $latest_tag, $current_branch) = @_;
 	if (!defined $latest_tag || !defined $current_branch)
 	{
 		emit "Warning: _compare_and_log_abi_diff called with undefined parameters. Skipping comparison.";
-		return 0;
+		return (0, undef);
 	}
 
 	my $abi_compare_root = $self->{abi_compare_root};
@@ -701,25 +737,12 @@ sub _compare_and_log_abi_diff
 				print $fh "Branch file: $branch_file (exists: "
 				  . ((-e $branch_file) ? 1 : 0) . ")\n";
 				close $fh;
+				$log->add_log($log_file);
 			}
 		}
 	}
 
-	if ($diff_found)
-	{
-		my @saveout = (
-			"Branch: $current_branch\n",
-			"Git HEAD: $latest_commit_sha\n",
-			"Changes since: $latest_tag\n\n"
-		);
-		push(@saveout, $log->log_string);
-		writelog("abi-compliance-check", \@saveout);
-	}
-	else
-	{
-		emit "No ABI differences found between $latest_tag and $current_branch";
-	}
-	return $diff_found;
+	return ($diff_found, $log);
 }
 
 sub cleanup
@@ -741,7 +764,7 @@ sub cleanup
 		}
 		return unless $current_tag; # this could happen only in some worst case
 
-		# rmtree("$abi_compare_loc/$current_tag/inst") if -d "$abi_compare_loc/$current_tag/inst";
+		rmtree("$abi_compare_loc/$current_tag/inst") if -d "$abi_compare_loc/$current_tag/inst";
 		rmtree("$abi_compare_loc/$current_tag/pgsql") if -d "$abi_compare_loc/$current_tag/pgsql";
 		rmtree("$abi_compare_loc/$current_tag/build_logs") if -d "$abi_compare_loc/$current_tag/build_logs";
 	}
