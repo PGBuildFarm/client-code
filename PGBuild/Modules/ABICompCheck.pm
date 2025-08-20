@@ -1,11 +1,112 @@
 # Package Namespace is hardcoded. Modules must live in
 # PGBuild::Modules
 
-=comment
+=pod
 
-Copyright (c) 2003-2024, Andrew Dunstan
+Copyright (c) 2003-2025, Andrew Dunstan
 
 See accompanying License file for license details
+
+=head1 PGBuild::Modules::ABICompCheck
+This module is used for ABI compliance checking of PostgreSQL builds 
+by comparing the latest commit on a stable branch with the most recent
+tag on that branch. This helps detect unintended changes that could
+break compatibility for extensions or client applications.
+
+=head2 EXECUTION FLOW
+
+The module follows these steps to perform an ABI comparison:
+
+=over 4
+
+=item 1.
+The build farm completes its standard build and installation of PostgreSQL for the latest commit on a given stable branch.
+
+=item 2.
+The C<install> hook of the ABICompCheck module is triggered.
+
+=item 3.
+The module identifies the most recent tag for a particular branch (e.g., REL_16_1) to use as a baseline for comparison against the most recent commit of the branch.
+
+=item 4.
+It checks if a pre-existing, complete build and ABI dump for this baseline tag exists in its working directory (C<buildroot/abicheck.$animal_name>).
+
+=item 5.
+If the baseline tag's build is missing or incomplete, the module performs a fresh build of that tag:
+	- It checks out the source code for the tag.
+	- It runs C<configure>, C<make>, and C<make install> for the tag in an isolated directory.
+	- It uses C<abidw> to generate XML representations of the ABI for key binaries (like C<postgres>, C<libpq.so>, C<ecpg> - These are the default binaries and can be customised by animal owners) from this tag build. These are stored for future runs.
+
+=item 6.
+The module then generates ABI XML files for the same set of key binaries from the main build (the latest commit).
+
+=item 7.
+Using C<abidiff>, it compares the ABI XML file of each binary from the latest commit against the corresponding file from the baseline tag.
+
+=item 8.
+Any differences detected by C<abidiff> are collected into a log report. If no differences are found, a success message is logged.
+
+=item 9.
+The final report, containing either the ABI differences or "no abi diffs found in this run", is sent to the build farm server as part of the overall build status.
+
+=back
+
+=head2 CONFIGURATION OPTIONS
+The module supports the following configuration options:
+
+=over 4
+
+=item B<abi_compare_root>
+
+Specifies the root directory for ABI comparison data. If not set, defaults to C<buildroot/abicheck.$animal_name>.
+
+=item B<binaries_rel_path>
+
+A hash reference mapping binary names to their relative paths. Defaults to:
+
+  {
+    'postgres' => 'bin/postgres',
+    'ecpg' => 'bin/ecpg',
+    'libpq.so' => 'lib/libpq.so',
+  }
+
+=item B<abidw_flags_list>
+
+An array reference containing flags to pass to C<abidw>. Defaults to:
+
+  [qw(
+    --drop-undefined-syms --no-architecture --no-comp-dir-path
+    --no-elf-needed --no-show-locs --type-id-style hash
+  )]
+
+=back
+
+=head2 EXTRA BUT IMPORTANT INFO
+
+=over 4
+
+=item 1. This module have msvc related duped from run_build.pl script but later I realised C<abidiff> supports only elf binaries. Maybe those functions can be used in future if some other ABI Compliance checking tool supports them.
+
+=item 2. This module only works for stable branches in compliance with the PostgreSQL ABI policy for minor releases.
+
+=item 3. Debug information is required for build to be able to use this module
+
+=item 4. Before using this module, ensure that you have the build-essential, abigail-tools, git installed for your animal.
+
+=back
+
+=head2 EXAMPLE LOG OUTPUT
+
+The output on the server will have name 'abi-compliance-check'
+Example output will be:
+
+	Branch: REL_17_STABLE
+	Git HEAD: 61c37630774002fb36a5fa17f57caa3a9c2165d9
+	Changes since: REL_17_6
+
+	latest_tag updated from REL_17_5 to REL_17_6
+	no abi diffs found in this run - Or ABI diff if any
+	....other build logs for recent tag if any
 
 =cut
 
