@@ -8,6 +8,7 @@ Copyright (c) 2003-2025, Andrew Dunstan
 See accompanying License file for license details
 
 =head1 PGBuild::Modules::ABICompCheck
+
 This module is used for ABI compliance checking of PostgreSQL builds 
 by comparing the latest commit on a stable branch with the most recent
 tag on that branch. This helps detect unintended changes that could
@@ -20,39 +21,49 @@ The module follows these steps to perform an ABI comparison:
 =over 4
 
 =item 1.
+
 The build farm completes its standard build and installation of PostgreSQL for the latest commit on a given stable branch.
 
 =item 2.
+
 The C<install> hook of the ABICompCheck module is triggered.
 
 =item 3.
+
 The module identifies the most recent tag for a particular branch (e.g., REL_16_1) to use as a baseline for comparison against the most recent commit of the branch.
 
 =item 4.
+
 It checks if a pre-existing, complete build and ABI dump for this baseline tag exists in its working directory (C<buildroot/abicheck.$animal_name>).
 
 =item 5.
+
 If the baseline tag's build is missing or incomplete, the module performs a fresh build of that tag:
 	- It checks out the source code for the tag.
 	- It runs C<configure>, C<make>, and C<make install> for the tag in an isolated directory.
 	- It uses C<abidw> to generate XML representations of the ABI for key binaries (like C<postgres>, C<libpq.so>, C<ecpg> - These are the default binaries and can be customised by animal owners) from this tag build. These are stored for future runs.
 
 =item 6.
+
 The module then generates ABI XML files for the same set of key binaries from the main build (the latest commit).
 
 =item 7.
+
 Using C<abidiff>, it compares the ABI XML file of each binary from the latest commit against the corresponding file from the baseline tag.
 
 =item 8.
+
 Any differences detected by C<abidiff> are collected into a log report. If no differences are found, a success message is logged.
 
 =item 9.
+
 The final report, containing either the ABI differences or "no abi diffs found in this run", is sent to the build farm server as part of the overall build status.
 
 =back
 
 =head2 CONFIGURATION OPTIONS
-The module supports the following configuration options:
+
+The module supports the following configuration options under `abi_comp_check` key in build-farm.conf:
 
 =over 4
 
@@ -85,13 +96,21 @@ An array reference containing flags to pass to C<abidw>. Defaults to:
 
 =over 4
 
-=item 1. This module have msvc related duped from run_build.pl script but later I realised C<abidiff> supports only elf binaries. Maybe those functions can be used in future if some other ABI Compliance checking tool supports them.
+=item *
 
-=item 2. This module only works for stable branches in compliance with the PostgreSQL ABI policy for minor releases.
+This module have msvc related duped from run_build.pl script but later I realised C<abidiff> supports only elf binaries. Maybe those functions can be used in future if some other ABI Compliance checking tool supports them.
 
-=item 3. Debug information is required for build to be able to use this module
+=item *
 
-=item 4. Before using this module, ensure that you have the build-essential, abigail-tools, git installed for your animal.
+This module only works for stable branches in compliance with the PostgreSQL ABI policy for minor releases.
+
+=item *
+
+Debug information is required for build to be able to use this module
+
+=item *
+
+Before using this module, ensure that you have the build-essential, abigail-tools, git installed for your animal.
 
 =back
 
@@ -128,14 +147,15 @@ use Cwd qw(abs_path getcwd);
 
 our ($VERSION); $VERSION = 'REL_19_1';
 
+# Helper function to emit timestamped debug messages
 sub emit {
 	print time_str(), "ABICompCheck :: ", @_, "\n" if $verbose;
 }
 
 my $hooks = {
 	# 'need-run' => \&need_run,
-	'install' => \&install,
-	'cleanup' => \&cleanup,
+	'install' => \&install,      # Main ABI comparison logic runs after install
+	'cleanup' => \&cleanup,      # Clean up temporary files after build
 };
 
 sub setup
@@ -147,7 +167,7 @@ sub setup
 	my $conf = shift;         # ref to the whole config object
 	my $pgsql = shift;        # postgres build dir
 
-	# We are only testing stable branches, so ignore all others.
+	# Only proceed if this is a stable branch with git SCM, not using msvc
 	if ($conf->{scm} ne 'git')
 	{
 		emit("Only git SCM is supported for ABICompCheck Module, skipping.");
@@ -163,6 +183,8 @@ sub setup
 		emit("MSVC builds are not supported for ABICompCheck Module, skipping.");
 		return;
 	}
+	
+	# Ensure debug information is available in compilation - required for libabigail tools
 	if ($conf->{using_meson})
 	{
 		# not working, can't understand why
@@ -180,8 +202,8 @@ sub setup
 			return;
 		}
 	}
-	# print $buildroot, " ", $branch, " ", $conf, " ", $pgsql, "\n" if $verbose;
 
+	# Set up working directory for ABI comparison data
 	my $abi_compare_root =
 	  $conf->{abi_compare_root} || "$buildroot/abicheck.$conf->{animal}";
 	if (   !defined($conf->{abi_compare_root})
@@ -192,15 +214,17 @@ sub setup
 		$abi_compare_root = "$buildroot/abicheck";
 	}
 
+	# Define which binaries to compare
 	my $binaries_rel_path = $conf->{abi_comp_check}{binaries_rel_path}
 	  || {
-		'postgres' => 'bin/postgres',
-		'ecpg' => 'bin/ecpg',
-		'libpq.so' => 'lib/libpq.so',
+		'postgres' => 'bin/postgres',      # Main server binary
+		'ecpg' => 'bin/ecpg',             # Embedded SQL preprocessor
+		'libpq.so' => 'lib/libpq.so',     # Client library
 	  };
 
+	# Configure abidw tool flags for ABI XML generation
 	my $abidw_flags_list = $conf->{abi_comp_check}{abidw_flags_list}
-	  || [qw(  
+	  || [qw(
         --drop-undefined-syms --no-architecture --no-comp-dir-path  
         --no-elf-needed --no-show-locs --type-id-style hash  
       )];
@@ -230,11 +254,12 @@ sub setup
 	};
 	bless($self, $class);
 
-	# for each instance you create, do:
+	# Register this module's hooks with the build farm framework
 	register_module_hooks($self, $hooks);
 	return;
 }
 
+# Main function - runs after PostgreSQL installation to perform ABI comparison
 sub install
 {
 	my $self = shift;
@@ -247,23 +272,30 @@ sub install
 	my $abi_compare_loc = "$self->{abi_compare_root}/$pgbranch";
 	mkdir $abi_compare_loc unless -d $abi_compare_loc;
 
-	my $latest_tag = run_log(qq{git -C ./pgsql describe --tags --abbrev=0 2>/dev/null});
+	my $latest_tag = run_log(qq{git -C ./pgsql describe --tags --abbrev=0 2>/dev/null});	# Find the latest tag
 	chomp $latest_tag;
 	my $comparison_ref = '';
-	$comparison_ref = run_log(qq{git -C ./pgsql merge-base master bf_$pgbranch});
+	$comparison_ref = run_log(qq{git -C ./pgsql merge-base master bf_$pgbranch});	# Find the very first commit for current branch
 	chomp $comparison_ref;
 
 	if ($latest_tag) {
+		# if some latest tag is found, then get the commit SHA for the latest tagged commit
+		# and compare with the first commit for current branch
+		# using `git merge-base --is-ancestor A B` to
 		my $tag_commit = run_log(qq{git -C ./pgsql rev-list -n 1 $latest_tag});
 		chomp $tag_commit;
 
 		my $is_ancestor = system(qq{git -C ./pgsql merge-base --is-ancestor $tag_commit $comparison_ref 2>/dev/null});
 		if ($is_ancestor != 0) {
+			# If the latest tag is not an ancestor of the first branch commit
+			# we need to use the latest tag as the comparison reference
+			# else we use the first commit of the branch instead of tag
 			$comparison_ref = $latest_tag;
 			emit "Latest tag: $latest_tag";
 		}
 	}
 
+	# get the previous tag from the latest_tag file for current branch if exists
 	my $latest_tag_file = "$abi_compare_loc/latest_tag";
 	my $previous_tag = '';
 	if (-e $latest_tag_file)
@@ -274,6 +306,8 @@ sub install
 		close $fh;
 		chomp $previous_tag if $previous_tag;
 	}
+
+	# Initialise output log with basic information
 	my $latest_commit_sha = run_log(qq{git -C ./pgsql rev-parse HEAD});
 	chomp $latest_commit_sha;
 	my @saveout = (
@@ -281,7 +315,8 @@ sub install
 		"Git HEAD: $latest_commit_sha\n",
 		"Changes since: $comparison_ref\n\n"
 	);
-	# my $log = PGBuild::Log->new("abi-compliance-check");
+
+	# Determine if we need to rebuild the latest tag binaries
 	my $rebuild_tag = 0;
 	if ($previous_tag ne $comparison_ref)
 	{
@@ -305,44 +340,49 @@ sub install
 		}
 	}
 
+	# Rebuild the latest tag from scratch, if needed by any of the checks above
 	if ($rebuild_tag)
 	{
+		# Clean up old tag directory
 		rmtree("$abi_compare_loc/$previous_tag")
 		  if $previous_tag && -d "$abi_compare_loc/$previous_tag";
-		# Store latest tag to file
+		  
+		# Store latest tag to file for future runs
 		open my $tag_fh, '>', $latest_tag_file
 		  or die "Could not open $latest_tag_file: $!";
 		print $tag_fh $comparison_ref;
 		close $tag_fh;
 
+		# Set up directories for tag build
 		my $tag_build_dir = "$abi_compare_loc/$comparison_ref";
 		my $tag_log_dir = "$tag_build_dir/build_logs";
 
 		mkpath($tag_log_dir)
 		  unless -d $tag_log_dir;
 
+		# Checkout the tag we want to compare against
 		run_log(qq{git -C ./pgsql checkout $comparison_ref});
 
-		# got this git save peice of code from PGBuild::SCM::Git::copy_source
+		# got this git save piece of code from PGBuild::SCM::Git::copy_source
 		move "./pgsql/.git", "./git-save";
 		PGBuild::SCM::copy_source($self->{bfconf}{using_msvc},
 			"./pgsql", "$tag_build_dir/pgsql");
-
-		# finally restore the original branch
 		move "./git-save", "./pgsql/.git";
 
+		# checkout back to original branch
 		run_log(qq{git -C ./pgsql checkout bf_$pgbranch});
 
-		# now run the build steps
+		# Build the tag: configure, make, install
 		my @configure_log = $self->configure($abi_compare_loc, $comparison_ref);
 		my @make_log = $self->make($abi_compare_loc, $comparison_ref);
 		my @install_log = $self->make_install($abi_compare_loc, $comparison_ref);
 
-		# Generate ABIDW XML files after installation
+		# Generate ABI XML files for the tag build
 		my $installdir = "$abi_compare_loc/$comparison_ref/inst";
 		$self->_generate_abidw_xml($installdir, $abi_compare_loc, $comparison_ref);
 	}
 
+	# Generate ABI XML files for the current build or the most recent commit
 	if (-d "./inst")
 	{
 		$self->_generate_abidw_xml("./inst", $abi_compare_loc, $pgbranch);
@@ -351,6 +391,7 @@ sub install
 	# Compare ABI between current branch and latest tag
 	my ($diff_found, $diff_log) = $self->_compare_and_log_abi_diff($comparison_ref, $pgbranch);
 
+	# Add comparison results to output
 	if ($diff_found)
 	{
 		push(@saveout, $diff_log->log_string);
@@ -360,6 +401,7 @@ sub install
 		push(@saveout, "no abi diffs found in this run\n");
 	}
 
+	# Include tag build logs if we rebuilt
 	if ($rebuild_tag)
 	{
 		my $tag_log_dir = "$abi_compare_loc/$comparison_ref/build_logs";
@@ -375,11 +417,13 @@ sub install
 		}
 	}
 
+	# Write final report to build farm logs
 	writelog("abi-compliance-check", \@saveout);
 
 	return;
 }
 
+# Configure step for meson builds
 sub meson_setup
 {
 	my $self = shift;
@@ -490,22 +534,22 @@ sub configure
 	my $tag_log_dir = "$abi_compare_loc/$latest_tag/build_logs";
 	my @confout;
 
+	# Choose configuration method based on build system
 	if ($self->{bfconf}{using_meson}
 		&& ($branch eq 'HEAD' || $branch ge 'REL_16_STABLE'))
 	{
-		@confout = $self->meson_setup("$abi_compare_loc/$latest_tag/inst");
-		return @confout;
+		return $self->meson_setup("$abi_compare_loc/$latest_tag/inst");
 	}
 
 	if ($self->{bfconf}{using_msvc})
 	{
-		@confout = $self->msvc_setup();
-		return @confout;
+		return $self->msvc_setup();
 	}
 
-	# autoconf/configure setup
+	# traditional PostgreSQL build start
 	my $config_opts = $self->{bfconf}{config_opts} || [];
 
+	# Quote configuration options properly
 	my @quoted_opts;
 	foreach my $c_opt (@$config_opts)
 	{
@@ -519,11 +563,11 @@ sub configure
 		}
 	}
 
+	# Set install prefix to our tag-specific directory
 	my $confstr =
 	  join(" ", @quoted_opts, "--prefix=$abi_compare_loc/$latest_tag/inst");
 
-	# The use of accache kind of looks useless for this module since it will be a single build to be made, that too in only the first run case
-
+	# Set up environment variables for configure
 	my $env = $self->{bfconf}{config_env};
 	$env = {%$env};    # shallow clone it
 	if ($self->{bfconf}{use_valgrind}
@@ -543,12 +587,14 @@ sub configure
 		}
 	}
 
+	# create environment string for command
 	my $envstr = "";
 	while (my ($key, $val) = each %$env)
 	{
 		$envstr .= "$key='$val' ";
 	}
 
+	# Run configure command
 	@confout = run_log(
 		"$envstr cd $abi_compare_loc/$latest_tag/pgsql && ./configure $confstr"
 	);
@@ -557,6 +603,7 @@ sub configure
 
 	emit "======== configure output ===========\n", @confout  if ($verbose > 1);
 
+	# Include config.log if available
 	if (-s "$abi_compare_loc/$latest_tag/pgsql/config.log")
 	{
 		my $log = PGBuild::Log->new($latest_tag . "_configure");
@@ -564,7 +611,7 @@ sub configure
 		push(@confout, $log->log_string);
 	}
 
-	# writelog($latest_tag . "_configure", \@confout);
+	# Save configure log: will be visible only if --keepall option is enabled
 	open my $fh, '>', "$tag_log_dir/configure.log"
 	  or die "Could not open $tag_log_dir/configure.log: $!";
 	print $fh @confout;
@@ -588,6 +635,8 @@ sub make
 	my $pgsql = "$abi_compare_loc/$latest_tag/pgsql";
 	my $tag_log_dir = "$abi_compare_loc/$latest_tag/build_logs";
 	my (@makeout);
+	
+	# Choose build command based on build system
 	if ($self->{bfconf}{using_meson})
 	{
 		my $meson_jobs = $self->{bfconf}{meson_jobs};
@@ -609,6 +658,7 @@ sub make
 	}
 	else
 	{
+		# Traditional make build
 		my $make = $self->{bfconf}{make} || 'make';
 		my $make_jobs = $self->{bfconf}{make_jobs} || 1;
 		my $make_cmd = $make;
@@ -617,14 +667,15 @@ sub make
 		@makeout = run_log("cd $pgsql && $make_cmd");
 	}
 	my $status = $? >> 8;
-	# writelog($latest_tag . "_build", \@makeout);
+	
+	# Save build log: will be visible only if --keepall option is enabled
 	open my $fh, '>', "$tag_log_dir/build.log"
 	  or die "Could not open $tag_log_dir/build.log: $!";
 	print $fh @makeout;
 	close $fh;
 	emit "======== make log ===========\n", @makeout if ($verbose > 1);
-	$status ||= check_make_log_warnings('latestbuild', $verbose)
-	  if $check_warnings;
+	# $status ||= check_make_log_warnings('latestbuild', $verbose)
+	#   if $check_warnings;
 
 	# send_result('Build', $status, \@makeout) if $status;
 	return @makeout;
@@ -641,6 +692,8 @@ sub make_install
 	my $installdir = "$abi_compare_loc/$latest_tag/inst";
 	my $tag_log_dir = "$abi_compare_loc/$latest_tag/build_logs";
 	my @makeout;
+	
+	# Choose install command based on build system
 	if ($self->{bfconf}{using_meson})
 	{
 		@makeout = run_log("meson install -C $pgsql ");
@@ -660,11 +713,13 @@ sub make_install
 	}
 	else
 	{
+		# Traditional make install
 		my $make = $self->{bfconf}{make} || 'make';
 		@makeout = run_log("cd $pgsql && $make install");
 	}
 	my $status = $? >> 8;
-	# writelog($latest_tag . '_make-install', \@makeout);
+	
+	# Save install log: will be visible only if --keepall option is enabled
 	open my $fh, '>', "$tag_log_dir/install.log"
 	  or die "Could not open $tag_log_dir/install.log: $!";
 	print $fh @makeout;
@@ -686,12 +741,13 @@ sub make_install
 	return @makeout;
 }
 
+# Generate ABI XML files using abidw tool for specified binaries
 sub _generate_abidw_xml
 {
 	my $self = shift;
 	my $install_dir = shift;
 	my $abi_compare_loc = shift;
-	my $version_identifier = shift;
+	my $version_identifier = shift; # either comparison ref(i.e. latest tag or latest tag SHA) OR branch name Because both are expected to have separate path for install directories
 
 	emit "Generating ABIDW XML for $version_identifier";
 
@@ -703,13 +759,13 @@ sub _generate_abidw_xml
 	my $log_dir;
 	if ($version_identifier eq $self->{pgbranch})
 	{
-		# Current branch
+		# Current branch - stored in branch directory
 		$xml_dir = "$abi_compare_loc/xmls";
 		$log_dir = "$abi_compare_loc/logs";
 	}
 	else
 	{
-		# Latest tag
+		# Latest tag - stored in tag-specific directory
 		$xml_dir = "$abi_compare_loc/$version_identifier/xmls";
 		$log_dir = "$abi_compare_loc/$version_identifier/build_logs";
 	}
@@ -717,6 +773,7 @@ sub _generate_abidw_xml
 	mkpath($xml_dir) unless -d $xml_dir;
 	mkpath($log_dir) unless -d $log_dir;
 
+	# Generate ABI XML for each configured binary
 	while (my ($target_name, $rel_path) = each %{$binaries_rel_path})
 	{
 		my $input_path = "$install_dir/$rel_path";
@@ -724,6 +781,7 @@ sub _generate_abidw_xml
 
 		if (-e $input_path && -f $input_path)
 		{
+			# Run abidw to extract ABI information into XML format
 			my $cmd =
 			  qq{abidw --out-file "$output_file" "$input_path" $abidw_flags_str};
 			my $log_file = "$log_dir/abidw-$target_name.log";
@@ -750,6 +808,7 @@ sub _generate_abidw_xml
 	return;
 }
 
+# Execute a command and log its output to a file
 sub _log_command_output
 {
 	my ($self, $cmd, $log_file, $cmd_desc, $no_die) = @_;
@@ -780,6 +839,7 @@ sub _log_command_output
 	return $exit_status;
 }
 
+# Compare ABI XML files between tag and current branch using abidiff
 sub _compare_and_log_abi_diff
 {
 	my ($self, $latest_tag, $current_branch) = @_;
@@ -794,15 +854,19 @@ sub _compare_and_log_abi_diff
 
 	emit "Comparing ABI between latest tag $latest_tag and it's latest commit";
 
+	# Set up directories for comparison
 	my $tag_xml_dir = "$abi_compare_root/$pgbranch/$latest_tag/xmls";
 	my $branch_xml_dir = "$abi_compare_root/$pgbranch/xmls";
 	my $log_dir = "$abi_compare_root/$pgbranch/diffs";
 
+	# Clean up any previous existing logs
 	rmtree($log_dir) if -d $log_dir;
 	mkpath($log_dir) unless -d $log_dir;
+	
 	my $diff_found = 0;
 	my $log = PGBuild::Log->new("abi-compliance-check");
 
+	# Compare each binary's ABI using abidiff
 	foreach my $key (keys %{ $self->{binaries_rel_path} })
 	{
 		my $tag_file = "$tag_xml_dir/$key.abi";
@@ -810,12 +874,14 @@ sub _compare_and_log_abi_diff
 
 		if (-e $tag_file && -e $branch_file)
 		{
+			# Run abidiff to compare ABI XML files
 			my $log_file = "$log_dir/$key-$latest_tag.log";
 			my $exit_status = $self->_log_command_output(
 				qq{abidiff "$tag_file" "$branch_file" --leaf-changes-only --no-added-syms --show-bytes},
 				$log_file, "abidiff for $key", 1
 			);
 
+			# Non-zero exit means differences were found
 			if ($exit_status != 0)
 			{
 				$diff_found = 1;
@@ -825,6 +891,7 @@ sub _compare_and_log_abi_diff
 		}
 		else
 		{
+			# Handle missing XML files
 			$diff_found = 1;
 			my $log_file = "$log_dir/$key-$latest_tag.log";
 			emit "ABI difference for $key: one file is missing (tag: $tag_file, branch: $branch_file). Comparison skipped.";
@@ -846,6 +913,7 @@ sub _compare_and_log_abi_diff
 	return ($diff_found, $log);
 }
 
+# Clean up temporary files to save disk space
 sub cleanup
 {
 	my $self = shift;
@@ -853,7 +921,7 @@ sub cleanup
 		my $abi_compare_loc = "$self->{abi_compare_root}/$self->{pgbranch}";
 		my $latest_tag_file = "$abi_compare_loc/latest_tag";
 
-		# Only proceed if the file doesn't exist or has no content
+		# Find which tag directory to clean up
 		my $current_tag = '';
 		if (-e $latest_tag_file)
 		{
@@ -865,6 +933,7 @@ sub cleanup
 		}
 		return unless $current_tag; # this could happen only in some worst case
 
+		# Remove all files in latest tag directory except xmls
 		rmtree("$abi_compare_loc/$current_tag/inst") if -d "$abi_compare_loc/$current_tag/inst";
 		rmtree("$abi_compare_loc/$current_tag/pgsql") if -d "$abi_compare_loc/$current_tag/pgsql";
 		rmtree("$abi_compare_loc/$current_tag/build_logs") if -d "$abi_compare_loc/$current_tag/build_logs";
