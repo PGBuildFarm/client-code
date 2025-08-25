@@ -404,9 +404,9 @@ sub install
 		die "git checkout bf_$pgbranch failed: $?" if $?;
 
 		# Build the tag: configure, make, install
-		my @configure_log = $self->configure($abi_compare_loc, $comparison_ref);
-		my @make_log = $self->make($abi_compare_loc, $comparison_ref);
-		my @install_log = $self->make_install($abi_compare_loc, $comparison_ref);
+		$self->configure($abi_compare_loc, $comparison_ref);
+		$self->make($abi_compare_loc, $comparison_ref);
+		$self->make_install($abi_compare_loc, $comparison_ref);
 
 		# Generate ABI XML files for the tag build
 		my $installdir = "$abi_compare_loc/$comparison_ref/inst";
@@ -529,7 +529,7 @@ sub meson_setup
 	# 	send_result('Configure', $status, \@confout);
 	# }
 
-	return @confout;
+	# return @confout;
 }
 
 # non-meson MSVC setup
@@ -558,7 +558,7 @@ sub msvc_setup
 
 	# writelog('configure', \@text);
 
-	return @text;
+	# return @text;
 }
 
 sub configure
@@ -575,12 +575,12 @@ sub configure
 	if ($self->{bfconf}{using_meson}
 		&& ($branch eq 'HEAD' || $branch ge 'REL_16_STABLE'))
 	{
-		return $self->meson_setup("$abi_compare_loc/$latest_tag/inst");
+		$self->meson_setup("$abi_compare_loc/$latest_tag/inst");
 	}
 
 	if ($self->{bfconf}{using_msvc})
 	{
-		return $self->msvc_setup();
+		$self->msvc_setup();
 	}
 
 	# traditional PostgreSQL build start
@@ -659,7 +659,7 @@ sub configure
 	# 	send_result('Configure', $status, \@confout);
 	# }
 
-	return \@confout;
+	# return \@confout;
 }
 
 sub make
@@ -715,7 +715,7 @@ sub make
 	#   if $check_warnings;
 
 	# send_result('Build', $status, \@makeout) if $status;
-	return \@makeout;
+	# return \@makeout;
 }
 
 sub make_install
@@ -775,7 +775,7 @@ sub make_install
 		chmod 0755, $dest;
 	}
 
-	return @makeout;
+	# return @makeout;
 }
 
 # Generate ABI XML files using abidw tool for specified binaries
