@@ -73,7 +73,7 @@ Specifies the root directory for ABI comparison data. If not set, defaults to C<
 
 =item B<binaries_rel_path>
 
-A hash reference mapping binary names to their relative paths. Defaults to:
+A hash reference mapping binary names to their relative paths for ABI comparison. Defaults to:
 
   {
     'postgres' => 'bin/postgres',
@@ -89,6 +89,12 @@ An array reference containing flags to pass to C<abidw>. Defaults to:
     --drop-undefined-syms --no-architecture --no-comp-dir-path
     --no-elf-needed --no-show-locs --type-id-style hash
   )]
+
+=item B<tag_for_branch>
+
+A hash reference mapping branch names to their corresponding tags for ABI comparison. Defaults to empty hash which means latest tags for all branches:
+
+  {}
 
 =back
 
@@ -229,6 +235,11 @@ sub setup
         --no-elf-needed --no-show-locs --type-id-style hash  
       )];
 
+
+	# the tag_for_branch is to specify a tag to compare the ABIs with in a specific branch
+	# expected to look like { <branchname> : <tag_name> }
+	my $tag_for_branch = $conf->{abi_comp_check}{tag_for_branch} || {};
+
 	mkdir $abi_compare_root
 	  unless -d $abi_compare_root;
 
@@ -248,7 +259,8 @@ sub setup
 		pgsql => $pgsql,
 		abi_compare_root => $abi_compare_root,
 		binaries_rel_path => $binaries_rel_path,
-		abidw_flags_list => $abidw_flags_list
+		abidw_flags_list => $abidw_flags_list,
+		tag_for_branch => $tag_for_branch,
 
 		  # fs_abi_compare_root => $fs_abi_compare_root,
 	};
@@ -271,11 +283,31 @@ sub install
 	my $pgbranch = $self->{pgbranch};
 	my $abi_compare_loc = "$self->{abi_compare_root}/$pgbranch";
 	mkdir $abi_compare_loc unless -d $abi_compare_loc;
+	my $tag_for_branch = $self->{tag_for_branch} || {};
+	my $latest_tag;
 
-	my $latest_tag = run_log(qq{git -C ./pgsql describe --tags --abbrev=0 2>/dev/null});	# Find the latest tag
+	# find the tag to compare with for the branch
+	if (exists $tag_for_branch->{$pgbranch})
+	{
+		my $tag_pattern = $tag_for_branch->{$pgbranch};
+		my @tags = run_log(qq{git -C ./pgsql tag --list '$tag_pattern'}); # get the list of tags based on the tag pattern provided in config
+		chomp(@tags);
+
+		unless (@tags) {
+			emit "Specified tag pattern '$tag_pattern' for branch '$pgbranch' does not match any tags.";
+			return;
+		}
+		# use the first tag from the list in case of regex
+		emit "Using $tags[0] as the latest tag for branch $pgbranch based on pattern '$tag_pattern'";
+		$latest_tag = $tags[0];
+	}else{
+		emit "Finding latest tag for branch $pgbranch";
+		$latest_tag = run_log(qq{git -C ./pgsql describe --tags --abbrev=0 2>/dev/null});	# Find the latest tag
+	}
 	chomp $latest_tag;
 	my $comparison_ref = '';
 	$comparison_ref = run_log(qq{git -C ./pgsql merge-base master bf_$pgbranch});	# Find the very first commit for current branch
+	die "git merge-base failed: $?" if $?;
 	chomp $comparison_ref;
 
 	if ($latest_tag) {
@@ -283,6 +315,7 @@ sub install
 		# and compare with the first commit for current branch
 		# using `git merge-base --is-ancestor A B` to
 		my $tag_commit = run_log(qq{git -C ./pgsql rev-list -n 1 $latest_tag});
+		die "git rev-list failed: $?" if $?;
 		chomp $tag_commit;
 
 		my $is_ancestor = system(qq{git -C ./pgsql merge-base --is-ancestor $tag_commit $comparison_ref 2>/dev/null});
@@ -309,6 +342,7 @@ sub install
 
 	# Initialise output log with basic information
 	my $latest_commit_sha = run_log(qq{git -C ./pgsql rev-parse HEAD});
+	die "git rev-parse HEAD failed: $?" if $?;
 	chomp $latest_commit_sha;
 	my @saveout = (
 		"Branch: $pgbranch\n",
@@ -346,12 +380,7 @@ sub install
 		# Clean up old tag directory
 		rmtree("$abi_compare_loc/$previous_tag")
 		  if $previous_tag && -d "$abi_compare_loc/$previous_tag";
-		  
-		# Store latest tag to file for future runs
-		open my $tag_fh, '>', $latest_tag_file
-		  or die "Could not open $latest_tag_file: $!";
-		print $tag_fh $comparison_ref;
-		close $tag_fh;
+
 
 		# Set up directories for tag build
 		my $tag_build_dir = "$abi_compare_loc/$comparison_ref";
@@ -362,6 +391,7 @@ sub install
 
 		# Checkout the tag we want to compare against
 		run_log(qq{git -C ./pgsql checkout $comparison_ref});
+		die "git checkout $comparison_ref failed: $?" if $?;
 
 		# got this git save piece of code from PGBuild::SCM::Git::copy_source
 		move "./pgsql/.git", "./git-save";
@@ -371,6 +401,7 @@ sub install
 
 		# checkout back to original branch
 		run_log(qq{git -C ./pgsql checkout bf_$pgbranch});
+		die "git checkout bf_$pgbranch failed: $?" if $?;
 
 		# Build the tag: configure, make, install
 		my @configure_log = $self->configure($abi_compare_loc, $comparison_ref);
@@ -380,6 +411,12 @@ sub install
 		# Generate ABI XML files for the tag build
 		my $installdir = "$abi_compare_loc/$comparison_ref/inst";
 		$self->_generate_abidw_xml($installdir, $abi_compare_loc, $comparison_ref);
+
+		# Store latest tag to file for future runs
+		open my $tag_fh, '>', $latest_tag_file
+		  or die "Could not open $latest_tag_file: $!";
+		print $tag_fh $comparison_ref;
+		close $tag_fh;
 	}
 
 	# Generate ABI XML files for the current build or the most recent commit
@@ -622,7 +659,7 @@ sub configure
 	# 	send_result('Configure', $status, \@confout);
 	# }
 
-	return @confout;
+	return \@confout;
 }
 
 sub make
@@ -678,7 +715,7 @@ sub make
 	#   if $check_warnings;
 
 	# send_result('Build', $status, \@makeout) if $status;
-	return @makeout;
+	return \@makeout;
 }
 
 sub make_install
