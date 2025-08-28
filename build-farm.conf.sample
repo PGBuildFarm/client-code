@@ -416,6 +416,29 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		#             },
 	},
 
+	abi_comp_check => {
+		# root directory for ABI comparison data.
+		# If not set, defaults to buildroot/abicheck.$animal_name
+		# abi_compare_root => '/home/abicheck',
+
+		# hash mapping binary names to their relative paths for ABI comparison.
+		# binaries_rel_path => {
+		# 	'postgres' => 'bin/postgres'
+		# },
+
+		# array of flags to pass to abidw.
+		# abidw_flags_list => [
+		# 	'--drop-undefined-syms'
+		# ]
+
+		# hash mapping branch names to their corresponding tags for ABI comparison.
+		# Defaults to empty hash which means latest tags for all branches.
+		# tag_for_branch => {
+		# 	REL_17_STABLE => 'REL_17_4',
+		# 	REL_16_STABLE => 'REL_16_2'
+		# }
+	}
+
 );
 
 
