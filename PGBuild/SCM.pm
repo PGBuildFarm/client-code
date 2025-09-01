@@ -503,7 +503,7 @@ sub new
 	}
 	$self->{target} = $target;
 	$self->{skip_git_default_check} = $conf->{skip_git_default_check} || 0;
-	if (!$self->{skip_git_default_check})
+	if (!$self->{skip_git_default_check} && !$from_source)
 	{
 		# check if we can run "git ls-remote --symref" If not, we can't run
 		# the default branch name update code.
