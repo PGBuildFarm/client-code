@@ -18,7 +18,7 @@ extensions or client applications.
 
 The module follows these steps to perform an ABI comparison:
 
-=over 4
+=over
 
 =item 1.
 
@@ -44,13 +44,25 @@ exists in its working directory (C<buildroot/abicheck.$animal_name>).
 
 If the baseline tag's build is missing or incomplete, the module performs a
 fresh build of that tag:
-	- It checks out the source code for the tag.
-	- It runs C<configure>, C<make>, and C<make install> for the tag in an
-	  isolated directory.
-	- It uses C<abidw> to generate XML representations of the ABI for key
-	  binaries (like C<postgres>, C<libpq.so>, C<ecpg> - These are the
-	  default binaries and can be customised by animal owners) from this tag
-	  build. These are stored for future runs.
+
+=over
+
+=item *
+
+ It checks out the source code for the tag.
+
+=item *
+It runs C<configure>, C<make>, and C<make install> for the tag in an isolated
+directory.
+
+=item *
+
+It uses C<abidw> to generate XML representations of the ABI for key binaries
+(like C<postgres>, C<libpq.so>, C<ecpg> - These are the default binaries and
+can be customised by animal owners) from this tag build. These are stored for
+future runs.
+
+=back
 
 =item 6.
 
@@ -80,14 +92,14 @@ status.
 The module supports the following configuration options under `abi_comp_check`
 key in build-farm.conf:
 
-=over 4
+=over
 
-=item B<abi_compare_root>
+=item C<abi_compare_root>
 
 Specifies the root directory for ABI comparison data. If not set, defaults to
 C<buildroot/abicheck.$animal_name>.
 
-=item B<binaries_rel_path>
+=item C<binaries_rel_path>
 
 A hash reference mapping binary names to their relative paths for ABI
 comparison. Defaults to:
@@ -98,7 +110,7 @@ comparison. Defaults to:
     'libpq.so' => 'lib/libpq.so',
   }
 
-=item B<abidw_flags_list>
+=item C<abidw_flags_list>
 
 An array reference containing flags to pass to C<abidw>. Defaults to:
 
@@ -107,24 +119,22 @@ An array reference containing flags to pass to C<abidw>. Defaults to:
     --no-elf-needed --no-show-locs --type-id-style hash
   )]
 
-=item B<tag_for_branch>
+=item C<tag_for_branch>
 
 A hash reference mapping branch names to their corresponding tags for ABI
-comparison. Defaults to empty hash which means latest tags for all branches:
-
-  {}
+comparison. Defaults to empty hash which means latest tags for all branches.
 
 =back
 
 =head2 EXTRA BUT IMPORTANT INFO
 
-=over 4
+=over
 
 =item *
 
-This module have msvc related duped from run_build.pl script but later I
-realised C<abidiff> supports only elf binaries. Maybe those functions can be
-used in future if some other ABI Compliance checking tool supports them.
+This module has msvc related build code duped from F<run_build.pl> script but
+later I realised C<abidiff> supports only elf binaries. Maybe those functions
+can be used in future if some other ABI Compliance checking tool supports them.
 
 =item *
 
@@ -133,19 +143,20 @@ ABI policy for minor releases.
 
 =item *
 
-Debug information is required for build to be able to use this module
+Debug information is required in the build to be able to use this module
 
 =item *
 
-Before using this module, ensure that you have the build-essential,
-abigail-tools, git installed for your animal.
+Before using this module, ensure that you have the
+L<libabigail|https://github.com/libabigail/libabigail> tools (e.g., the
+C<abigail-tools> Apt package) installed on your animal.
 
 =back
 
 =head2 EXAMPLE LOG OUTPUT
 
-The output on the server will have name 'abi-compliance-check'
-Example output will be:
+The output on the server will be named C<abi-compliance-check>.
+Example output will be similar to:
 
 	Branch: REL_17_STABLE
 	Git HEAD: 61c37630774002fb36a5fa17f57caa3a9c2165d9
@@ -209,7 +220,7 @@ sub setup
 	}
 	if ($branch !~ /_STABLE$/)
 	{
-		emit("Skipping ABI check, '$branch' is not a stable branch.");
+		emit("Skipping ABI check; '$branch' is not a stable branch.");
 		return;
 	}
 	
