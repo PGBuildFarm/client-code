@@ -162,7 +162,7 @@ Example output will be similar to:
 	Git HEAD: 61c37630774002fb36a5fa17f57caa3a9c2165d9
 	Changes since: REL_17_6
 
-	latest_tag updated from REL_17_5 to REL_17_6
+	baseline_tag updated from REL_17_5 to REL_17_6
 	no abi diffs found in this run - Or ABI diff if any
 	....other build logs for recent tag if any
 
@@ -277,14 +277,6 @@ sub setup
 	mkdir $abi_compare_root
 	  unless -d $abi_compare_root;
 
-	# we need to segregate from-source builds so they don't corrupt
-	# non-from-source saves
-
-	# my $fs_abi_compare_root = "$buildroot/fs-upgrade.$animal";
-
-	# mkdir $fs_abi_compare_root
-	#   if $from_source && !-d $fs_abi_compare_root;
-
 	# could even set up several of these (e.g. for different branches)
 	my $self = {
 		buildroot => $buildroot,
@@ -295,8 +287,6 @@ sub setup
 		binaries_rel_path => $binaries_rel_path,
 		abidw_flags_list => $abidw_flags_list,
 		tag_for_branch => $tag_for_branch,
-
-		  # fs_abi_compare_root => $fs_abi_compare_root,
 	};
 	bless($self, $class);
 
@@ -309,7 +299,7 @@ sub setup
 sub installcheck
 {
 	my $self = shift;
-	return unless step_wanted('abi_comp-check');
+	return unless step_wanted('abi-compliance-check');
 
 	emit "installcheck";
 	my $scm = PGBuild::SCM->new($self->{bfconf});
@@ -345,7 +335,7 @@ sub installcheck
 	chomp $comparison_ref;
 
 	if ($baseline_tag) {
-		# if some latest tag is found, then get the commit SHA for the latest tagged commit
+		# if some baseline tag is found, then get the commit SHA for the latest tagged commit
 		# and compare with the first commit for current branch
 		# using `git merge-base --is-ancestor A B` to
 		my $tag_commit = run_log(qq{git -C ./pgsql rev-list -n 1 $baseline_tag});
@@ -353,7 +343,7 @@ sub installcheck
 		chomp $tag_commit;
 
 		my $is_ancestor = system(qq{git -C ./pgsql merge-base --is-ancestor $tag_commit $comparison_ref 2>/dev/null});
-		if ($is_ancestor != 0) {
+		if ($is_ancestor) {
 			# If the latest tag is not an ancestor of the first branch commit
 			# we need to use the latest tag as the comparison reference
 			# else we use the first commit of the branch instead of tag
@@ -363,12 +353,12 @@ sub installcheck
 	}
 
 	# get the previous tag from the latest_tag file for current branch if exists
-	my $latest_tag_file = "$abi_compare_loc/latest_tag";
+	my $baseline_tag_file = "$abi_compare_loc/latest_tag";
 	my $previous_tag = '';
-	if (-e $latest_tag_file)
+	if (-e $baseline_tag_file)
 	{
-		open my $fh, '<', $latest_tag_file
-		  or die "Cannot open $latest_tag_file: $!";
+		open my $fh, '<', $baseline_tag_file
+		  or die "Cannot open $baseline_tag_file: $!";
 		$previous_tag = <$fh>;
 		close $fh;
 		chomp $previous_tag if $previous_tag;
@@ -384,7 +374,7 @@ sub installcheck
 		"Changes since: $comparison_ref\n\n"
 	);
 
-	# Determine if we need to rebuild the latest tag binaries
+	# Determine if we need to rebuild the baseline tag binaries
 	my $rebuild_tag = 0;
 	if ($previous_tag ne $comparison_ref)
 	{
@@ -408,7 +398,7 @@ sub installcheck
 		}
 	}
 
-	# Rebuild the latest tag from scratch, if needed by any of the checks above
+	# Rebuild the comparision ref from scratch, if needed by any of the checks above
 	if ($rebuild_tag)
 	{
 		# Clean up old tag directory
@@ -446,9 +436,9 @@ sub installcheck
 		my $installdir = "$abi_compare_loc/$comparison_ref/inst";
 		$self->_generate_abidw_xml($installdir, $abi_compare_loc, $comparison_ref);
 
-		# Store latest tag to file for future runs
-		open my $tag_fh, '>', $latest_tag_file
-		  or die "Could not open $latest_tag_file: $!";
+		# Store baseline tag to file for future runs
+		open my $tag_fh, '>', $baseline_tag_file
+		  or die "Could not open $baseline_tag_file: $!";
 		print $tag_fh $comparison_ref;
 		close $tag_fh;
 	}
@@ -459,7 +449,7 @@ sub installcheck
 		$self->_generate_abidw_xml("./inst", $abi_compare_loc, $pgbranch);
 	}
 
-	# Compare ABI between current branch and latest tag
+	# Compare ABI between current branch and comparison reference (baseline tag or first commit)
 	my ($diff_found, $diff_log) = $self->_compare_and_log_abi_diff($comparison_ref, $pgbranch);
 
 	# Add comparison results to output
@@ -492,8 +482,8 @@ sub installcheck
 	# Write final report to build farm logs
 	writelog("abi-compliance-check", \@saveout);
 
-	send_result('ABICompCheck', $status, \@saveout) if $status;
-	$steps_completed .= " ABICompCheck";
+	send_result('abi-compliance-check', $status, \@saveout) if $status;
+	$steps_completed .= " abi-compliance-check";
 
 	return;
 }
@@ -559,15 +549,6 @@ sub meson_setup
 	push(@confout, $log->log_string);
 
 	emit "======== setup output ===========\n", @confout if ($verbose > 1);
-
-	# writelog($latest_tag . 'configure', \@confout);
-
-	# if ($status)
-	# {
-	# 	send_result('Configure', $status, \@confout);
-	# }
-
-	# return @confout;
 }
 
 # non-meson MSVC setup
@@ -691,13 +672,6 @@ sub configure
 	  or die "Could not open $tag_log_dir/configure.log: $!";
 	print $fh @confout;
 	close $fh;
-
-	# if ($status)
-	# {
-	# 	send_result('Configure', $status, \@confout);
-	# }
-
-	# return \@confout;
 }
 
 sub make
@@ -749,11 +723,6 @@ sub make
 	print $fh @makeout;
 	close $fh;
 	emit "======== make log ===========\n", @makeout if ($verbose > 1);
-	# $status ||= check_make_log_warnings('latestbuild', $verbose)
-	#   if $check_warnings;
-
-	# send_result('Build', $status, \@makeout) if $status;
-	# return \@makeout;
 }
 
 sub make_install
@@ -801,8 +770,6 @@ sub make_install
 	close $fh;
 	emit "======== make install log ===========\n", @makeout if ($verbose > 1);
 
-	# send_result('Install', $status, \@makeout) if $status;
-
 	# On Windows and Cygwin avoid path problems associated with DLLs
 	# by copying them to the bin dir where the system will pick them
 
@@ -812,8 +779,6 @@ sub make_install
 		copy($dll, $dest);
 		chmod 0755, $dest;
 	}
-
-	# return @makeout;
 }
 
 # Generate ABI XML files using abidw tool for specified binaries
@@ -822,7 +787,7 @@ sub _generate_abidw_xml
 	my $self = shift;
 	my $install_dir = shift;
 	my $abi_compare_loc = shift;
-	my $version_identifier = shift; # either comparison ref(i.e. latest tag or latest tag SHA) OR branch name Because both are expected to have separate path for install directories
+	my $version_identifier = shift; # either comparison ref(i.e. latest tag or baseline tag or first commit SHA) OR branch name Because both are expected to have separate path for install directories
 
 	emit "Generating ABIDW XML for $version_identifier";
 
@@ -1008,7 +973,7 @@ sub cleanup
 		}
 		return unless $current_tag; # this could happen only in some worst case
 
-		# Remove all files in latest tag directory except xmls
+		# Remove all files in baseline tag directory except xmls
 		rmtree("$abi_compare_loc/$current_tag/inst") if -d "$abi_compare_loc/$current_tag/inst";
 		rmtree("$abi_compare_loc/$current_tag/pgsql") if -d "$abi_compare_loc/$current_tag/pgsql";
 		rmtree("$abi_compare_loc/$current_tag/build_logs") if -d "$abi_compare_loc/$current_tag/build_logs";
