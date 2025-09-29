@@ -178,6 +178,8 @@ use strict;
 use warnings;
 use File::Path 'mkpath';
 use File::Copy;
+use File::Find;
+use File::Basename;
 use Cwd qw(abs_path getcwd);
 
 
@@ -254,14 +256,6 @@ sub setup
 		$abi_compare_root = "$buildroot/abicheck";
 	}
 
-	# Define which binaries to compare
-	my $binaries_rel_path = $conf->{abi_comp_check}{binaries_rel_path}
-	  || {
-		'postgres' => 'bin/postgres',      # Main server binary
-		'ecpg' => 'bin/ecpg',             # Embedded SQL preprocessor
-		'libpq.so' => 'lib/libpq.so',     # Client library
-	  };
-
 	# Configure abidw tool flags for ABI XML generation
 	my $abidw_flags_list = $conf->{abi_comp_check}{abidw_flags_list}
 	  || [qw(
@@ -284,7 +278,6 @@ sub setup
 		bfconf => $conf,
 		pgsql => $pgsql,
 		abi_compare_root => $abi_compare_root,
-		binaries_rel_path => $binaries_rel_path,
 		abidw_flags_list => $abidw_flags_list,
 		tag_for_branch => $tag_for_branch,
 	};
@@ -300,9 +293,27 @@ sub installcheck
 {
 	my $self = shift;
 	return unless step_wanted('abi-compliance-check');
-
 	emit "installcheck";
-	my $scm = PGBuild::SCM->new($self->{bfconf});
+
+	my %binaries_rel_path;
+	$binaries_rel_path{'postgres'} = 'bin/postgres';
+
+	my $libdir = "inst/lib";
+	if (-d $libdir)
+	{
+		find(
+			sub {
+				if (/\.so$/ && -f $_)
+				{
+					my $filename = basename($_);
+					my $rel_path = $File::Find::name;
+					$rel_path =~ s/^inst\///;
+					$binaries_rel_path{$filename} = $rel_path;
+				}
+			},
+			$libdir
+		);
+	}
 
 	my $pgbranch = $self->{pgbranch};
 	my $abi_compare_loc = "$self->{abi_compare_root}/$pgbranch";
@@ -381,22 +392,6 @@ sub installcheck
 		push(@saveout,"baseline_tag updated from $previous_tag to $comparison_ref\n");
 		$rebuild_tag = 1;
 	}
-	else
-	{
-		# Check if all XML files for the baseline tag exist. If not, we need to rebuild.
-		my $tag_xml_dir = "$abi_compare_loc/$comparison_ref/xmls";
-		foreach my $key (keys %{ $self->{binaries_rel_path} })
-		{
-			my $xml_file = "$tag_xml_dir/$key.abi";
-			if (!-e $xml_file)
-			{
-				emit "ABI XML for '$key' is missing for tag '$comparison_ref'. Triggering rebuild.";
-				push(@saveout, "rebuild for tag '$comparison_ref' due to missing ABI XML for '$key'.\n");
-				$rebuild_tag = 1;
-				last;
-			}
-		}
-	}
 
 	# Rebuild the comparision ref from scratch, if needed by any of the checks above
 	if ($rebuild_tag)
@@ -434,23 +429,25 @@ sub installcheck
 
 		# Generate ABI XML files for the tag build
 		my $installdir = "$abi_compare_loc/$comparison_ref/inst";
-		$self->_generate_abidw_xml($installdir, $abi_compare_loc, $comparison_ref);
+		$self->_generate_abidw_xml($installdir, $abi_compare_loc, $comparison_ref, \%binaries_rel_path);
 
 		# Store baseline tag to file for future runs
 		open my $tag_fh, '>', $baseline_tag_file
 		  or die "Could not open $baseline_tag_file: $!";
 		print $tag_fh $comparison_ref;
 		close $tag_fh;
+
+		emit "Build and ABIXMLs generation for baseline tag '$comparison_ref' for branch '$pgbranch' done.";
 	}
 
 	# Generate ABI XML files for the current build or the most recent commit
 	if (-d "./inst")
 	{
-		$self->_generate_abidw_xml("./inst", $abi_compare_loc, $pgbranch);
+		$self->_generate_abidw_xml("./inst", $abi_compare_loc, $pgbranch, \%binaries_rel_path);
 	}
 
 	# Compare ABI between current branch and comparison reference (baseline tag or first commit)
-	my ($diff_found, $diff_log) = $self->_compare_and_log_abi_diff($comparison_ref, $pgbranch);
+	my ($diff_found, $diff_log) = $self->_compare_and_log_abi_diff($comparison_ref, $pgbranch, \%binaries_rel_path );
 
 	# Add comparison results to output
 	my $status=0;
@@ -788,10 +785,10 @@ sub _generate_abidw_xml
 	my $install_dir = shift;
 	my $abi_compare_loc = shift;
 	my $version_identifier = shift; # either comparison ref(i.e. latest tag or baseline tag or first commit SHA) OR branch name Because both are expected to have separate path for install directories
-
+	my $binaries_rel_path = shift;
+	
 	emit "Generating ABIDW XML for $version_identifier";
 
-	my $binaries_rel_path = $self->{binaries_rel_path};
 	my $abidw_flags_str = join ' ', @{ $self->{abidw_flags_list} };
 
 	# Determine if this is for a tag or current branch
@@ -832,16 +829,16 @@ sub _generate_abidw_xml
 
 			if ($exit_status)
 			{
-				emit "abidw failed for $target_name (from $input_path) with status $exit_status. Version: $version_identifier";
+				emit "FAILURE - $target_name, Exit Status - $exit_status, Input Path - $input_path, Version: $version_identifier";
 			}
 			else
 			{
-				emit "Successfully generated ABI XML for $target_name";
+				emit "SUCCESS - $target_name";
 			}
 		}
 		else
 		{
-			emit "Warning: Input file '$input_path' for $target_name not found. Skipping ABI generation for this target.";
+			emit "FAILURE - $target_name not found";
 		}
 	}
 
@@ -852,8 +849,6 @@ sub _generate_abidw_xml
 sub _log_command_output
 {
 	my ($self, $cmd, $log_file, $cmd_desc, $no_die) = @_;
-
-	emit "Executing: $cmd_desc";
 
 	my @output = run_log(qq{$cmd});
 	my $exit_status = $? >> 8;
@@ -872,17 +867,13 @@ sub _log_command_output
 	{
 		die "$cmd_desc failed with status $exit_status. Log: $log_file";
 	}
-	else
-	{
-		emit "Successfully executed $cmd_desc";
-	}
 	return $exit_status;
 }
 
 # Compare ABI XML files between tag and current branch using abidiff
 sub _compare_and_log_abi_diff
 {
-	my ($self, $latest_tag, $current_branch) = @_;
+	my ($self, $latest_tag, $current_branch, $binaries_rel_path) = @_;
 	if (!defined $latest_tag || !defined $current_branch)
 	{
 		emit "Warning: _compare_and_log_abi_diff called with undefined parameters. Skipping comparison.";
@@ -907,7 +898,7 @@ sub _compare_and_log_abi_diff
 	my $log = PGBuild::Log->new("abi-compliance-check");
 
 	# Compare each binary's ABI using abidiff
-	foreach my $key (keys %{ $self->{binaries_rel_path} })
+	foreach my $key (keys %{$binaries_rel_path})
 	{
 		my $tag_file = "$tag_xml_dir/$key.abi";
 		my $branch_file = "$branch_xml_dir/$key.abi";
@@ -927,25 +918,6 @@ sub _compare_and_log_abi_diff
 				$diff_found = 1;
 				$log->add_log($log_file);
 				emit "ABI difference found for $key.abi";
-			}
-		}
-		else
-		{
-			# Handle missing XML files
-			$diff_found = 1;
-			my $log_file = "$log_dir/$key-$latest_tag.log";
-			emit "ABI difference for $key: one file is missing (tag: $tag_file, branch: $branch_file). Comparison skipped.";
-			open my $fh, '>', $log_file
-			  or warn "could not open $log_file: $!";
-			if ($fh)
-			{
-				print $fh "ABI difference: file is missing.\n";
-				print $fh "Tag file: $tag_file (exists: "
-				  . ((-e $tag_file) ? 1 : 0) . ")\n";
-				print $fh "Branch file: $branch_file (exists: "
-				  . ((-e $branch_file) ? 1 : 0) . ")\n";
-				close $fh;
-				$log->add_log($log_file);
 			}
 		}
 	}
