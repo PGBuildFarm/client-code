@@ -27,7 +27,8 @@ the latest commit on a given stable branch.
 
 =item 2.
 
-The C<install> hook of the ABICompCheck module is triggered.
+The C<installcheck> hook of the ABICompCheck module is triggered. A C<binaries_rel_path> hash
+is constructed dynamically by scanning the installed binaries in the C<inst/lib> directory.
 
 =item 3.
 
@@ -98,17 +99,6 @@ key in build-farm.conf:
 
 Specifies the root directory for ABI comparison data. If not set, defaults to
 C<buildroot/abicheck.$animal_name>.
-
-=item C<binaries_rel_path>
-
-A hash reference mapping binary names to their relative paths for ABI
-comparison. Defaults to:
-
-  {
-    'postgres' => 'bin/postgres',
-    'ecpg' => 'bin/ecpg',
-    'libpq.so' => 'lib/libpq.so',
-  }
 
 =item C<abidw_flags_list>
 
@@ -298,6 +288,8 @@ sub installcheck
 	my %binaries_rel_path;
 	$binaries_rel_path{'postgres'} = 'bin/postgres';
 
+	# the inst directory should have been created by now which contains 
+	# installed binaries for the most recent commit
 	my $libdir = "inst/lib";
 	if (-d $libdir)
 	{
