@@ -179,24 +179,27 @@ use Cwd qw(abs_path getcwd);
 our ($VERSION); $VERSION = 'REL_19_1';
 
 # Helper function to emit timestamped debug messages
-sub emit {
+sub emit
+{
 	print time_str(), "ABICompCheck :: ", @_, "\n" if $verbose;
 }
 
 my $hooks = {
+
 	# 'need-run' => \&need_run,
-	'installcheck' => \&installcheck,      # Main ABI comparison logic runs after install
-	'cleanup' => \&cleanup,      # Clean up temporary files after build
+	'installcheck' =>
+	  \&installcheck,    # Main ABI comparison logic runs after install
+	'cleanup' => \&cleanup,    # Clean up temporary files after build
 };
 
 sub setup
 {
 	my $class = __PACKAGE__;
 
-	my $buildroot = shift;    # where we're building
-	my $branch = shift;       # The branch of Postgres that's being built.
-	my $conf = shift;         # ref to the whole config object
-	my $pgsql = shift;        # postgres build dir
+	my $buildroot = shift;     # where we're building
+	my $branch = shift;        # The branch of Postgres that's being built.
+	my $conf = shift;          # ref to the whole config object
+	my $pgsql = shift;         # postgres build dir
 
 	if ($^O ne 'linux')
 	{
@@ -215,7 +218,7 @@ sub setup
 		emit("Skipping ABI check; '$branch' is not a stable branch.");
 		return;
 	}
-	
+
 	# Ensure debug information is available in compilation - required for libabigail tools
 	if ($conf->{using_meson})
 	{
@@ -226,7 +229,9 @@ sub setup
 			emit("--debug is required option for ABICompCheck with meson.");
 			return;
 		}
-	}else{
+	}
+	else
+	{
 		my $config_opts = $conf->{config_opts} || [];
 		unless (grep { $_ eq '--enable-debug' } @$config_opts)
 		{
@@ -248,10 +253,12 @@ sub setup
 
 	# Configure abidw tool flags for ABI XML generation
 	my $abidw_flags_list = $conf->{abi_comp_check}{abidw_flags_list}
-	  || [qw(
-        --drop-undefined-syms --no-architecture --no-comp-dir-path  
-        --no-elf-needed --no-show-locs --type-id-style hash  
-      )];
+	  || [
+		qw(
+		  --drop-undefined-syms --no-architecture --no-comp-dir-path
+		  --no-elf-needed --no-show-locs --type-id-style hash
+		)
+	  ];
 
 
 	# the tag_for_branch is to specify a tag to compare the ABIs with in a specific branch
@@ -288,23 +295,19 @@ sub installcheck
 	my %binaries_rel_path;
 	$binaries_rel_path{'postgres'} = 'bin/postgres';
 
-	# the inst directory should have been created by now which contains 
+	# the inst directory should have been created by now which contains
 	# installed binaries for the most recent commit
-	my $libdir = "inst/lib";
-	if (-d $libdir)
+	if (-d 'inst')
 	{
+		chdir 'inst';
 		find(
 			sub {
-				if (/\.so$/ && -f $_)
-				{
-					my $filename = basename($_);
-					my $rel_path = $File::Find::name;
-					$rel_path =~ s/^inst\///;
-					$binaries_rel_path{$filename} = $rel_path;
-				}
+				$binaries_rel_path{ basename($_) } = $File::Find::name
+				  if /\.so$/ && -f $_;
 			},
-			$libdir
+			'lib'
 		);
+		chdir '..';
 	}
 
 	my $pgbranch = $self->{pgbranch};
@@ -317,36 +320,51 @@ sub installcheck
 	if (exists $tag_for_branch->{$pgbranch})
 	{
 		my $tag_pattern = $tag_for_branch->{$pgbranch};
-		my @tags = run_log(qq{git -C ./pgsql tag --list '$tag_pattern'}); # get the list of tags based on the tag pattern provided in config
+		my @tags = run_log(qq{git -C ./pgsql tag --list '$tag_pattern'})
+		  ;   # get the list of tags based on the tag pattern provided in config
 		chomp(@tags);
 
-		unless (@tags) {
-			emit "Specified tag pattern '$tag_pattern' for branch '$pgbranch' does not match any tags.";
+		unless (@tags)
+		{
+			emit
+			  "Specified tag pattern '$tag_pattern' for branch '$pgbranch' does not match any tags.";
 			return;
 		}
+
 		# use the first tag from the list in case of regex
-		emit "Using $tags[0] as the baseline tag for branch $pgbranch based on pattern '$tag_pattern'";
+		emit
+		  "Using $tags[0] as the baseline tag for branch $pgbranch based on pattern '$tag_pattern'";
 		$baseline_tag = $tags[0];
-	}else{
+	}
+	else
+	{
 		emit "Finding latest tag for branch $pgbranch";
-		$baseline_tag = run_log(qq{git -C ./pgsql describe --tags --abbrev=0 2>/dev/null});	# Find the latest tag
+		$baseline_tag =
+		  run_log(qq{git -C ./pgsql describe --tags --abbrev=0 2>/dev/null})
+		  ;    # Find the latest tag
 	}
 	chomp $baseline_tag;
 	my $comparison_ref = '';
-	$comparison_ref = run_log(qq{git -C ./pgsql merge-base master bf_$pgbranch});	# Find the very first commit for current branch
+	$comparison_ref = run_log(qq{git -C ./pgsql merge-base master bf_$pgbranch})
+	  ;        # Find the very first commit for current branch
 	die "git merge-base failed: $?" if $?;
 	chomp $comparison_ref;
 
-	if ($baseline_tag) {
+	if ($baseline_tag)
+	{
 		# if some baseline tag is found, then get the commit SHA for the latest tagged commit
 		# and compare with the first commit for current branch
 		# using `git merge-base --is-ancestor A B` to
-		my $tag_commit = run_log(qq{git -C ./pgsql rev-list -n 1 $baseline_tag});
+		my $tag_commit =
+		  run_log(qq{git -C ./pgsql rev-list -n 1 $baseline_tag});
 		die "git rev-list failed: $?" if $?;
 		chomp $tag_commit;
 
-		my $is_ancestor = system(qq{git -C ./pgsql merge-base --is-ancestor $tag_commit $comparison_ref 2>/dev/null});
-		if ($is_ancestor) {
+		my $is_ancestor = system(
+			qq{git -C ./pgsql merge-base --is-ancestor $tag_commit $comparison_ref 2>/dev/null}
+		);
+		if ($is_ancestor)
+		{
 			# If the latest tag is not an ancestor of the first branch commit
 			# we need to use the latest tag as the comparison reference
 			# else we use the first commit of the branch instead of tag
@@ -381,7 +399,8 @@ sub installcheck
 	my $rebuild_tag = 0;
 	if ($previous_tag ne $comparison_ref)
 	{
-		push(@saveout,"baseline_tag updated from $previous_tag to $comparison_ref\n");
+		push(@saveout,
+			"baseline_tag updated from $previous_tag to $comparison_ref\n");
 		$rebuild_tag = 1;
 	}
 
@@ -421,7 +440,10 @@ sub installcheck
 
 		# Generate ABI XML files for the tag build
 		my $installdir = "$abi_compare_loc/$comparison_ref/inst";
-		$self->_generate_abidw_xml($installdir, $abi_compare_loc, $comparison_ref, \%binaries_rel_path);
+		$self->_generate_abidw_xml(
+			$installdir, $abi_compare_loc,
+			$comparison_ref, \%binaries_rel_path
+		);
 
 		# Store baseline tag to file for future runs
 		open my $tag_fh, '>', $baseline_tag_file
@@ -429,29 +451,36 @@ sub installcheck
 		print $tag_fh $comparison_ref;
 		close $tag_fh;
 
-		emit "Build and ABIXMLs generation for baseline tag '$comparison_ref' for branch '$pgbranch' done.";
+		emit
+		  "Build and ABIXMLs generation for baseline tag '$comparison_ref' for branch '$pgbranch' done.";
 	}
 
 	# Generate ABI XML files for the current build or the most recent commit
 	if (-d "./inst")
 	{
-		$self->_generate_abidw_xml("./inst", $abi_compare_loc, $pgbranch, \%binaries_rel_path);
+		$self->_generate_abidw_xml("./inst", $abi_compare_loc, $pgbranch,
+			\%binaries_rel_path);
 	}
 
 	# Compare ABI between current branch and comparison reference (baseline tag or first commit)
-	my ($diff_found, $diff_log) = $self->_compare_and_log_abi_diff($comparison_ref, $pgbranch, \%binaries_rel_path );
+	my ($diff_found, $diff_log) =
+	  $self->_compare_and_log_abi_diff($comparison_ref, $pgbranch,
+		\%binaries_rel_path);
 
 	# Add comparison results to output
-	my $status=0;
+	my $status = 0;
 	if ($diff_found)
 	{
 		push(@saveout, $diff_log->log_string);
-		$status=1;
+		$status = 1;
+		emit "Some ABI differences found";
 	}
 	else
 	{
 		push(@saveout, "no abi diffs found in this run\n");
+		emit "No ABI differences found";
 	}
+
 	# Include tag build logs if we rebuilt
 	if ($rebuild_tag)
 	{
@@ -646,7 +675,7 @@ sub configure
 
 	my $status = $? >> 8;
 
-	emit "======== configure output ===========\n", @confout  if ($verbose > 1);
+	emit "======== configure output ===========\n", @confout if ($verbose > 1);
 
 	# Include config.log if available
 	if (-s "$abi_compare_loc/$latest_tag/pgsql/config.log")
@@ -673,7 +702,7 @@ sub make
 	my $pgsql = "$abi_compare_loc/$latest_tag/pgsql";
 	my $tag_log_dir = "$abi_compare_loc/$latest_tag/build_logs";
 	my (@makeout);
-	
+
 	# Choose build command based on build system
 	if ($self->{bfconf}{using_meson})
 	{
@@ -705,7 +734,7 @@ sub make
 		@makeout = run_log("cd $pgsql && $make_cmd");
 	}
 	my $status = $? >> 8;
-	
+
 	# Save build log: will be visible only if --keepall option is enabled
 	open my $fh, '>', "$tag_log_dir/build.log"
 	  or die "Could not open $tag_log_dir/build.log: $!";
@@ -725,7 +754,7 @@ sub make_install
 	my $installdir = "$abi_compare_loc/$latest_tag/inst";
 	my $tag_log_dir = "$abi_compare_loc/$latest_tag/build_logs";
 	my @makeout;
-	
+
 	# Choose install command based on build system
 	if ($self->{bfconf}{using_meson})
 	{
@@ -751,7 +780,7 @@ sub make_install
 		@makeout = run_log("cd $pgsql && $make install");
 	}
 	my $status = $? >> 8;
-	
+
 	# Save install log: will be visible only if --keepall option is enabled
 	open my $fh, '>', "$tag_log_dir/install.log"
 	  or die "Could not open $tag_log_dir/install.log: $!";
@@ -776,9 +805,10 @@ sub _generate_abidw_xml
 	my $self = shift;
 	my $install_dir = shift;
 	my $abi_compare_loc = shift;
-	my $version_identifier = shift; # either comparison ref(i.e. latest tag or baseline tag or first commit SHA) OR branch name Because both are expected to have separate path for install directories
+	my $version_identifier = shift
+	  ; # either comparison ref(i.e. latest tag or baseline tag or first commit SHA) OR branch name Because both are expected to have separate path for install directories
 	my $binaries_rel_path = shift;
-	
+
 	emit "Generating ABIDW XML for $version_identifier";
 
 	my $abidw_flags_str = join ' ', @{ $self->{abidw_flags_list} };
@@ -821,7 +851,8 @@ sub _generate_abidw_xml
 
 			if ($exit_status)
 			{
-				emit "FAILURE - $target_name, Exit Status - $exit_status, Input Path - $input_path, Version: $version_identifier";
+				emit
+				  "FAILURE - $target_name, Exit Status - $exit_status, Input Path - $input_path, Version: $version_identifier";
 			}
 			else
 			{
@@ -868,14 +899,16 @@ sub _compare_and_log_abi_diff
 	my ($self, $latest_tag, $current_branch, $binaries_rel_path) = @_;
 	if (!defined $latest_tag || !defined $current_branch)
 	{
-		emit "Warning: _compare_and_log_abi_diff called with undefined parameters. Skipping comparison.";
+		emit
+		  "Warning: _compare_and_log_abi_diff called with undefined parameters. Skipping comparison.";
 		return (0, undef);
 	}
 
 	my $abi_compare_root = $self->{abi_compare_root};
 	my $pgbranch = $self->{pgbranch};
 
-	emit "Comparing ABI between baseline tag $latest_tag and it's latest commit";
+	emit
+	  "Comparing ABI between baseline tag $latest_tag and it's latest commit";
 
 	# Set up directories for comparison
 	my $tag_xml_dir = "$abi_compare_root/$pgbranch/$latest_tag/xmls";
@@ -885,7 +918,7 @@ sub _compare_and_log_abi_diff
 	# Clean up any previous existing logs
 	rmtree($log_dir) if -d $log_dir;
 	mkpath($log_dir) unless -d $log_dir;
-	
+
 	my $diff_found = 0;
 	my $log = PGBuild::Log->new("abi-compliance-check");
 
@@ -921,7 +954,8 @@ sub _compare_and_log_abi_diff
 sub cleanup
 {
 	my $self = shift;
-	if (!$keepall) {
+	if (!$keepall)
+	{
 		my $abi_compare_loc = "$self->{abi_compare_root}/$self->{pgbranch}";
 		my $latest_tag_file = "$abi_compare_loc/latest_tag";
 
@@ -930,17 +964,20 @@ sub cleanup
 		if (-e $latest_tag_file)
 		{
 			open my $fh, '<', $latest_tag_file
-			or die "Cannot open $latest_tag_file: $!";
+			  or die "Cannot open $latest_tag_file: $!";
 			$current_tag = <$fh>;
 			close $fh;
 			chomp $current_tag if $current_tag;
 		}
-		return unless $current_tag; # this could happen only in some worst case
+		return unless $current_tag;  # this could happen only in some worst case
 
 		# Remove all files in baseline tag directory except xmls
-		rmtree("$abi_compare_loc/$current_tag/inst") if -d "$abi_compare_loc/$current_tag/inst";
-		rmtree("$abi_compare_loc/$current_tag/pgsql") if -d "$abi_compare_loc/$current_tag/pgsql";
-		rmtree("$abi_compare_loc/$current_tag/build_logs") if -d "$abi_compare_loc/$current_tag/build_logs";
+		rmtree("$abi_compare_loc/$current_tag/inst")
+		  if -d "$abi_compare_loc/$current_tag/inst";
+		rmtree("$abi_compare_loc/$current_tag/pgsql")
+		  if -d "$abi_compare_loc/$current_tag/pgsql";
+		rmtree("$abi_compare_loc/$current_tag/build_logs")
+		  if -d "$abi_compare_loc/$current_tag/build_logs";
 	}
 
 	emit "cleaning up" if $verbose > 1;
