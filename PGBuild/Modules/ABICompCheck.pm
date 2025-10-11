@@ -463,9 +463,15 @@ sub installcheck
 	}
 
 	# Compare ABI between current branch and comparison reference (baseline tag or first commit)
-	my ($diff_found, $diff_log) =
+	my ($diff_found, $diff_log, $success_binaries) =
 	  $self->_compare_and_log_abi_diff($comparison_ref, $pgbranch,
 		\%binaries_rel_path);
+
+	# Add binaries comparison status to output at the start
+	if ($success_binaries && @$success_binaries)
+	{
+		push(@saveout, "Binaries compared: \n".join("\n", sort @$success_binaries)."\n\n");
+	}
 
 	# Add comparison results to output
 	my $status = 0;
@@ -901,7 +907,7 @@ sub _compare_and_log_abi_diff
 	{
 		emit
 		  "Warning: _compare_and_log_abi_diff called with undefined parameters. Skipping comparison.";
-		return (0, undef);
+		return (0, undef, undef, undef);
 	}
 
 	my $abi_compare_root = $self->{abi_compare_root};
@@ -922,14 +928,18 @@ sub _compare_and_log_abi_diff
 	my $diff_found = 0;
 	my $log = PGBuild::Log->new("abi-compliance-check");
 
+	my @success_binaries;
+
 	# Compare each binary's ABI using abidiff
-	foreach my $key (keys %{$binaries_rel_path})
+	while (my ($key, $value) = each %$binaries_rel_path)
 	{
 		my $tag_file = "$tag_xml_dir/$key.abi";
 		my $branch_file = "$branch_xml_dir/$key.abi";
 
 		if (-e $tag_file && -e $branch_file)
 		{
+			push(@success_binaries, $value);
+			
 			# Run abidiff to compare ABI XML files
 			my $log_file = "$log_dir/$key-$latest_tag.log";
 			my $exit_status = $self->_log_command_output(
@@ -947,7 +957,7 @@ sub _compare_and_log_abi_diff
 		}
 	}
 
-	return ($diff_found, $log);
+	return ($diff_found, $log, \@success_binaries);
 }
 
 # Clean up temporary files to save disk space
