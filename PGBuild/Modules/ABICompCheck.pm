@@ -28,7 +28,7 @@ the latest commit on a given stable branch.
 =item 2.
 
 The C<installcheck> hook of the ABICompCheck module is triggered. A C<binaries_rel_path> hash
-is constructed dynamically by scanning the installed binaries in the C<inst/lib> directory.
+is constructed dynamically by scanning all the .so files directly under the C<inst/lib> directory.
 
 =item 3.
 
@@ -59,8 +59,8 @@ directory.
 =item *
 
 It uses C<abidw> to generate XML representations of the ABI for key binaries
-(like C<postgres>, C<libpq.so>, C<ecpg> - These are the default binaries and
-can be customised by animal owners) from this tag build. These are stored for
+(the C<postgres> executable and all shared libraries found directly under the
+installation's C<lib> directory) from this tag build. These are stored for 
 future runs.
 
 =back
@@ -168,7 +168,6 @@ use strict;
 use warnings;
 use File::Path 'mkpath';
 use File::Copy;
-use File::Find;
 use File::Basename;
 use Cwd qw(abs_path getcwd);
 
@@ -297,17 +296,17 @@ sub installcheck
 
 	# the inst directory should have been created by now which contains
 	# installed binaries for the most recent commit
-	if (-d 'inst')
+	if (-d 'inst/lib')
 	{
-		chdir 'inst';
-		find(
-			sub {
-				$binaries_rel_path{ basename($_) } = $File::Find::name
-				  if /\.so$/ && -f $_;
-			},
-			'lib'
-		);
-		chdir '..';
+		my @so_files = glob 'inst/lib/*.so';
+		for my $file (@so_files)
+		{
+			if (-f $file)
+			{
+				(my $rel_path = $file) =~ s,^inst/,,;
+				$binaries_rel_path{ basename($file) } = $rel_path;
+			}
+		}
 	}
 
 	my $pgbranch = $self->{pgbranch};
