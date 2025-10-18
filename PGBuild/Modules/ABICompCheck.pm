@@ -10,9 +10,10 @@ See accompanying License file for license details
 =head1 PGBuild::Modules::ABICompCheck
 
 This module is used for ABI compliance checking of PostgreSQL builds by
-comparing the latest commit on a stable branch with the most recent tag on that
-branch. This helps detect unintended changes that could break compatibility for
-extensions or client applications.
+comparing the latest commit on a stable branch with a baseline reference (most
+recent tag, first commit of the branch, or a custom commit specified in
+C<.abi-compliance-history>). This helps detect unintended changes that could
+break compatibility for extensions or client applications.
 
 =head2 EXECUTION FLOW
 
@@ -32,35 +33,49 @@ is constructed dynamically by scanning all the .so files directly under the C<in
 
 =item 3.
 
-The module identifies the most recent tag for a particular branch (e.g.,
-REL_16_1) to use as a baseline for comparison against the most recent commit of
-the branch.
-
-=item 4.
-
-It checks if a pre-existing, complete build and ABI dump for this baseline tag
-exists in its working directory (C<buildroot/abicheck.$animal_name>).
-
-=item 5.
-
-If the baseline tag's build is missing or incomplete, the module performs a
-fresh build of that tag:
+The module identifies a baseline reference for comparison. This can be:
 
 =over
 
 =item *
 
- It checks out the source code for the tag.
+The most recent tag on the branch (e.g., REL_16_1), if found and not older than the branch point.
 
 =item *
-It runs C<configure>, C<make>, and C<make install> for the tag in an isolated
+
+The first commit of the current branch, if no suitable tag is found or if the latest tag predates the branch.
+
+=item *
+
+A custom commit/tag specified in C<pgsql/.abi-compliance-history> file (this overrides the automatic selection).
+
+=back
+
+=item 4.
+
+It checks if a pre-existing, complete build and ABI dump for this baseline
+reference exists in its working directory (C<buildroot/abicheck.$animal_name>).
+
+=item 5.
+
+If the baseline reference's build is missing or has changed, the module performs
+a fresh build:
+
+=over
+
+=item *
+
+ It checks out the source code for the baseline reference.
+
+=item *
+It runs C<configure>, C<make>, and C<make install> for the baseline reference in an isolated
 directory.
 
 =item *
 
 It uses C<abidw> to generate XML representations of the ABI for key binaries
 (the C<postgres> executable and all shared libraries found directly under the
-installation's C<lib> directory) from this tag build. These are stored for 
+installation's C<lib> directory) from this baseline build. These are stored for 
 future runs.
 
 =back
@@ -73,18 +88,20 @@ the main build (the latest commit).
 =item 7.
 
 Using C<abidiff>, it compares the ABI XML file of each binary from the latest
-commit against the corresponding file from the baseline tag.
+commit against the corresponding file from the baseline reference.
 
 =item 8.
 
-Any differences detected by C<abidiff> are collected into a log report. If no
+Any differences detected by C<abidiff> are collected into a log report. A list
+of successfully compared binaries is also included in the output. If no
 differences are found, a success message is logged.
 
 =item 9.
 
-The final report, containing either the ABI differences or "no abi diffs found
-in this run", is sent to the build farm server as part of the overall build
-status.
+The final report, containing the list of compared binaries, either the ABI
+differences or "no abi diffs found in this run", and optionally build logs if
+the baseline was rebuilt, is sent to the build farm server as part of the
+overall build status.
 
 =back
 
@@ -111,8 +128,10 @@ An array reference containing flags to pass to C<abidw>. Defaults to:
 
 =item C<tag_for_branch>
 
-A hash reference mapping branch names to their corresponding tags for ABI
-comparison. Defaults to empty hash which means latest tags for all branches.
+A hash reference mapping branch names to their corresponding tags or tag
+patterns for ABI comparison. Supports exact tag names or patterns (e.g.,
+'REL_17_*'). If a pattern matches multiple tags, the first one is used. Defaults
+to empty hash, which means automatic tag selection for all branches.
 
 =back
 
@@ -141,6 +160,12 @@ Before using this module, ensure that you have the
 L<libabigail|https://github.com/libabigail/libabigail> tools (e.g., the
 C<abigail-tools> Apt package) installed on your animal.
 
+=item *
+
+You can override the automatic baseline selection by creating a
+C<pgsql/.abi-compliance-history> file containing the commit SHA. This
+is useful for comparing against a specific commit when needed.
+
 =back
 
 =head2 EXAMPLE LOG OUTPUT
@@ -152,9 +177,13 @@ Example output will be similar to:
 	Git HEAD: 61c37630774002fb36a5fa17f57caa3a9c2165d9
 	Changes since: REL_17_6
 
-	baseline_tag updated from REL_17_5 to REL_17_6
+	baseline updated from REL_17_5 to REL_17_6
+	Binaries compared: 
+	bin/postgres
+	lib/libpq.so
+
 	no abi diffs found in this run - Or ABI diff if any
-	....other build logs for recent tag if any
+	....other build logs for baseline if rebuilt
 
 =cut
 
@@ -313,7 +342,7 @@ sub installcheck
 	my $abi_compare_loc = "$self->{abi_compare_root}/$pgbranch";
 	mkdir $abi_compare_loc unless -d $abi_compare_loc;
 	my $tag_for_branch = $self->{tag_for_branch} || {};
-	my $baseline_tag;
+	my $comparison_ref = '';
 
 	# find the tag to compare with for the branch
 	if (exists $tag_for_branch->{$pgbranch})
@@ -333,46 +362,81 @@ sub installcheck
 		# use the first tag from the list in case of regex
 		emit
 		  "Using $tags[0] as the baseline tag for branch $pgbranch based on pattern '$tag_pattern'";
-		$baseline_tag = $tags[0];
+		$comparison_ref = $tags[0];
 	}
 	else
 	{
+		# If no specific tag is configured, find the most recent tag on the branch.
 		emit "Finding latest tag for branch $pgbranch";
-		$baseline_tag =
-		  run_log(qq{git -C ./pgsql describe --tags --abbrev=0 2>/dev/null})
-		  ;    # Find the latest tag
-	}
-	chomp $baseline_tag;
-	my $comparison_ref = '';
-	$comparison_ref = run_log(qq{git -C ./pgsql merge-base master bf_$pgbranch})
-	  ;        # Find the very first commit for current branch
-	die "git merge-base failed: $?" if $?;
-	chomp $comparison_ref;
+		my $baseline = run_log(qq{git -C ./pgsql describe --tags --abbrev=0 2>/dev/null});
+		chomp $baseline;
 
-	if ($baseline_tag)
-	{
-		# if some baseline tag is found, then get the commit SHA for the latest tagged commit
-		# and compare with the first commit for current branch
-		# using `git merge-base --is-ancestor A B` to
-		my $tag_commit =
-		  run_log(qq{git -C ./pgsql rev-list -n 1 $baseline_tag});
-		die "git rev-list failed: $?" if $?;
-		chomp $tag_commit;
-
-		my $is_ancestor = system(
-			qq{git -C ./pgsql merge-base --is-ancestor $tag_commit $comparison_ref 2>/dev/null}
-		);
-		if ($is_ancestor)
+		# Default to the latest tag if found.
+		if ($baseline)
 		{
-			# If the latest tag is not an ancestor of the first branch commit
-			# we need to use the latest tag as the comparison reference
-			# else we use the first commit of the branch instead of tag
-			$comparison_ref = $baseline_tag;
-			emit "Baseline tag: $baseline_tag";
+			# Find the first commit of the current branch.
+			my $first_commit =
+			  run_log(qq{git -C ./pgsql merge-base master bf_$pgbranch});
+			die "git merge-base failed: $?" if $?;
+			chomp $first_commit;
+
+			# Check if the latest tag is an ancestor of the first commit of the branch.
+			# If it is, it's likely a tag from a previous branch, so we should
+			# use the first commit of the current branch as the baseline instead.
+			my $is_ancestor = system(qq{git -C ./pgsql merge-base --is-ancestor $baseline $first_commit 2>/dev/null});
+
+			if ($is_ancestor == 0)
+			{
+				# The tag is an ancestor of the branch point, so it's too old.
+				# Use the first commit of the branch as the baseline.
+				$comparison_ref = $first_commit;
+				emit "Latest tag '$baseline' is older than branch point. Using first branch commit '$comparison_ref' as baseline.";
+			}
+			else
+			{
+				# The tag is on the current branch, so use it.
+				$comparison_ref = $baseline;
+				emit "Using latest tag '$comparison_ref' as baseline.";
+			}
+		}
+		else
+		{
+			# As a fallback, find the first commit of the current branch.
+			# This is not ideal as it might be too old for a meaningful ABI comparison.
+			$comparison_ref =
+			  run_log(qq{git -C ./pgsql merge-base master bf_$pgbranch});
+			die "git merge-base failed: $?" if $?;
+			chomp $comparison_ref;
+			emit "No tags found. Using first branch commit '$comparison_ref' as baseline.";
+		}
+
+		# Allow overriding the baseline via .abi-compliance-history file.
+		if (-f "pgsql/.abi-compliance-history")
+		{
+			open my $fh, '<', "pgsql/.abi-compliance-history"
+			  or die "Cannot open pgsql/.abi-compliance-history: $!";
+			while (my $line = <$fh>)
+			{
+				next if $line =~ /^\s*#/ || $line =~ /^\s*$/;
+				$line =~ s/\s*#.*//;
+				$line =~ s/^\s+|\s+$//g;
+				# Check that the commit/tag actually exists.
+				my $exit_status = system(qq{git -C ./pgsql cat-file -e $line^{commit} 2>/dev/null});
+				if ($exit_status != 0)
+				{
+					die
+					  "Wrong or non-existent commit/tag '$line' found in .abi-compliance-history";
+				}
+				$comparison_ref = $line;
+				emit
+				  "Overriding baseline with '$comparison_ref' from .abi-compliance-history";
+				last;
+			}
+			close $fh;
 		}
 	}
 
-	# get the previous tag from the latest_tag file for current branch if exists
+	# Get the previous tag from the latest_tag file for current branch if it exists.
 	my $baseline_tag_file = "$abi_compare_loc/latest_tag";
 	my $previous_tag = '';
 	if (-e $baseline_tag_file)
@@ -384,7 +448,7 @@ sub installcheck
 		chomp $previous_tag if $previous_tag;
 	}
 
-	# Initialise output log with basic information
+	# Initialise output log with basic information.
 	my $latest_commit_sha = run_log(qq{git -C ./pgsql rev-parse HEAD});
 	die "git rev-parse HEAD failed: $?" if $?;
 	chomp $latest_commit_sha;
@@ -399,7 +463,7 @@ sub installcheck
 	if ($previous_tag ne $comparison_ref)
 	{
 		push(@saveout,
-			"baseline_tag updated from $previous_tag to $comparison_ref\n");
+			"baseline updated from $previous_tag to $comparison_ref\n");
 		$rebuild_tag = 1;
 	}
 
