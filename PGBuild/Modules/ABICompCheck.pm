@@ -10,9 +10,9 @@ See accompanying License file for license details
 =head1 PGBuild::Modules::ABICompCheck
 
 This module is used for ABI compliance checking of PostgreSQL builds by
-comparing the latest commit on a stable branch with a baseline reference (most
-recent tag, first commit of the branch, or a custom commit specified in
-C<.abi-compliance-history>). This helps detect unintended changes that could
+comparing the latest commit on a stable branch with a baseline reference
+specified either in the animal's configuration file or in the
+C<.abi-compliance-history> file. This helps detect unintended changes that could
 break compatibility for extensions or client applications.
 
 =head2 EXECUTION FLOW
@@ -43,17 +43,11 @@ The tag specified for the current branch in the animal's configuration file usin
 
 =item *
 
-A custom commit/tag specified in C<pgsql/.abi-compliance-history> file.
-
-=item *
-
-The most recent tag on the branch (e.g., REL_16_1), if found and not older than the branch point.
-
-=item *
-
-The first commit of the current branch as the last fallback, if no suitable tag is found or if the latest tag predates the branch.
+The most recent commit SHA specified in C<pgsql/.abi-compliance-history> file.
 
 =back
+
+If neither is configured, the module returns early and does not perform ABI comparison.
 
 =item 4.
 
@@ -132,10 +126,11 @@ An array reference containing flags to pass to C<abidw>. Defaults to:
 
 =item C<tag_for_branch>
 
+OPTIONAL.
 A hash reference mapping branch names to their corresponding tags or tag
 patterns for ABI comparison. Supports exact tag names or patterns (e.g.,
-'REL_17_*'). If a pattern matches multiple tags, the first one is used. Defaults
-to an empty hash, which means automatic tag selection for all branches.
+'REL_17_*'). If a pattern matches multiple tags, the first one is used.
+If not defined for a branch then .abi-compliance-history file is used.
 
 =back
 
@@ -166,9 +161,10 @@ C<abigail-tools> Apt package) installed on your animal.
 
 =item *
 
-You can override the automatic baseline selection by creating a
-C<pgsql/.abi-compliance-history> file containing the commit SHA. This
-is useful for comparing against a specific commit when needed.
+You must specify a baseline reference either in the animal's configuration using
+C<tag_for_branch> or by creating a C<pgsql/.abi-compliance-history> file containing
+the commit SHA or tag. The configuration file takes precedence over the history file.
+This ensures explicit control over what baseline is used for comparison.
 
 =back
 
@@ -245,9 +241,17 @@ sub setup
 		emit("Only git SCM is supported for ABICompCheck Module, skipping.");
 		return;
 	}
-	if ($branch !~ /_STABLE$/)
+	if ( !(-f "pgsql/.abi-compliance-history"
+			|| (
+				defined $conf->{abi_comp_check}{tag_for_branch}
+				&& exists $conf->{abi_comp_check}{tag_for_branch}{$branch}
+			   )
+		  )
+	   )
 	{
-		emit("Skipping ABI check; '$branch' is not a stable branch.");
+		emit("No .abi-compliance-history file found in $branch");
+		writelog("abi-compliance-check",
+			["no .abi-compliance-history file found in $branch"]) if $branch =~ /_STABLE$/;
 		return;
 	}
 
@@ -359,74 +363,14 @@ sub _get_comparison_ref_from_history_file
 		if ($exit_status != 0)
 		{
 			die
-			  "Wrong or non-existent commit/tag '$line' found in .abi-compliance-history";
+			  "Wrong or non-existent commit '$line' found in .abi-compliance-history";
 		}
 		close $fh;
 		return $line;
 	}
+	writelog("abi-compliance-check",
+		["No valid commit SHA found in .abi-compliance-history"]);
 	return '';
-}
-
-# Determine the default comparison reference by finding the latest tag or the
-# first commit of the branch.
-sub _get_default_comparison_ref
-{
-	my $self = shift;
-
-	# Find the most recent tag on the branch, or fallback to first commit of branch
-
-	my $pgbranch = $self->{pgbranch};
-	my $comparison_ref = '';
-
-	# If no specific tag is configured, find the most recent tag on the branch.
-	emit "Finding latest tag for branch $pgbranch";
-	my $baseline =
-	  run_log(qq{git -C ./pgsql describe --tags --abbrev=0 2>/dev/null});
-	chomp $baseline;
-
-	# Default to the latest tag if found.
-	if ($baseline)
-	{
-		# Find the first commit of the current branch.
-		my $first_commit =
-		  run_log(qq{git -C ./pgsql merge-base master bf_$pgbranch});
-		die "git merge-base failed: $?" if $?;
-		chomp $first_commit;
-
-		# Check if the latest tag is an ancestor of the first commit of the branch.
-		# If it is, it's likely a tag from a previous branch, so we should
-		# use the first commit of the current branch as the baseline instead.
-		my $is_ancestor = system(
-			qq{git -C ./pgsql merge-base --is-ancestor $baseline $first_commit 2>/dev/null}
-		);
-
-		if ($is_ancestor == 0)
-		{
-			# The tag is an ancestor of the branch point, so it's too old.
-			# Use the first commit of the branch as the baseline.
-			$comparison_ref = $first_commit;
-			emit
-			  "Latest tag '$baseline' is older than branch point. Using first branch commit '$comparison_ref' as baseline.";
-		}
-		else
-		{
-			# The tag is on the current branch, so use it.
-			$comparison_ref = $baseline;
-			emit "Using latest tag '$comparison_ref' as baseline.";
-		}
-	}
-	else
-	{
-		# As a fallback, find the first commit of the current branch.
-		# This is not ideal as it might be too old for a meaningful ABI comparison.
-		$comparison_ref =
-		  run_log(qq{git -C ./pgsql merge-base master bf_$pgbranch});
-		die "git merge-base failed: $?" if $?;
-		chomp $comparison_ref;
-		emit
-		  "No tags found. Using first branch commit '$comparison_ref' as baseline.";
-	}
-	return $comparison_ref;
 }
 
 # Main function - runs after PostgreSQL installation to perform ABI comparison
@@ -463,7 +407,6 @@ sub installcheck
 	# Determine the baseline reference for comparison, in order of precedence:
 	# 1. Animal-specific config
 	# 2. .abi-compliance-history file
-	# 3. Default (latest tag or first commit of the branch)
 	if (exists $tag_for_branch->{$pgbranch})
 	{
 		$comparison_ref = $self->_get_comparison_ref_from_config();
@@ -471,27 +414,23 @@ sub installcheck
 		  "Using $comparison_ref as the baseline tag based on the animal config"
 		  if $comparison_ref;
 	}
-	elsif (-f "pgsql/.abi-compliance-history")
+	else
 	{
 		$comparison_ref = $self->_get_comparison_ref_from_history_file();
-		emit "Using baseline '$comparison_ref' from .abi-compliance-history"
-		  if $comparison_ref;
+		return unless $comparison_ref;
+		emit "Using baseline '$comparison_ref' from .abi-compliance-history";
 	}
 
-	# Fallback to default if no ref is found from config or history file
-	$comparison_ref = $self->_get_default_comparison_ref()
-	  unless $comparison_ref;
-
-	# Get the previous tag from the latest_tag file for current branch if it exists.
-	my $baseline_tag_file = "$abi_compare_loc/latest_tag";
-	my $previous_tag = '';
-	if (-e $baseline_tag_file)
+	# Get the previous baseline from the baseline file for current branch if it exists.
+	my $baseline_file = "$abi_compare_loc/latest_tag";
+	my $previous_baseline = '';
+	if (-e $baseline_file)
 	{
-		open my $fh, '<', $baseline_tag_file
-		  or die "Cannot open $baseline_tag_file: $!";
-		$previous_tag = <$fh>;
+		open my $fh, '<', $baseline_file
+		  or die "Cannot open $baseline_file: $!";
+		$previous_baseline = <$fh>;
 		close $fh;
-		chomp $previous_tag if $previous_tag;
+		chomp $previous_baseline if $previous_baseline;
 	}
 
 	# Initialise output log with basic information.
@@ -504,64 +443,64 @@ sub installcheck
 		"Changes since: $comparison_ref\n\n"
 	);
 
-	# Determine if we need to rebuild the baseline tag binaries
-	my $rebuild_tag = 0;
-	if ($previous_tag ne $comparison_ref)
+	# Determine if we need to rebuild the baseline binaries
+	my $rebuild_baseline = 0;
+	if ($previous_baseline ne $comparison_ref)
 	{
 		push(@saveout,
-			"baseline updated from $previous_tag to $comparison_ref\n");
-		$rebuild_tag = 1;
+			"baseline updated from $previous_baseline to $comparison_ref\n");
+		$rebuild_baseline = 1;
 	}
 
-	# Rebuild the comparision ref from scratch, if needed by any of the checks above
-	if ($rebuild_tag)
+	# Rebuild the comparison ref from scratch, if needed by any of the checks above
+	if ($rebuild_baseline)
 	{
-		# Clean up old tag directory
-		rmtree("$abi_compare_loc/$previous_tag")
-		  if $previous_tag && -d "$abi_compare_loc/$previous_tag";
+		# Clean up old baseline directory
+		rmtree("$abi_compare_loc/$previous_baseline")
+		  if $previous_baseline && -d "$abi_compare_loc/$previous_baseline";
 
 
-		# Set up directories for tag build
-		my $tag_build_dir = "$abi_compare_loc/$comparison_ref";
-		my $tag_log_dir = "$tag_build_dir/build_logs";
+		# Set up directories for baseline build
+		my $baseline_build_dir = "$abi_compare_loc/$comparison_ref";
+		my $baseline_log_dir = "$baseline_build_dir/build_logs";
 
-		mkpath($tag_log_dir)
-		  unless -d $tag_log_dir;
+		mkpath($baseline_log_dir)
+		  unless -d $baseline_log_dir;
 
-		# Checkout the tag we want to compare against
+		# Checkout the baseline we want to compare against
 		run_log(qq{git -C ./pgsql checkout $comparison_ref});
 		die "git checkout $comparison_ref failed: $?" if $?;
 
 		# got this git save piece of code from PGBuild::SCM::Git::copy_source
 		move "./pgsql/.git", "./git-save";
 		PGBuild::SCM::copy_source($self->{bfconf}{using_msvc},
-			"./pgsql", "$tag_build_dir/pgsql");
+			"./pgsql", "$baseline_build_dir/pgsql");
 		move "./git-save", "./pgsql/.git";
 
 		# checkout back to original branch
 		run_log(qq{git -C ./pgsql checkout bf_$pgbranch});
 		die "git checkout bf_$pgbranch failed: $?" if $?;
 
-		# Build the tag: configure, make, install
+		# Build the baseline: configure, make, install
 		$self->configure($abi_compare_loc, $comparison_ref);
 		$self->make($abi_compare_loc, $comparison_ref);
 		$self->make_install($abi_compare_loc, $comparison_ref);
 
-		# Generate ABI XML files for the tag build
+		# Generate ABI XML files for the baseline build
 		my $installdir = "$abi_compare_loc/$comparison_ref/inst";
 		$self->_generate_abidw_xml(
 			$installdir, $abi_compare_loc,
 			$comparison_ref, \%binaries_rel_path
 		);
 
-		# Store baseline tag to file for future runs
-		open my $tag_fh, '>', $baseline_tag_file
-		  or die "Could not open $baseline_tag_file: $!";
-		print $tag_fh $comparison_ref;
-		close $tag_fh;
+		# Store baseline to file for future runs
+		open my $baseline_fh, '>', $baseline_file
+		  or die "Could not open $baseline_file: $!";
+		print $baseline_fh $comparison_ref;
+		close $baseline_fh;
 
 		emit
-		  "Build and ABIXMLs generation for baseline tag '$comparison_ref' for branch '$pgbranch' done.";
+		  "Build and ABIXMLs generation for baseline '$comparison_ref' for branch '$pgbranch' done.";
 	}
 
 	# Generate ABI XML files for the current build or the most recent commit
@@ -571,7 +510,7 @@ sub installcheck
 			\%binaries_rel_path);
 	}
 
-	# Compare ABI between current branch and comparison reference (baseline tag or first commit)
+	# Compare ABI between current branch and comparison reference (baseline)
 	my ($diff_found, $diff_log, $success_binaries) =
 	  $self->_compare_and_log_abi_diff($comparison_ref, $pgbranch,
 		\%binaries_rel_path);
@@ -599,13 +538,13 @@ sub installcheck
 		emit "No ABI differences found";
 	}
 
-	# Include tag build logs if we rebuilt
-	if ($rebuild_tag)
+	# Include baseline build logs if we rebuilt
+	if ($rebuild_baseline)
 	{
-		my $tag_log_dir = "$abi_compare_loc/$comparison_ref/build_logs";
+		my $baseline_log_dir = "$abi_compare_loc/$comparison_ref/build_logs";
 		foreach my $log_name ('configure', 'build', 'install')
 		{
-			my $log_file = "$tag_log_dir/$log_name.log";
+			my $log_file = "$baseline_log_dir/$log_name.log";
 			if (-e $log_file)
 			{
 				my $build_log = PGBuild::Log->new("${log_name}_log");
@@ -629,7 +568,7 @@ sub meson_setup
 {
 	my $self = shift;
 	my $installdir = shift;
-	my $latest_tag = shift;
+	my $baseline = shift;
 	my $env = $self->{bfconf}{config_env};
 	$env = {%$env};    # clone it
 	delete $env->{CC}
@@ -676,7 +615,7 @@ sub meson_setup
 
 	move "$pgsql/meson-logs/meson-log.txt", "$pgsql/meson-logs/setup.log";
 
-	my $log = PGBuild::Log->new($latest_tag . "setup");
+	my $log = PGBuild::Log->new($baseline . "setup");
 	foreach my $logfile ("$pgsql/meson-logs/setup.log",
 		"$pgsql/src/include/pg_config.h")
 	{
@@ -720,17 +659,17 @@ sub configure
 {
 	my $self = shift;
 	my $abi_compare_loc = shift;
-	my $latest_tag = shift;
+	my $baseline = shift;
 	emit "running configure ...";
 	my $branch = $self->{pgbranch};
-	my $tag_log_dir = "$abi_compare_loc/$latest_tag/build_logs";
+	my $baseline_log_dir = "$abi_compare_loc/$baseline/build_logs";
 	my @confout;
 
 	# Choose configuration method based on build system
 	if ($self->{bfconf}{using_meson}
 		&& ($branch eq 'HEAD' || $branch ge 'REL_16_STABLE'))
 	{
-		$self->meson_setup("$abi_compare_loc/$latest_tag/inst");
+		$self->meson_setup("$abi_compare_loc/$baseline/inst");
 	}
 
 	if ($self->{bfconf}{using_msvc})
@@ -755,9 +694,9 @@ sub configure
 		}
 	}
 
-	# Set install prefix to our tag-specific directory
+	# Set install prefix to our baseline-specific directory
 	my $confstr =
-	  join(" ", @quoted_opts, "--prefix=$abi_compare_loc/$latest_tag/inst");
+	  join(" ", @quoted_opts, "--prefix=$abi_compare_loc/$baseline/inst");
 
 	# Set up environment variables for configure
 	my $env = $self->{bfconf}{config_env};
@@ -788,7 +727,7 @@ sub configure
 
 	# Run configure command
 	@confout = run_log(
-		"$envstr cd $abi_compare_loc/$latest_tag/pgsql && ./configure $confstr"
+		"$envstr cd $abi_compare_loc/$baseline/pgsql && ./configure $confstr"
 	);
 
 	my $status = $? >> 8;
@@ -796,16 +735,16 @@ sub configure
 	emit "======== configure output ===========\n", @confout if ($verbose > 1);
 
 	# Include config.log if available
-	if (-s "$abi_compare_loc/$latest_tag/pgsql/config.log")
+	if (-s "$abi_compare_loc/$baseline/pgsql/config.log")
 	{
-		my $log = PGBuild::Log->new($latest_tag . "_configure");
+		my $log = PGBuild::Log->new($baseline . "_configure");
 		$log->add_log("config.log");
 		push(@confout, $log->log_string);
 	}
 
 	# Save configure log: will be visible only if --keepall option is enabled
-	open my $fh, '>', "$tag_log_dir/configure.log"
-	  or die "Could not open $tag_log_dir/configure.log: $!";
+	open my $fh, '>', "$baseline_log_dir/configure.log"
+	  or die "Could not open $baseline_log_dir/configure.log: $!";
 	print $fh @confout;
 	close $fh;
 }
@@ -814,11 +753,11 @@ sub make
 {
 	my $self = shift;
 	my $abi_compare_loc = shift;
-	my $latest_tag = shift;
+	my $baseline = shift;
 	emit "running build ...";
 
-	my $pgsql = "$abi_compare_loc/$latest_tag/pgsql";
-	my $tag_log_dir = "$abi_compare_loc/$latest_tag/build_logs";
+	my $pgsql = "$abi_compare_loc/$baseline/pgsql";
+	my $baseline_log_dir = "$abi_compare_loc/$baseline/build_logs";
 	my (@makeout);
 
 	# Choose build command based on build system
@@ -854,8 +793,8 @@ sub make
 	my $status = $? >> 8;
 
 	# Save build log: will be visible only if --keepall option is enabled
-	open my $fh, '>', "$tag_log_dir/build.log"
-	  or die "Could not open $tag_log_dir/build.log: $!";
+	open my $fh, '>', "$baseline_log_dir/build.log"
+	  or die "Could not open $baseline_log_dir/build.log: $!";
 	print $fh @makeout;
 	close $fh;
 	emit "======== make log ===========\n", @makeout if ($verbose > 1);
@@ -865,12 +804,12 @@ sub make_install
 {
 	my $self = shift;
 	my $abi_compare_loc = shift;
-	my $latest_tag = shift;
+	my $baseline = shift;
 	emit "running install ...";
 
-	my $pgsql = "$abi_compare_loc/$latest_tag/pgsql";
-	my $installdir = "$abi_compare_loc/$latest_tag/inst";
-	my $tag_log_dir = "$abi_compare_loc/$latest_tag/build_logs";
+	my $pgsql = "$abi_compare_loc/$baseline/pgsql";
+	my $installdir = "$abi_compare_loc/$baseline/inst";
+	my $baseline_log_dir = "$abi_compare_loc/$baseline/build_logs";
 	my @makeout;
 
 	# Choose install command based on build system
@@ -900,8 +839,8 @@ sub make_install
 	my $status = $? >> 8;
 
 	# Save install log: will be visible only if --keepall option is enabled
-	open my $fh, '>', "$tag_log_dir/install.log"
-	  or die "Could not open $tag_log_dir/install.log: $!";
+	open my $fh, '>', "$baseline_log_dir/install.log"
+	  or die "Could not open $baseline_log_dir/install.log: $!";
 	print $fh @makeout;
 	close $fh;
 	emit "======== make install log ===========\n", @makeout if ($verbose > 1);
@@ -924,14 +863,14 @@ sub _generate_abidw_xml
 	my $install_dir = shift;
 	my $abi_compare_loc = shift;
 	my $version_identifier = shift
-	  ; # either comparison ref(i.e. latest tag or baseline tag or first commit SHA) OR branch name Because both are expected to have separate path for install directories
+	  ; # either comparison ref(i.e. baseline commit/tag) OR branch name Because both are expected to have separate path for install directories
 	my $binaries_rel_path = shift;
 
 	emit "Generating ABIDW XML for $version_identifier";
 
 	my $abidw_flags_str = join ' ', @{ $self->{abidw_flags_list} };
 
-	# Determine if this is for a tag or current branch
+	# Determine if this is for a baseline or current branch
 	my $xml_dir;
 	my $log_dir;
 	if ($version_identifier eq $self->{pgbranch})
@@ -942,7 +881,7 @@ sub _generate_abidw_xml
 	}
 	else
 	{
-		# Latest tag - stored in tag-specific directory
+		# Baseline - stored in baseline-specific directory
 		$xml_dir = "$abi_compare_loc/$version_identifier/xmls";
 		$log_dir = "$abi_compare_loc/$version_identifier/build_logs";
 	}
@@ -1011,11 +950,11 @@ sub _log_command_output
 	return $exit_status;
 }
 
-# Compare ABI XML files between tag and current branch using abidiff
+# Compare ABI XML files between baseline and current branch using abidiff
 sub _compare_and_log_abi_diff
 {
-	my ($self, $latest_tag, $current_branch, $binaries_rel_path) = @_;
-	if (!defined $latest_tag || !defined $current_branch)
+	my ($self, $baseline, $current_branch, $binaries_rel_path) = @_;
+	if (!defined $baseline || !defined $current_branch)
 	{
 		emit
 		  "Warning: _compare_and_log_abi_diff called with undefined parameters. Skipping comparison.";
@@ -1025,10 +964,10 @@ sub _compare_and_log_abi_diff
 	my $abi_compare_root = $self->{abi_compare_root};
 	my $pgbranch = $self->{pgbranch};
 
-	emit "Comparing ABI between baseline $latest_tag and the latest commit";
+	emit "Comparing ABI between baseline $baseline and the latest commit";
 
 	# Set up directories for comparison
-	my $tag_xml_dir = "$abi_compare_root/$pgbranch/$latest_tag/xmls";
+	my $baseline_xml_dir = "$abi_compare_root/$pgbranch/$baseline/xmls";
 	my $branch_xml_dir = "$abi_compare_root/$pgbranch/xmls";
 	my $log_dir = "$abi_compare_root/$pgbranch/diffs";
 
@@ -1044,17 +983,17 @@ sub _compare_and_log_abi_diff
 	# Compare each binary's ABI using abidiff
 	while (my ($key, $value) = each %$binaries_rel_path)
 	{
-		my $tag_file = "$tag_xml_dir/$key.abi";
+		my $baseline_file = "$baseline_xml_dir/$key.abi";
 		my $branch_file = "$branch_xml_dir/$key.abi";
 
-		if (-e $tag_file && -e $branch_file)
+		if (-e $baseline_file && -e $branch_file)
 		{
 			push(@success_binaries, $value);
 
 			# Run abidiff to compare ABI XML files
-			my $log_file = "$log_dir/$key-$latest_tag.log";
+			my $log_file = "$log_dir/$key-$baseline.log";
 			my $exit_status = $self->_log_command_output(
-				qq{abidiff "$tag_file" "$branch_file" --leaf-changes-only --no-added-syms --show-bytes},
+				qq{abidiff "$baseline_file" "$branch_file" --leaf-changes-only --no-added-syms --show-bytes},
 				$log_file, "abidiff for $key", 1
 			);
 
@@ -1078,27 +1017,27 @@ sub cleanup
 	if (!$keepall)
 	{
 		my $abi_compare_loc = "$self->{abi_compare_root}/$self->{pgbranch}";
-		my $latest_tag_file = "$abi_compare_loc/latest_tag";
+		my $baseline_tag_file = "$abi_compare_loc/latest_tag";
 
-		# Find which tag directory to clean up
-		my $current_tag = '';
-		if (-e $latest_tag_file)
+		# Find which baseline directory to clean up
+		my $current_baseline = '';
+		if (-e $baseline_tag_file)
 		{
-			open my $fh, '<', $latest_tag_file
-			  or die "Cannot open $latest_tag_file: $!";
-			$current_tag = <$fh>;
+			open my $fh, '<', $baseline_tag_file
+			  or die "Cannot open $baseline_tag_file: $!";
+			$current_baseline = <$fh>;
 			close $fh;
-			chomp $current_tag if $current_tag;
+			chomp $current_baseline if $current_baseline;
 		}
-		return unless $current_tag;  # this could happen only in some worst case
+		return unless $current_baseline;  # this could happen only in some worst case
 
 		# Remove all files in baseline tag directory except xmls
-		rmtree("$abi_compare_loc/$current_tag/inst")
-		  if -d "$abi_compare_loc/$current_tag/inst";
-		rmtree("$abi_compare_loc/$current_tag/pgsql")
-		  if -d "$abi_compare_loc/$current_tag/pgsql";
-		rmtree("$abi_compare_loc/$current_tag/build_logs")
-		  if -d "$abi_compare_loc/$current_tag/build_logs";
+		rmtree("$abi_compare_loc/$current_baseline/inst")
+		  if -d "$abi_compare_loc/$current_baseline/inst";
+		rmtree("$abi_compare_loc/$current_baseline/pgsql")
+		  if -d "$abi_compare_loc/$current_baseline/pgsql";
+		rmtree("$abi_compare_loc/$current_baseline/build_logs")
+		  if -d "$abi_compare_loc/$current_baseline/build_logs";
 	}
 
 	emit "cleaning up" if $verbose > 1;
