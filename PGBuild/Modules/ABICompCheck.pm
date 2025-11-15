@@ -241,19 +241,6 @@ sub setup
 		emit("Only git SCM is supported for ABICompCheck Module, skipping.");
 		return;
 	}
-	if ( !(-f "pgsql/.abi-compliance-history"
-			|| (
-				defined $conf->{abi_comp_check}{tag_for_branch}
-				&& exists $conf->{abi_comp_check}{tag_for_branch}{$branch}
-			   )
-		  )
-	   )
-	{
-		emit("No .abi-compliance-history file found in $branch");
-		writelog("abi-compliance-check",
-			["no .abi-compliance-history file found in $branch"]) if $branch =~ /_STABLE$/;
-		return;
-	}
 
 	# Ensure debug information is available in compilation - required for libabigail tools
 	if ($conf->{using_meson})
@@ -378,6 +365,21 @@ sub installcheck
 {
 	my $self = shift;
 	return unless step_wanted('abi-compliance-check');
+
+	if ( !(-f "pgsql/.abi-compliance-history"
+		|| (
+			defined $self->{bfconf}{abi_comp_check}{tag_for_branch}
+			&& exists $self->{bfconf}{abi_comp_check}{tag_for_branch}{$self->{pgbranch}}
+			)
+		)
+	)
+	{
+		emit("No .abi-compliance-history file found in $self->{pgbranch}");
+		writelog("abi-compliance-check",
+			["no .abi-compliance-history file found in $self->{pgbranch}"]) if $self->{pgbranch} =~ /_STABLE$/;
+		return;
+	}
+
 	emit "installcheck";
 
 	my %binaries_rel_path;
