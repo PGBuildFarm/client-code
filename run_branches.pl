@@ -151,7 +151,8 @@ $branches_to_build = $explicit_branches if @{$explicit_branches};
 
 unless (((ref $branches_to_build) eq 'ARRAY' && @{$branches_to_build})
 	|| (ref $branches_to_build) =~ /Regexp/i
-	|| $branches_to_build =~ /^(ALL|OLD|STABLE|HEAD_PLUS_LATEST\d?|UP_TO_REL\w+)$/)
+	|| $branches_to_build =~
+	/^(ALL|OLD|STABLE|HEAD_PLUS_LATEST\d?|UP_TO_REL\w+)$/)
 {
 	die "no branches_to_build specified in $buildconf";
 }
@@ -192,8 +193,10 @@ elsif ((ref $branches_to_build) =~ /Regexp/i)
 	$ENV{BF_CONF_BRANCHES} = join(',', "(found by regexp)", @branches);
 	chdir $here;
 }
-elsif ($branches_to_build =~
-	/^(ALL|STABLE|OLD|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d)|UP_TO_(REL\w+))$/) ## no critic(RegularExpressions::ProhibitComplexRegexes)
+elsif (
+	$branches_to_build =~
+	/^(ALL|STABLE|OLD|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d)|UP_TO_(REL\w+))$/ ## no critic(RegularExpressions::ProhibitComplexRegexes)
+  )
 {
 	$ENV{BF_CONF_BRANCHES} = $branches_to_build;
 	my $match = $1;

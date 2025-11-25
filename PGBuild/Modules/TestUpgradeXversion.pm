@@ -848,7 +848,7 @@ sub installcheck
 			next unless -f $log;
 			next if $log =~ /\.custom$/;
 			my $bn = basename $log;
-			next if $bn eq 'pg_upgrade_server.log' && ! $status;
+			next if $bn eq 'pg_upgrade_server.log' && !$status;
 			next if $bn =~ /^(origin|converted)/;
 			$testlog->add_log($log) if (-s $log) || $bn =~ /dumpdiff/;
 		}

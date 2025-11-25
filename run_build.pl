@@ -2514,8 +2514,9 @@ sub run_misc_tests
 		next unless scalar glob("$testdir/*.o $testdir/*.obj");
 
 		# skip sepgsql unless it's marked for testing
-		next if $testname eq 'sepgsql' &&
-		  ($ENV{PG_TEST_EXTRA} // "") !~ /\bsepgsql\b/;
+		next
+		  if $testname eq 'sepgsql'
+		  && ($ENV{PG_TEST_EXTRA} // "") !~ /\bsepgsql\b/;
 		next unless step_wanted("contrib-$testname");
 		print time_str(), "running contrib test $testname ...\n" if $verbose;
 		run_tap_test("$testdir", "contrib-$testname", undef);
@@ -2892,9 +2893,9 @@ sub meson_setup
 
 	move "$pgsql/meson-logs/meson-log.txt", "$pgsql/meson-logs/setup.log";
 
-	my $log = PGBuild::Log->new("setup");;
+	my $log = PGBuild::Log->new("setup");
 	foreach my $logfile ("$pgsql/meson-logs/setup.log",
-						 "$pgsql/src/include/pg_config.h")
+		"$pgsql/src/include/pg_config.h")
 	{
 		$log->add_log($logfile) if -s $logfile;
 	}
