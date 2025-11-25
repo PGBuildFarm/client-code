@@ -1870,7 +1870,7 @@ sub make_install_check
 	my @logfiles = (
 		"$pgsql/src/test/regress/regression.diffs",
 		"$pgsql/testrun/regress-running/regress/regression.diffs",
-		"inst/logfile"
+		$status ? ("inst/logfile") : ()
 	);
 	my $log = PGBuild::Log->new("check");
 	$log->add_log($_) foreach (@logfiles);
@@ -1880,6 +1880,9 @@ sub make_install_check
 		  get_stack_trace("$installdir/bin", "$installdir/data-$locale");
 		$log->add_log_lines("stack-trace", \@trace) if @trace;
 	}
+
+	rmtree("$pgsql/testrun");
+
 	push(@checklog, $log->log_string);
 	writelog("install-check-$locale", \@checklog);
 	print "======== make installcheck log ===========\n", @checklog
@@ -1912,7 +1915,7 @@ sub make_contrib_install_check
 	my $status = $? >> 8;
 	my @logs = glob("$pgsql/contrib/*/regression.diffs");
 	my $log = PGBuild::Log->new("contrib_install_check");
-	$log->add_log("inst/logfile");
+	$log->add_log("inst/logfile") if $status;
 	$log->add_log($_) foreach (@logs);
 	if ($status)
 	{
@@ -2034,6 +2037,8 @@ sub run_meson_install_checks
 	}
 	push(@checklog, $log->log_string);
 
+	rmtree("$pgsql/testrun");
+
 	if ($status)
 	{
 		my $first = $faildirs[0];
@@ -2149,6 +2154,8 @@ sub run_meson_noninst_checks
 	}
 	push(@checklog, $log->log_string);
 
+	rmtree("$pgsql/testrun");
+
 	if ($status)
 	{
 		my $first = $faildirs[0];
@@ -2237,7 +2244,7 @@ sub make_testmodules_install_check
 		glob("$pgsql/src/test/modules/*/regression.diffs"),
 		glob("$pgsql/src/test/modules/*/tmp_check/log/*")
 	);
-	push(@logs, "inst/logfile");
+	push(@logs, "inst/logfile") if $status;
 	$log->add_log($_) foreach (@logs);
 	if ($status)
 	{
@@ -2274,7 +2281,7 @@ sub make_pl_install_check
 		glob("$pgsql/src/pl/*/regression.diffs"),
 		glob("$pgsql/src/pl/*/*/regression.diffs")
 	);
-	push(@logs, "inst/logfile");
+	push(@logs, "inst/logfile") if $status;
 	my $log = PGBuild::Log->new("pl-installcheck-$locale");
 	$log->add_log($_) foreach (@logs);
 	if ($status)
@@ -2319,7 +2326,7 @@ sub make_isolation_check
 
 	# get the log files and the regression diffs
 	my @logs = glob("$pgsql/src/test/isolation/log/*.log");
-	push(@logs, "inst/logfile");
+	push(@logs, "inst/logfile") if $status;
 	unshift(@logs, "$pgsql/src/test/isolation/regression.diffs")
 	  if (-e "$pgsql/src/test/isolation/regression.diffs");
 	unshift(@logs, "$pgsql/src/test/isolation/output_iso/regression.diffs")
@@ -2591,6 +2598,9 @@ sub make_check
 		rmtree($base)
 		  unless $keepall;
 	}
+
+	rmtree("$pgsql/testrun");
+
 	push(@makeout, $log->log_string);
 	writelog('check', \@makeout);
 	print "======== make check logs ===========\n", @makeout
