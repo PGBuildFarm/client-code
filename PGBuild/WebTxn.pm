@@ -22,7 +22,7 @@ use MIME::Base64;
 use Digest::SHA qw(hmac_sha256_hex);
 use JSON::PP;
 
-our ($VERSION); $VERSION = 'REL_19_1';
+our ($VERSION); $VERSION = 'REL_20';
 
 sub run_web_txn
 {

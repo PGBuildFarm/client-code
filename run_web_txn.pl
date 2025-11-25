@@ -42,7 +42,7 @@ See accompanying License file for license details
 use strict;
 use warnings;
 
-our ($VERSION); $VERSION = 'REL_19_1';
+our ($VERSION); $VERSION = 'REL_20';
 
 use FindBin;
 use lib $FindBin::RealBin;
