@@ -1881,7 +1881,7 @@ sub make_install_check
 		$log->add_log_lines("stack-trace", \@trace) if @trace;
 	}
 
-	rmtree("$pgsql/testrun");
+	move("$pgsql/testrun", "$pgsql/install-check-$locale-testrun");
 
 	push(@checklog, $log->log_string);
 	writelog("install-check-$locale", \@checklog);
@@ -2037,7 +2037,7 @@ sub run_meson_install_checks
 	}
 	push(@checklog, $log->log_string);
 
-	rmtree("$pgsql/testrun");
+	move("$pgsql/testrun", "$pgsql/misc-installcheck-$locale-testrun");
 
 	if ($status)
 	{
@@ -2154,7 +2154,7 @@ sub run_meson_noninst_checks
 	}
 	push(@checklog, $log->log_string);
 
-	rmtree("$pgsql/testrun");
+	move("$pgsql/testrun", "$pgsql/misc-check-testrun");
 
 	if ($status)
 	{
@@ -2600,7 +2600,7 @@ sub make_check
 		  unless $keepall;
 	}
 
-	rmtree("$pgsql/testrun");
+	move("$pgsql/testrun", "$pgsql/check-testrun");
 
 	push(@makeout, $log->log_string);
 	writelog('check', \@makeout);
