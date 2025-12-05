@@ -218,9 +218,10 @@ if ($Config{osname} !~ /msys|MSWin/)
 {
 	$wait_timeout //= 4 * 60 * 60;
 }
-elsif ($wait_timeout || 0 > 0)
+else
 {
-	print "wait_timeout not supported on Windows, ignoring\n";
+	print "wait_timeout not supported on Windows, ignoring\n"
+	  if  ($wait_timeout || 0 > 0);
 	$wait_timeout = 0;
 }
 
