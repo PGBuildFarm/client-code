@@ -21,7 +21,7 @@ package PGBuild::Modules::TestUpgradeXversion;
 use PGBuild::Log;
 use PGBuild::Options;
 use PGBuild::SCM;
-use PGBuild::Utils qw(:DEFAULT $tmpdir $steps_completed);
+use PGBuild::Utils qw(:DEFAULT $tmpdir $steps_completed $devnull);
 
 use Cwd   qw(abs_path);
 use Fcntl qw(:flock :seek);
@@ -784,6 +784,8 @@ sub installcheck
 	# ok, we now have the persistent copy of all branches we can use
 	# to test upgrading from
 
+	my $have_zstd = system("zstd --version > $devnull 2>&1") == 0;
+
 	my $dport;
 	{
 		no warnings 'once';
@@ -853,6 +855,20 @@ sub installcheck
 			$testlog->add_log($log) if (-s $log) || $bn =~ /dumpdiff/;
 		}
 		push(@testout, $testlog->log_string);
+
+		# mostly we only need these files for special diagnosis. ztsd is
+		# best for this use case, as its compression ratio is pretty good
+		# and its compression speed is very fast.
+		if ($have_zstd)
+		{
+			foreach my $dfile (glob("$upgrade_loc/origin*.sql
+                                    $upgrade_loc/converted*.sql
+                                    $upgrade_loc/origin*.sql.fixed
+                                    $upgrade_loc/converted*.sql.fixed"))
+			{
+				system(qq{zstd --rm -q "$dfile" -o "$dfile.zstd"});
+			}
+		}
 
 		writelog("xversion-upgrade-$oversion-$this_branch", \@testout);
 		print "====== xversion upgrade $oversion to $this_branch =======\n",
