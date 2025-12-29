@@ -357,6 +357,28 @@ sub save_for_testing
 		  . qq{>> "$upgrade_loc/ctl2.log" 2>&1});
 	return if $?;
 
+	my $have_lz4 = system(qq{lz4 --version > $devnull 2>&1}) == 0;
+	my $tar_out = `tar --version 2>&1`;
+	my $have_tar = $tar_out =~ /GNU/;
+
+	# using lz4 here because its decompression speed is very good
+	if ($have_tar && $have_lz4)
+	{
+		if (
+			system(
+				"tar -C $installdir -I lz4 -cf $installdir/data-C.tar.lz4 data-C "
+			) == 0
+		  )
+		{
+			rmtree("$installdir/data-C");
+			return if $?;
+		}
+		else
+		{
+			return;
+		}
+	}
+
 	open(my $ok, '>', "$upgrade_loc/save.ok") || return 1;
 	print $ok "ok\n";
 	close($ok);
@@ -400,6 +422,12 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 
 	rmtree "$other_branch/inst/$upgrade_test";
+
+	foreach my $oldfile(glob("$other_branch/*.log $other_branch/*.data $other_branch/inst/dump-*.log"))
+	{
+		lstat($oldfile) && (int(-M _) > 10) && unlink $oldfile;
+	}
+
 	copydir(
 		"$other_branch/inst/data-C",
 		"$other_branch/inst/$upgrade_test/",
@@ -861,10 +889,15 @@ sub installcheck
 		# and its compression speed is very fast.
 		if ($have_zstd)
 		{
-			foreach my $dfile (glob("$upgrade_loc/origin*.sql
-                                    $upgrade_loc/converted*.sql
-                                    $upgrade_loc/origin*.sql.fixed
-                                    $upgrade_loc/converted*.sql.fixed"))
+			## no critic (CodeLayout::ProhibitHardTabs)
+			foreach my $dfile (
+				glob(
+					"$upgrade_loc/origin*.sql
+					 $upgrade_loc/converted*.sql
+					 $upgrade_loc/origin*.sql.fixed
+					 $upgrade_loc/converted*.sql.fixed"
+				)
+			  )
 			{
 				system(qq{zstd --rm -q "$dfile" -o "$dfile.zstd"});
 			}

@@ -16,7 +16,8 @@ use warnings;
 
 use Carp;
 use Config;
-use Fcntl      qw(:seek);
+use Fcntl qw(:seek);
+use File::Basename;
 use File::Find qw();
 use File::Path 'mkpath';
 use File::Copy;
@@ -489,6 +490,17 @@ sub save_install
 sub copydir
 {
 	my ($from, $to, $logfile) = @_;
+	# we assume tar and lz4 are available if this file exists
+	if (-e "$from.tar.lz4" && !-d $from)
+	{
+		my $dir = dirname($from);
+		system(qq{tar -I lz4 -C "$dir" -xf "$from.tar.lz4"});
+		if (-d $from)
+		{
+			move $from, $to;
+			return;
+		}
+	}
 	my ($cp, $rd);
 	if ($PGBuild::conf{using_msvc})
 	{
@@ -501,8 +513,10 @@ sub copydir
 		$rd = qq{> "$logfile"};
 	}
 	system(qq{$cp "$from" "$to" $rd 2>&1});
+	my $res = $?;
+	$res = 0 if ($cp =~ /robocopy/ && $? >> 8 == 1);
 	## no critic (RequireLocalizedPunctuationVars)
-	$? = 0 if ($cp =~ /robocopy/ && $? >> 8 == 1);
+	$? = $res;
 	return;
 }
 
