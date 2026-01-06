@@ -460,6 +460,14 @@ unless (defined $ENV{TMPDIR})
 	$ENV{TMPDIR} = $temp;
 }
 
+# clean up old TMPDIR artefacts that might be left hanging around
+foreach my $tmpobj (glob("$ENV{TMPDIR}/*"))
+{
+	next if -M $tmpobj < 7;
+	unlink $tmpobj if -f _;
+	rmtree $tmpobj if -d _;
+}
+
 # set up a temporary directory for extra configs, sockets etc
 $tmpdir = File::Temp::tempdir(
 	"buildfarm-XXXXXX",
