@@ -422,6 +422,12 @@ while (my ($envkey, $envval) = each %{ $PGBuild::conf{build_env} })
 # default directory for port locks in TAP tests
 $ENV{PG_TEST_PORT_DIR} ||= $buildroot;
 
+# clean up old port lock files that might be left from crashing/failing tests
+foreach my $portlock (glob("$ENV{PG_TEST_PORT_DIR}/*.rsv"))
+{
+	lstat $portlock && -M _ > 7 && unlink $portlock;
+}
+
 # default value - supply unless set via the config file
 # or calling environment
 $ENV{PGCTLTIMEOUT} = 180 unless exists $ENV{PGCTLTIMEOUT};
