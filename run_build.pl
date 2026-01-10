@@ -3261,6 +3261,9 @@ sub send_res
 	{
 
 		chdir($lrname);
+		# update lastcommand.log's timestamps to right now if we timed out,
+		# so the run time shown is realistic
+		utime(undef, undef, "lastcommand.log");
 		my @logfiles = glob("*.log");
 		my %mtimes = map { my @st = stat $_; $_ => $st[9] } @logfiles;
 		@logfiles = sort { $mtimes{$a} <=> $mtimes{$b} } @logfiles;
@@ -3430,7 +3433,13 @@ sub wait_timeout
 		$SIG{$sig} = 'DEFAULT';
 	}
 	$SIG{'TERM'} = \&silent_terminate;
-	sleep($wait_time);
+	# loop to absorb any unexpected signals without dying early
+	my $end_time = time + $wait_time;
+	while (time < $end_time)
+	{
+		my $delay = $end_time - time;
+		sleep($delay);
+	}
 	print STDERR "Run timed out, terminating.\n";
 	my $sig = $usig[0] || 'TERM';
 	kill $sig, $main_pid;
