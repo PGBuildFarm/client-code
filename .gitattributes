@@ -1,4 +1,5 @@
 .gitattributes export-ignore
+.git-blame-ignore-revs export-ignore
 .gitignore export-ignore
 .dir-locals.el export-ignore
 .editorconfig export-ignore
