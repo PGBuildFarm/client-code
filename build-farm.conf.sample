@@ -318,7 +318,7 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	meson_opts => [
 		qw(
 		  -Dcassert=true
-		  -Dbuildtype=debugoptimized
+		  --buildtype=debugoptimized
 		  -Dnls=enabled
 		  -Dplperl=enabled
 		  -Dplpython=enabled
