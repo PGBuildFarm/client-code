@@ -547,12 +547,26 @@ sub copy_source
 	die "no build path" unless $build_path;
 
 	# we don't want to copy the (very large) .git directory
-	# so we just move it out of the way during the copy
-	# there might be better ways of doing this, but this should do for now
+	# If we can, use git's archive facility, which won't copy the .git dir
+	# Otherwise we just move it out of the way during the copy,
+	# which is a bit less robust.
+	# Have to copy in the from-source case, though.
 
-	move "$target/.git", "./git-save";
-	PGBuild::SCM::copy_source($using_msvc, $target, $build_path);
-	move "./git-save", "$target/.git";
+	system("tar --version > $devnull 2>&1");
+	my $have_tar = $? == 0;
+
+	if ($have_tar && !$from_source)
+	{
+		mkdir($build_path);
+		system("git -C $target archive HEAD | tar -C $build_path -xf -");
+		die "copying $target" if $?;
+	}
+	else
+	{
+		move "$target/.git", "./git-save";
+		PGBuild::SCM::copy_source($using_msvc, $target, $build_path);
+		move "./git-save", "$target/.git";
+	}
 	return;
 }
 
