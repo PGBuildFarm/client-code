@@ -259,15 +259,6 @@ sub setup
 	my $abi_compare_root =
 	  $conf->{abi_compare_root} || "$buildroot/abicheck.$conf->{animal}";
 
-	# Configure abidw tool flags for ABI XML generation
-	my $abidw_flags_list = $conf->{abi_comp_check}{abidw_flags_list}
-	  || [
-		qw(
-		  --drop-undefined-syms --no-architecture --no-comp-dir-path
-		  --no-elf-needed --no-show-locs --type-id-style hash
-		)
-	  ];
-
 	# the tag_for_branch is to specify a tag to compare the ABIs with in a specific branch
 	# expected to look like { <branchname> : <tag_name> }
 	my $tag_for_branch = $conf->{abi_comp_check}{tag_for_branch} || {};
@@ -285,7 +276,6 @@ sub setup
 		srcdir => $srcdir,
 		using_meson => $using_meson,
 		abi_compare_root => $abi_compare_root,
-		abidw_flags_list => $abidw_flags_list,
 		tag_for_branch => $tag_for_branch,
 	};
 	bless($self, $class);
@@ -811,7 +801,21 @@ sub _generate_abidw_xml
 	  ; # either comparison ref(i.e. baseline commit/tag) OR branch name Because both are expected to have separate path for install directories
 	my $binaries_rel_path = shift;
 
-	my $abidw_flags_str = join ' ', @{ $self->{abidw_flags_list} };
+	# Configure abidw tool flags for ABI XML generation. Only evaluate types
+	# published in headers. --headers-dir implies --drop-private-types in
+	# adbidw 2.8 and higher, but not older versions, so include it explicitly.
+	my $abidw_flags_str;
+	if (my $flags = $self->{bfconf}{abi_comp_check}{abidw_flags_list})
+	{
+		push @{ $flags }, '--drop-private-types'
+			unless grep { $_ eq  '--drop-private-types' } @{ $flags };
+		$abidw_flags_str = join ' ', @{ $flags }, qq{--headers-dir "$install_dir/include"};
+	} else {
+		$abidw_flags_str = '--drop-undefined-syms --no-architecture '
+			. '--no-comp-dir-path --no-elf-needed --no-show-locs '
+			. '--type-id-style hash --drop-private-types '
+			. qq{--headers-dir "$install_dir/include"};
+	}
 
 	# Determine if this is for a baseline or current branch
 	my $xml_dir;
