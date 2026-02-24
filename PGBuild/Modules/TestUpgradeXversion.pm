@@ -513,6 +513,9 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	# use the NEW pg_dumpall so we're comparing apples with apples.
 	setinstenv($self, "$installdir", $save_env);
+	local $ENV{PGMAXPROTOCOLVERSION} =
+	  ($oversion le 'REL9_2_STABLE') ? "3.0" : "latest";
+
 	system( qq{"$installdir/bin/pg_dumpall" $dump_opts -p $sport -f }
 		  . qq{"$upgrade_loc/origin-$oversion.sql" }
 		  . qq{> "$upgrade_loc/$oversion-dump1.log" 2>&1});
@@ -574,6 +577,8 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		  . qq{--old-bindir="$other_branch/inst/bin" }
 		  . qq{--new-bindir="$installdir/bin" }
 		  . qq{>> "$upgrade_loc/$oversion-upgrade.log" 2>&1});
+
+	delete $ENV{PGMAXPROTOCOLVERSION};
 
 	foreach my $upgradelog (
 		glob(
