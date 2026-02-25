@@ -874,6 +874,7 @@ sub installcheck
 
 		foreach my $log (
 			glob("$upgrade_loc/*$oversion*"),
+			glob("$upgrade_loc/dump*$this_branch.log"),
 			glob("$installdir/${oversion}-pg_upgrade*"),
 			glob("$installdir/${oversion}-20*T*.*/*"),
 			glob("$installdir/${oversion}-20*T*.*/log/*")
