@@ -520,6 +520,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		  . qq{"$upgrade_loc/origin-$oversion.sql" }
 		  . qq{> "$upgrade_loc/$oversion-dump1.log" 2>&1});
 	return if $?;
+	delete $ENV{PGMAXPROTOCOLVERSION};
 	setinstenv($self, "$other_branch/inst", $save_env);
 
 	system( qq{"$other_branch/inst/bin/pg_ctl" -D }
@@ -577,8 +578,6 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		  . qq{--old-bindir="$other_branch/inst/bin" }
 		  . qq{--new-bindir="$installdir/bin" }
 		  . qq{>> "$upgrade_loc/$oversion-upgrade.log" 2>&1});
-
-	delete $ENV{PGMAXPROTOCOLVERSION};
 
 	foreach my $upgradelog (
 		glob(
