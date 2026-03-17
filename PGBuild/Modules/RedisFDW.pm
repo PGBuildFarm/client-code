@@ -89,7 +89,7 @@ sub checkout
 
 	print time_str(), "checking out $MODULE\n" if $verbose;
 
-	my $scmlog = $self->{scm}->checkout($self->{pgbranch});
+	my $scmlog = $self->{scm}->checkout('HEAD');
 
 	push(@$savescmlog,
 		"------------- $MODULE checkout ----------------\n", @$scmlog);
