@@ -1348,6 +1348,9 @@ sub find_changed
 
 	if ($last_run_snap)
 	{
+		local $ENV{GIT_CONFIG_GLOBAL} = $devnull;
+		local $ENV{GIT_CONFIG_SYSTEM} = $devnull;
+
 		if ($last_success_snap > 0 && $last_success_snap < $last_run_snap)
 		{
 			$last_success_snap++;
