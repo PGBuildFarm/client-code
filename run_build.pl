@@ -2243,8 +2243,9 @@ sub make_testmodules_install_check
 	my @checklog;
 	unless ($using_msvc)
 	{
+		# skip TAP tests - they are called elsewhere
 		my $cmd =
-		  "cd $pgsql/src/test/modules && $make USE_MODULE_DB=1 installcheck";
+		  "cd $pgsql/src/test/modules && $make USE_MODULE_DB=1 TAP_TESTS= installcheck";
 		@checklog = run_log($cmd);
 	}
 	else
@@ -2526,7 +2527,8 @@ sub run_misc_tests
 		my $testname = basename($testdir);
 
 		# can't test it if we haven't built it
-		next unless scalar glob("$testdir/*.o $testdir/*.obj");
+		my @obj =  glob("$testdir/*.o $testdir/*.obj");
+		next unless scalar @obj;
 
 		# skip sepgsql unless it's marked for testing
 		next
