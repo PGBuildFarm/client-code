@@ -404,8 +404,6 @@ unless ($nosend)
 die "cannot run as root/Administrator"
   unless ($^O eq 'MSWin32' or $> > 0);
 
-$devnull = File::Spec->devnull;
-
 $st_prefix = $testmode ? "$animal-test." : "$animal.";
 
 # set environment from config

@@ -22,6 +22,7 @@ use File::Find qw();
 use File::Path 'mkpath';
 use File::Copy;
 use File::Temp qw(tempfile);
+use File::Spec;
 
 our ($VERSION); $VERSION = 'REL_20';
 
@@ -54,6 +55,7 @@ BEGIN
 {
 	$log_file_marker = "==~_~===-=-===~_~==";
 	$ts_prefix = "";
+	$devnull = File::Spec->devnull;
 }
 
 # wrap the main program's send_res routine (formerly send_result)
