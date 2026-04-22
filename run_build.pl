@@ -1947,6 +1947,7 @@ sub make_contrib_install_check
 
 sub meson_test_setup
 {
+	return unless step_wanted("check");
 	# we run test setup separately so we can pass test arguments
 	# in the check stage
 	local %ENV = _meson_env();
