@@ -719,7 +719,18 @@ sub _check_default_branch
 	my @remote = `git ls-remote --symref $upstream HEAD`;
 	chomp(@remote);
 	my $remote_def = (grep { /^ref:/ } @remote)[0];
-	die "no remote default: @remote" unless $remote_def;
+
+	# If the upstream has no usable symbolic HEAD (e.g. repos that only ship
+	# release branches and no master/main), there's nothing for us to
+	# reconcile here — this routine's only job is maintaining bf_HEAD and
+	# the local default-branch alignment. Skip quietly.
+	unless ($remote_def)
+	{
+		print "no remote default branch at $upstream; "
+		  . "skipping default-branch check\n"
+		  if $verbose;
+		return ();
+	}
 	$remote_def =~ s!.*/([a-zA-Z0-9_-]+)\s.*!$1!;
 
 	my $local = `git symbolic-ref refs/remotes/origin/HEAD`;
@@ -941,15 +952,36 @@ sub _setup_new_head
 		my $savedir = getcwd();
 		chdir "$head/$target";
 
-		# we're on a fresh clone so the current branch should be the
-		# upstream default
-		my $defbranch = `git rev-parse --abbrev-ref HEAD`;
+		# On a fresh clone the current branch should be the upstream default.
+		# It may not exist, though: some repos ship only release branches
+		# and no master/main, leaving HEAD dangling. In that case we can't
+		# (and needn't) create bf_HEAD — the shared .git is still useful to
+		# per-branch workdirs that check out their own bf_<branch>.
+		my $defbranch = `git rev-parse --abbrev-ref HEAD 2>$devnull`;
 		chomp($defbranch);
 
-		# make sure we don't name the new branch HEAD
-		my @colog =
-		  run_log("git checkout -b bf_HEAD --track origin/$defbranch");
-		push(@gitlog, @colog);
+		if ($defbranch && $defbranch ne 'HEAD')
+		{
+			# make sure we don't name the new branch HEAD
+			my @colog =
+			  run_log("git checkout -b bf_HEAD --track origin/$defbranch");
+			push(@gitlog, @colog);
+		}
+		else
+		{
+			# Leave HEAD as a symref to bf_HEAD so .git/HEAD is well-formed
+			# when it gets copied into sibling workdirs. The target branch
+			# is unborn, which git tolerates for read-only ops and for the
+			# subsequent "git checkout -b bf_<branch>" in each workdir.
+			system(qq{git symbolic-ref HEAD refs/heads/bf_HEAD});
+
+			# Without an actual checkout git never creates .git/logs/refs
+			# here; sibling workdirs symlink to that tree and need it to
+			# exist so they can write reflogs for their own branches.
+			mkpath('.git/logs/refs/heads');
+			push(@gitlog,
+				"no upstream default branch; skipping bf_HEAD creation\n");
+		}
 		chdir $savedir;
 	}
 	else
