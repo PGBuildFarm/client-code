@@ -1301,6 +1301,32 @@ sub get_branches
 	return @branches;
 }
 
+# List the upstream's branches without requiring a local checkout.
+# Used by run_branches.pl for regex-based branches_to_build, where we
+# only need to enumerate branches and don't care which (if any) is the
+# upstream default. This avoids depending on a 'master'/'main' branch
+# or a usable upstream symbolic HEAD.
+sub list_remote_branches
+{
+	my $self = shift;
+	my $url = (exists $self->{mirror} && -d $self->{mirror})
+	  ? $self->{mirror}
+	  : $self->{gitrepo};
+	$url = abs_path($url) if $url =~ m!^[/\\]!;
+	my @lines = `git ls-remote --heads "$url"`;
+	my $status = $? >> 8;
+	die "git ls-remote --heads $url failed (status $status)" if $status;
+	my @branches;
+	foreach (@lines)
+	{
+		chomp;
+		my (undef, $ref) = split(/\s+/, $_, 2);
+		next unless defined $ref && $ref =~ s!^refs/heads/!!;
+		push @branches, $ref;
+	}
+	return @branches;
+}
+
 # private Class level routine for getting changed file data
 sub parse_log
 {

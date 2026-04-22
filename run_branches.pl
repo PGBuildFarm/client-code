@@ -39,8 +39,7 @@ my $orig_dir = getcwd();
 unshift @INC, $orig_dir;
 
 use PGBuild::Options;
-use PGBuild::Utils qw(:DEFAULT $send_result_routine
-  $st_prefix $logdirname $branch_root);
+use PGBuild::Utils qw(:DEFAULT $send_result_routine);
 use PGBuild::SCM;
 
 $send_result_routine = \&send_res;
@@ -179,19 +178,12 @@ elsif ((ref $branches_to_build) =~ /Regexp/i)
 {
 	die "Can't check for work with regexp branches_to_build"
 	  if ($check_for_work);
-	chdir $buildroot || die "chdir to $buildroot: $!";
-	mkdir 'HEAD' unless -d 'HEAD';
-	chdir 'HEAD' || die "chdir to HEAD: $!";
-	$branch_root = getcwd();
-	$st_prefix = "$animal.";
-	$logdirname = "lastrun-logs";
+	# Enumerate upstream branches via ls-remote so we don't need a local
+	# checkout of any default branch (the upstream might not have one).
 	my $scm = PGBuild::SCM->new(\%PGBuild::conf);
-	my $savescmlog = $scm->checkout('HEAD');
-	$scm->rm_worktree();    # don't need the worktree here
-	my @cbranches = $scm->get_branches('remotes/origin/');
+	my @cbranches = $scm->list_remote_branches();
 	@branches = grep { $_ =~ /$branches_to_build/ } @cbranches;
 	$ENV{BF_CONF_BRANCHES} = join(',', "(found by regexp)", @branches);
-	chdir $here;
 }
 elsif (
 	$branches_to_build =~
