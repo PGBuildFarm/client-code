@@ -952,8 +952,16 @@ sub _setup_new_head
 
 	mkdir $head;
 
-	print "running ", qq{git clone -q $base "$head/$target"}, "\n";
-	my @clonelog = run_log(qq{git clone -q $base "$head/$target"});
+	# -c init.defaultBranch silences the "Using 'master'" hint that git
+	# would otherwise emit when init.defaultBranch is unset and the upstream
+	# has no usable HEAD; --no-checkout silences the accompanying
+	# "remote HEAD refers to nonexistent ref" warning (we check out our own
+	# branch after the clone regardless).
+	my $clone =
+	  qq{git -c init.defaultBranch=bf_HEAD clone -q --no-checkout }
+	  . qq{$base "$head/$target"};
+	print "running ", $clone, "\n";
+	my @clonelog = run_log($clone);
 	push(@gitlog, @clonelog);
 	$status = $? >> 8;
 	if (!$status)
@@ -1083,7 +1091,10 @@ sub _setup_new_basedir
 
 	$base = abs_path($base) if $base =~ m!^[/\\]!;
 
-	my @clonelog = run_log("git clone -q $reference $base $target");
+	# see _setup_new_head for the rationale for these flags
+	my @clonelog = run_log(
+		"git -c init.defaultBranch=bf_HEAD clone -q --no-checkout "
+		  . "$reference $base $target");
 	push(@gitlog, @clonelog);
 	$status = $? >> 8;
 	if (!$status)
