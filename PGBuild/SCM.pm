@@ -502,6 +502,15 @@ sub new
 		$self->{gchours} = $conf->{git_gc_hours};
 	}
 	$self->{target} = $target;
+
+	# For regex-based branches_to_build the local working branches keep the
+	# upstream names verbatim; otherwise we prefix them with "bf_" so they
+	# can't collide with any actual upstream branch. (The bf_HEAD anchor
+	# branch in the HEAD dir is always named bf_HEAD regardless.)
+	my $b2b = $conf->{global}->{branches_to_build}
+	  || $conf->{branches_to_build};
+	$self->{bf_prefix} = (ref $b2b) =~ /Regexp/i ? '' : 'bf_';
+
 	$self->{skip_git_default_check} = $conf->{skip_git_default_check} || 0;
 	if (!$self->{skip_git_default_check} && !$from_source)
 	{
@@ -1030,20 +1039,21 @@ sub _setup_new_workdir
 	# doesn't yet know about
 	my @fetchlog = run_log('git fetch --prune');
 
+	my $local = "$self->{bf_prefix}$branch";
 	my @branches = `git branch --no-color`;
 	chomp @branches;
 	my @colog;
-	if (grep { /\bbf_$branch\b/ } @branches)
+	if (grep { /\b\Q$local\E\b/ } @branches)
 	{
 		# Don't try to create an existing branch
 		# the target dir only might have been wiped away,
 		# so we need to handle this case.
-		@colog = run_log("git checkout -f bf_$branch");
+		@colog = run_log("git checkout -f $local");
 	}
 	else
 	{
 		@colog =
-		  run_log("git checkout -f -b bf_$branch --track origin/$branch");
+		  run_log("git checkout -f -b $local --track origin/$branch");
 	}
 
 	# Make sure the branch we just checked out is up to date.
@@ -1088,8 +1098,10 @@ sub _setup_new_basedir
 			chomp $rbranch;
 		}
 
+		my $local = ($branch eq 'HEAD') ? 'bf_HEAD'
+		  : "$self->{bf_prefix}$branch";
 		my @colog =
-		  run_log("git checkout -b bf_$branch --track origin/$rbranch");
+		  run_log("git checkout -b $local --track origin/$rbranch");
 		push(@gitlog, @colog);
 		chdir "..";
 	}
@@ -1112,8 +1124,9 @@ sub _update_target
 	}
 
 	chdir $target;
+	my $local = "$self->{bf_prefix}$branch";
 	my @branches = `git branch --no-color 2>&1`;    # too trivial for run_log
-	unless (grep { /^\* bf_$branch$/ } @branches)
+	unless (grep { /^\* \Q$local\E$/ } @branches)
 	{
 		if (_test_file_symlink(".git/config") eq 'ok')
 		{
@@ -1123,7 +1136,7 @@ sub _update_target
 			# this shouldn't happen on HEAD/default, so we don't need
 			# special branch name logic
 			my @ncolog =
-			  run_log("git checkout -b bf_$branch --track origin/$branch");
+			  run_log("git checkout -b $local --track origin/$branch");
 			push(@gitlog, @ncolog);
 		}
 		else
@@ -1132,9 +1145,9 @@ sub _update_target
 			# if it's not there
 
 			chdir '..';
-			print "Missing checked out branch bf_$branch:\n", @branches
+			print "Missing checked out branch $local:\n", @branches
 			  if ($verbose);
-			unshift @branches, "Missing checked out branch bf_$branch:\n";
+			unshift @branches, "Missing checked out branch $local:\n";
 			send_result("$target-Git", 1, \@branches);
 		}
 	}
@@ -1264,8 +1277,9 @@ sub checkout
 	# loudly.
 
 	chdir "$target";
+	my $local = "$self->{bf_prefix}$branch";
 	my @gitstat = `git status --porcelain`;    # too trivial for run_log
-	my $headref = `git show-ref --heads -- bf_$branch 2>&1`;    # ditto
+	my $headref = `git show-ref --heads -- $local 2>&1`;    # ditto
 	$self->{headref} = (split(/\s+/, $headref))[0];
 	chdir "..";
 
