@@ -3164,24 +3164,54 @@ sub configure
 sub archive_report
 {
 	return unless defined($archive_reports) && $archive_reports > 0;
-	my $report = shift;
+	my ($report, $stage, $log) = @_;
 	my $dest = "$buildroot/archive/$animal/$branch";
 	mkpath $dest;
-	my $fname = basename $report;
 	my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) =
 	  localtime(time);
-	my $newname = sprintf(
-		"%s.%.4d%.2d%.2d:%.2d%.2d%.2d",
-		$fname, $year + 1900,
-		$mon + 1, $mday, $hour, $min, $sec
-	);
-	copy $report, "$dest/$newname";
-	my @reports = sort glob("$dest/web-txn.data.*");
+	my $suffix = sprintf("%.4d%.2d%.2d:%.2d%.2d%.2d",
+		$year + 1900, $mon + 1, $mday, $hour, $min, $sec);
 
-	if (@reports > $archive_reports)
+	my $fname = basename $report;
+	copy $report, "$dest/$fname.$suffix";
+
+	# On failure, also drop the stage log next to the web-txn so you can
+	# still see why the run failed after the next run has rewritten
+	# $lrname/. It shares the web-txn's timestamp suffix so the two
+	# travel as a pair through pruning below.
+	if ($stage && $stage ne 'OK' && $log && @$log)
 	{
-		splice @reports, -$archive_reports;
-		unlink @reports;
+		(my $safe_stage = $stage) =~ s![/\s]!_!g;
+		my $logpath = "$dest/$safe_stage.log.$suffix";
+		if (open(my $fh, '>', $logpath))
+		{
+			print $fh @$log;
+			close $fh;
+		}
+		else
+		{
+			print "archive_report: opening $logpath: $!\n";
+		}
+	}
+
+	_prune_archive($dest, $archive_reports);
+	return;
+}
+
+# Keep the newest $keep web-txn entries; for each older one removed, also
+# remove any stage log archived with the same timestamp suffix so a
+# web-txn and its failure log age out together.
+sub _prune_archive
+{
+	my ($dir, $keep) = @_;
+	my @txn = sort glob("$dir/web-txn.data.*");
+	return unless @txn > $keep;
+	splice @txn, -$keep;
+	for my $t (@txn)
+	{
+		my ($sfx) = $t =~ /\.(\d{8}:\d{6})$/;
+		unlink $t;
+		unlink glob("$dir/*.log.$sfx") if defined $sfx;
 	}
 	return;
 }
@@ -3208,6 +3238,11 @@ sub send_res
 	# that might make the web server barf.
 	my $loglen = 0;
 	$loglen += length($_) foreach (@$log);
+
+	# Hold on to the un-truncated log for the on-disk archive below. When
+	# no truncation happens $full_log and $log are the same arrayref, so
+	# this is just one scalar assignment — O(1) regardless of log size.
+	my $full_log = $log;
 	$log = ["log too long - see stage log\n"] if $loglen > 20_000_000;
 
 	unshift(@$log,
@@ -3260,7 +3295,7 @@ sub send_res
 	print $txdhandle $savedata;
 	close($txdhandle);
 
-	archive_report($txfname);
+	archive_report($txfname, $stage, $full_log);
 
 	if ($nosend || $stage eq 'CVS' || $stage eq 'CVS-status')
 	{

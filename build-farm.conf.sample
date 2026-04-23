@@ -69,7 +69,12 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	tar_log_cmd => undef, # default is "tar -z -cf runlogs.tgz *.log"
 						  # replacement must have the same effect
 
-	# archive this many copies of the report summary
+	# archive this many copies of the report summary under
+	# <build_root>/archive/<animal>/<branch>/. When a run fails, the
+	# stage's log file is archived alongside the web-txn summary so the
+	# failure details survive the next run's log cleanup. Each failure
+	# log shares the timestamp suffix of its web-txn and is pruned with
+	# it, so the two age out together.
 	archive_reports => undef,
 
 	# if on, print the whole web request object if there is a web error
