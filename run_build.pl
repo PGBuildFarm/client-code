@@ -210,7 +210,6 @@ my (
 	  meson_test_timeout)
   };
 
-$using_meson = undef unless $branch eq 'HEAD' || $branch ge 'REL_16_STABLE';
 $meson_test_timeout //= 3;
 
 # default is 4 hours, except on Windows, where it doesn't work
@@ -276,25 +275,12 @@ print scalar(localtime()), ": buildfarm run for $animal:$branch starting\n"
 
 $use_vpath ||= $using_meson;
 
-die "cannot use vpath with MSVC"
-  if ($using_msvc && $use_vpath && !$using_meson);
-
 if (ref($force_every) eq 'HASH')
 {
 	$force_every = $force_every->{$branch} || $force_every->{default};
 }
 
 my ($config_opts, $meson_opts);
-if ($using_meson)
-{
-	$meson_opts = $PGBuild::conf{meson_opts};
-	delete $PGBuild::conf{config_opts};
-}
-else
-{
-	$config_opts = $PGBuild::conf{config_opts};
-	delete $PGBuild::conf{meson_opts};
-}
 
 our ($buildport);
 
@@ -532,13 +518,6 @@ if ($from_source)
 else
 {
 	$pgsql = $scm->get_build_path($use_vpath || $using_meson);
-}
-
-# make sure we are using GNU make (except for MSVC)
-unless ($using_msvc || $using_meson)
-{
-	die "$make is not GNU Make - please fix config file"
-	  unless check_make();
 }
 
 # set up modules
@@ -944,6 +923,9 @@ cleanlogs() unless ($from_source_clean || !step_wanted('configure'));
 writelog('SCM-checkout', $savescmlog) unless $from_source;
 $scm->log_id($idname) unless $from_source;
 
+# now we have the code we can determine the build system to use
+finalize_build_system($from_source || "$branch_root/" . $scm->{target});
+
 # copy/create according to vpath/scm settings
 
 if ($use_vpath)
@@ -1317,6 +1299,44 @@ sub check_make
 	my @out = `$make -v 2>&1`;
 	return unless ($? == 0 && grep { /GNU Make/ } @out);
 	return 'OK';
+}
+
+# Called after the source is in place (either checked out, or pre-existing
+# under --from-source). Finalizes the tentative $using_meson decision: if
+# the source tree has no meson.build we silently fall back.
+# Also does the config_opts/meson_opts cleanup and the GNU-make /
+# MSVC checks that depend on the final answer.
+sub finalize_build_system
+{
+	my $src = shift;
+	my $has_meson_build = $src && -e "$src/meson.build";
+
+	# If the source tree has no meson.build there's no way to use meson,
+	# regardless of what the config or branch-age check said. Fall back to
+	# autoconf silently.
+	$using_meson = undef unless $has_meson_build;
+
+	if ($using_meson)
+	{
+		$meson_opts = $PGBuild::conf{meson_opts};
+		delete $PGBuild::conf{config_opts};
+	}
+	else
+	{
+		$config_opts = $PGBuild::conf{config_opts};
+		delete $PGBuild::conf{meson_opts};
+
+		# make sure we are using GNU make (except for MSVC)
+		unless ($using_msvc)
+		{
+			die "$make is not GNU Make - please fix config file"
+			  unless check_make();
+		}
+
+		die "cannot use vpath with MSVC"
+		  if ($using_msvc && $use_vpath);
+	}
+	return;
 }
 
 sub make

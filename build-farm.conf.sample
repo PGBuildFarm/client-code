@@ -278,8 +278,9 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 
 	# see below for MSVC config
 
-	# set true if running with meson
-	# will be ignored for branches older than 16
+	# Set true to prefer meson when possible.
+	# Falls back on older branches or anywhere there is not a
+	# meson.build.
 	using_meson => undef,
 
 	# similar to make_jobs above - how much parallelism do you want for
