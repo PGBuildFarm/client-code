@@ -2173,7 +2173,7 @@ sub run_meson_noninst_checks
 		{
 			my $proc = sub {
 				$File::Find::name =~ m!\Wpg_upgrade_output.d\W!
-				  && -f $File::Find::name
+				  && -f $_
 				  && $log->add_log($File::Find::name);
 			};
 			File::Find::find($proc, $dir);
