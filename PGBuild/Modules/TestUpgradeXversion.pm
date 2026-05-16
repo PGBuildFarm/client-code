@@ -853,6 +853,13 @@ sub installcheck
 		  unless (($this_branch eq 'HEAD')
 			|| ($oversion ne 'HEAD' && $oversion le $this_branch));
 
+		# Support for dumping/upgrading from pre-v10 servers is removed in
+		# v20 and later, so skip such combinations.
+		next
+		  if (($this_branch eq 'HEAD' || $this_branch ge 'REL_20_STABLE')
+			&& $oversion ne 'HEAD'
+			&& $oversion lt 'REL_10_STABLE');
+
 		# for testing a shared lock should do, since each each upgrade will
 		# be sourced in a directory named with this branch, so it's no
 		# longer shared with other branch tests. This lock will prevent the
