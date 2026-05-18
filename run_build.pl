@@ -2169,11 +2169,12 @@ sub run_meson_noninst_checks
 		$log->add_log($_) foreach ("$dir/regression.diffs", glob("$dir/log/*"));
 
 		# need to look for pg_upgrade output buried deep
-		if ($dir =~ m!\Wpg_upgrade$!)
+		if (basename(dirname($dir)) eq 'pg_upgrade')
 		{
 			my $proc = sub {
 				$File::Find::name =~ m!\Wpg_upgrade_output.d\W!
 				  && -f $_
+				  && $_ !~ /pg_upgrade_dump_.*custom/
 				  && $log->add_log($File::Find::name);
 			};
 			File::Find::find($proc, $dir);
