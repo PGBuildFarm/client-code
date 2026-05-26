@@ -211,7 +211,7 @@ sub find_git_repo
 
 	my $srcdir = $from_source
 	  || "$self->{buildroot}/$self->{pgbranch}/pgsql";
-	return $srcdir if -d "$srcdir/.git";
+	return $srcdir if -e "$srcdir/.git";
 
 	return undef;
 }
