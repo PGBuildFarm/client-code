@@ -27,6 +27,7 @@ use PGBuild::Utils qw(:DEFAULT $tmpdir $steps_completed $devnull);
 
 use File::Path 'mkpath';
 use File::Basename;
+use POSIX ':sys_wait_h';
 
 use strict;
 use warnings;
@@ -199,6 +200,8 @@ sub build_dot0
 		  . qq{>"$replay_loc/install.log" 2>&1});
 	return 0 if $?;
 
+	# keep regression test files for use as WAL workload
+	rename("$dot0_src/src/test/regress", "$dot0_inst/regress");
 	rmtree($dot0_src);
 	return 1;
 }
@@ -266,7 +269,8 @@ sub test_replay
 	# remove stale log files from previous runs
 	unlink(glob("$replay_loc/initdb.log $replay_loc/primary*.log "
 		  . "$replay_loc/standby*.log $replay_loc/basebackup.log "
-		  . "$replay_loc/mx*.log $replay_loc/workload.log"));
+		  . "$replay_loc/mx*.log $replay_loc/workload.log "
+		  . "$replay_loc/regress.log"));
 
 	# --- set up .0 environment for the primary ---
 	$ENV{LD_LIBRARY_PATH}   = "$dot0_inst/lib";
@@ -288,6 +292,7 @@ sub test_replay
 	print $pgconf "wal_level = replica\n";
 	print $pgconf "max_wal_senders = 2\n";
 	print $pgconf "wal_keep_size = '1GB'\n";
+	print $pgconf "allow_in_place_tablespaces = on\n";
 	close($pgconf);
 
 	open(my $hba, '>>', "$primary_data/pg_hba.conf")
@@ -316,7 +321,21 @@ sub test_replay
 
 	my $psql = qq{"$dot0_inst/bin/psql" -h "$tdir" -p $primary_port -U buildfarm};
 
-	# basic DML for diverse WAL coverage
+	# run .0 regression tests for diverse WAL coverage
+	my $regress = "$dot0_inst/regress";
+	if (-x "$regress/pg_regress")
+	{
+		run_with_timeout(
+			180,
+			qq{"$regress/pg_regress" }
+			  . qq{--inputdir="$regress" --bindir="$dot0_inst/bin" }
+			  . qq{--host="$tdir" --port=$primary_port --user=buildfarm }
+			  . qq{--dbname=regression --max-concurrent-tests=20 }
+			  . qq{--schedule="$regress/parallel_schedule"},
+			"$replay_loc/regress.log");
+	}
+
+	# basic DML workload for additional WAL coverage
 	my $workload_sql = <<'END_SQL';
 CREATE TABLE replay_dml(id serial PRIMARY KEY, data text);
 INSERT INTO replay_dml SELECT g, repeat('x', 100) FROM generate_series(1,5000) g;
@@ -446,6 +465,32 @@ sub stop_and_clean
 	my ($instdir, $datadir) = @_;
 	system(qq{"$instdir/bin/pg_ctl" -D "$datadir" -m fast -w stop >$devnull 2>&1});
 	rmtree($datadir);
+	return;
+}
+
+sub run_with_timeout
+{
+	my ($seconds, $cmd, $logfile) = @_;
+	my $pid = fork();
+	return unless defined $pid;
+	if ($pid == 0)
+	{
+		setpgrp(0, 0);
+		open(STDOUT, '>', $logfile) or exit(1);
+		open(STDERR, '>&STDOUT');
+		exec("sh", "-c", $cmd);
+		exit(1);
+	}
+	my $deadline = time() + $seconds;
+	while (time() < $deadline)
+	{
+		return if waitpid($pid, WNOHANG) > 0;
+		sleep(1);
+	}
+	kill('TERM', -$pid);
+	sleep(2);
+	kill('KILL', -$pid);
+	waitpid($pid, 0);
 	return;
 }
 
