@@ -329,7 +329,7 @@ sub test_replay
 			qq{"$regress/pg_regress" }
 			  . qq{--inputdir="$regress" --bindir="$dot0_inst/bin" }
 			  . qq{--host="$tdir" --port=$primary_port --user=buildfarm }
-			  . qq{--dbname=regression --max-concurrent-tests=20 }
+			  . qq{--dbname=regression --max-concurrent-tests=4 }
 			  . qq{--schedule="$regress/parallel_schedule"},
 			"$replay_loc/regress.log");
 	}
@@ -393,6 +393,7 @@ END_SQL
 	};
 	print $pgconf "\n# TestReplayXversion standby overrides\n";
 	print $pgconf "port = $standby_port\n";
+	print $pgconf "allow_in_place_tablespaces = on\n";
 	close($pgconf);
 
 	# start STABLE standby
@@ -462,7 +463,18 @@ sub write_and_run_sql
 sub stop_and_clean
 {
 	my ($instdir, $datadir) = @_;
-	system(qq{"$instdir/bin/pg_ctl" -D "$datadir" -m immediate -w stop >$devnull 2>&1});
+	system(qq{"$instdir/bin/pg_ctl" -D "$datadir" -m immediate -w -t 10 stop >$devnull 2>&1});
+	# if postgres is still running (e.g. deadlocked), kill it
+	my $pidfile = "$datadir/postmaster.pid";
+	if (-f $pidfile)
+	{
+		open(my $fh, '<', $pidfile);
+		my $pid = <$fh>;
+		close($fh);
+		chomp $pid;
+		kill('KILL', $pid) if $pid && kill(0, $pid);
+		sleep(1);
+	}
 	rmtree($datadir);
 	return;
 }
