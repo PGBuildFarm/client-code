@@ -26,7 +26,6 @@ use PGBuild::Options;
 use PGBuild::Utils qw(:DEFAULT $tmpdir $steps_completed $devnull);
 
 use File::Path 'mkpath';
-use File::Basename;
 use POSIX ':sys_wait_h';
 
 use strict;
@@ -60,8 +59,6 @@ sub setup
 		buildroot   => $buildroot,
 		pgbranch    => $branch,
 		bfconf      => $conf,
-		pgsql       => $pgsql,
-		major       => $major,
 		dot0_tag    => "REL_${major}_0",
 		replay_root => $replay_root,
 	};
@@ -108,6 +105,9 @@ sub installcheck
 		  if $verbose;
 
 		my $ok = build_dot0($self);
+
+		# tag not yet released - silently skip
+		return if $ok < 0;
 
 		my @saveout;
 		my $savelog = PGBuild::Log->new('replay-xversion-save');
@@ -161,14 +161,14 @@ sub build_dot0
 		return 0;
 	}
 
-	# verify the tag exists
+	# verify the tag exists; return -1 (skip) if not yet released
 	system(
 		qq{git -C "$gitrepo" rev-parse --verify "$dot0_tag^{}" >$devnull 2>&1}
 	);
 	if ($?)
 	{
-		print "tag $dot0_tag not found in $gitrepo\n";
-		return 0;
+		print "tag $dot0_tag not found, skipping replay check\n";
+		return -1;
 	}
 
 	# extract source via git archive (no .git overhead)
