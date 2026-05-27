@@ -292,7 +292,6 @@ sub test_replay
 	print $pgconf "wal_level = replica\n";
 	print $pgconf "max_wal_senders = 2\n";
 	print $pgconf "wal_keep_size = '1GB'\n";
-	print $pgconf "allow_in_place_tablespaces = on\n";
 	close($pgconf);
 
 	open(my $hba, '>>', "$primary_data/pg_hba.conf")
@@ -463,7 +462,7 @@ sub write_and_run_sql
 sub stop_and_clean
 {
 	my ($instdir, $datadir) = @_;
-	system(qq{"$instdir/bin/pg_ctl" -D "$datadir" -m fast -w stop >$devnull 2>&1});
+	system(qq{"$instdir/bin/pg_ctl" -D "$datadir" -m immediate -w stop >$devnull 2>&1});
 	rmtree($datadir);
 	return;
 }
