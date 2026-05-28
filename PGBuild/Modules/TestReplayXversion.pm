@@ -87,6 +87,13 @@ sub installcheck
 
 	local %ENV = %ENV;
 
+	# Advertise this module's presence so that future TAP tests in
+	# src/test/recovery/ can be gated on replay_xversion via
+	# PG_TEST_EXTRA.  Harmless until PostgreSQL adds such tests.
+	my $extra = $ENV{PG_TEST_EXTRA} // '';
+	$ENV{PG_TEST_EXTRA} = "$extra replay_xversion"
+	  unless $extra =~ /\breplay_xversion\b/;
+
 	my $tdir = $tmpdir;
 	$tdir =~ s!\\!/!g;
 	$ENV{PGHOST} = $tdir;
