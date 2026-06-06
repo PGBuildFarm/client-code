@@ -60,6 +60,11 @@ our ($branch) = 'HEAD';
 #
 # process config file
 #
+
+# work around fact that modern perl doesn't put .
+# in the search path any more
+$buildconf = "./$buildconf" if (-f $buildconf && $buildconf !~ m!/!);
+
 require $buildconf;
 
 my ($target, $animal, $secret, $upgrade_target) =

@@ -60,6 +60,11 @@ usage("must specify notes")
 #
 
 our ($branch) = 'HEAD';    # needed for config file, irrelevant for this purpose
+
+# work around fact that modern perl doesn't put .
+# in the search path any more
+$buildconf = "./$buildconf" if (-f $buildconf && $buildconf !~ m!/!);
+
 require $buildconf;
 
 my ($target, $animal, $secret) = @PGBuild::conf{qw(target animal secret)};
