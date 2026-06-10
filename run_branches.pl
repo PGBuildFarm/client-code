@@ -181,8 +181,13 @@ elsif ((ref $branches_to_build) =~ /Regexp/i)
 	# Enumerate upstream branches via ls-remote so we don't need a local
 	# checkout of any default branch (the upstream might not have one).
 	my $scm = PGBuild::SCM->new(\%PGBuild::conf);
-	my @cbranches = $scm->list_remote_branches();
-	@branches = grep { $_ =~ /$branches_to_build/ } @cbranches;
+	{
+		# pick up proxy settings if any from the config file
+		my $confenv = $PGBuild::conf{build_env};
+		local %ENV = (%ENV, %$confenv);
+		my @cbranches = $scm->list_remote_branches();
+		@branches = grep { $_ =~ /$branches_to_build/ } @cbranches;
+	}
 	$ENV{BF_CONF_BRANCHES} = join(',', "(found by regexp)", @branches);
 }
 elsif (
