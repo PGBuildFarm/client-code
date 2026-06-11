@@ -881,13 +881,28 @@ sub _create_or_update_mirror
 			if (!$status)
 			{
 				my $ref = (grep { m!ref: .*\s+HEAD! } @remote_def)[0];
-				$ref =~ s/.*?ref: //;
-				$ref =~ s/\s+HEAD.*//;
-				system(
-					qq{git --git-dir="$self->{mirror}" symbolic-ref HEAD $ref});
 
-				# failure here is local, thus not an ignore-mirror-failure
-				$status = $? >> 8;
+				# If the upstream has no usable symbolic HEAD (e.g. repos
+				# that only ship release branches and no master/main),
+				# there's no default branch to align the mirror with.
+				# Skip quietly.
+				if (defined $ref)
+				{
+					$ref =~ s/.*?ref: //;
+					$ref =~ s/\s+HEAD.*//;
+					system(
+						qq{git --git-dir="$self->{mirror}" symbolic-ref HEAD $ref}
+					);
+
+					# failure here is local, thus not an
+					# ignore-mirror-failure
+					$status = $? >> 8;
+				}
+				elsif ($verbose)
+				{
+					print "no remote default branch for mirror; "
+					  . "skipping default-branch alignment\n";
+				}
 			}
 			elsif ($self->{ignore_mirror_failure})
 			{
