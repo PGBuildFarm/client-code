@@ -17,6 +17,7 @@ use PGBuild::SCM;
 use PGBuild::Utils;
 
 use Cwd qw(getcwd);
+use File::Basename qw(dirname);
 
 use strict;
 use warnings;
@@ -124,7 +125,19 @@ sub build
 		do { s/^/-I/; }
 
 		  foreach @includes;
-		my $incl = join(' ', @includes);
+
+		# Provide stub DBI/DBD::Pg modules so that "perl -cw" on files that
+		# "use DBD::Pg" (e.g. contrib/intarray/bench/bench.pl) does not load
+		# the real DBD::Pg, which dlopens libpq. This step runs with
+		# LD_LIBRARY_PATH pointing at the freshly built libpq, and a symbol
+		# mismatch between that libpq and the installed DBD::Pg would
+		# otherwise break the syntax check. This dir is given as an absolute
+		# path (the check runs with cwd = pgsql) and goes first so the stubs
+		# are found ahead of the real modules. Same idea as the Win32 stubs
+		# in src/tools/msvc/dummylib.
+		my $dummylib = dirname(__FILE__) . "/../dummylib";
+
+		my $incl = join(' ', "-I$dummylib", @includes);
 
 		my @cwlog =
 		  run_log("cd pgsql && "
