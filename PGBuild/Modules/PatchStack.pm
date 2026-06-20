@@ -50,8 +50,8 @@ In the animal's C<build-farm.conf>:
     },
 
 Add C<PatchStack> to the animal's C<modules> list. Branches whose
-subdirectory is missing in the patches branch build normally without
-any patches applied (a warning is logged).
+subdirectory is missing in the patches branch are silently skipped
+(a message is printed in verbose mode).
 
 =cut
 
@@ -167,6 +167,9 @@ sub _fetch_or_clone
 # Stable identifier for "the patches as they exist right now" for
 # this Postgres branch — the git tree SHA of the per-branch
 # subdirectory. Empty string if the subdirectory doesn't exist.
+# Using the subdirectory tree SHA rather than the patches repo's
+# commit SHA means that a change to another branch's subdirectory
+# does not trigger a rebuild for this branch.
 sub _patches_id
 {
 	my $self = shift;
@@ -297,6 +300,19 @@ sub checkout
 	push(@$savescmlog,
 		"$MODULE: $self->{patches_branch}:$self->{subdir} = "
 		  . ($self->{patches_id} || '(absent)') . "\n");
+
+	unless ($self->{patches_id})
+	{
+		print time_str(),
+		  "$MODULE: subdirectory '$self->{subdir}' absent in"
+		  . " patches branch, skipping build\n";
+		# We exit here rather than trying to inhibit via need_run because
+		# the need-run hook can only force a run (by setting $$run_needed=1);
+		# it cannot suppress a run triggered by upstream file changes. The
+		# checkout hook runs before need-run, so exit 0 is the only way to
+		# prevent the build without modifying run_build.pl.
+		exit 0;
+	}
 
 	unless ($self->_apply_patches($savescmlog))
 	{
