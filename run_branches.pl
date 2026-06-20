@@ -490,6 +490,15 @@ sub apply_filters
 	my @filt_branches = @_;
 	my @thrbranches;
 
+	# If the PatchStack module is configured we cannot decide here whether a
+	# branch is up to date: the patch series may have moved even when the
+	# upstream tip (the only thing we can see at this point) has not. Pruning
+	# on the upstream gitref alone would suppress those runs, so defer the
+	# decision to run_build.pl, where PatchStack's need-run hook can force a
+	# run when the series changes.
+	my $has_patch_stack =
+	  grep { $_ eq 'PatchStack' } @{ $PGBuild::conf{modules} };
+
 	# remove up to date branches unless they are forced
 	foreach my $brnch (@filt_branches)
 	{
@@ -511,6 +520,7 @@ sub apply_filters
 		}
 
 		if (   $gitref
+			&& !$has_patch_stack
 			&& -e "$buildroot/$brnch/$animal.lastrun-logs/githead.log"
 			&& !$PGBuild::Options::forcerun
 			&& !-e "$buildroot/$brnch/$animal.force-one-run")
