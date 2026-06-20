@@ -260,6 +260,14 @@ sub _apply_patches
 	}
 	$self->{pre_apply_sha} = $sha;
 
+	# quiltimport uses git-am internally; abort any interrupted state
+	# left by a previous run before starting fresh.
+	if (-d "$srcdir/.git/rebase-apply")
+	{
+		push(@$log, "$MODULE: aborting stale rebase-apply state\n");
+		run_log("git -C $srcdir am --abort");
+	}
+
 	push(@$log, "$MODULE: importing patch series from $patchdir\n");
 
 	my @out = run_log("git -C $srcdir quiltimport --patches '$patchdir'");
