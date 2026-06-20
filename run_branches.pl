@@ -274,8 +274,16 @@ sub get_branches_of_interest
 	my $save_path = $ENV{PATH};
 	$ENV{PATH} = $PGBuild::conf{build_env}->{PATH}
 	  if ($PGBuild::conf{build_env}->{PATH});
-	(my $url = $PGBuild::conf{target}) =~
-	  s/cgi-bin.*/branches_of_interest.json/;
+	my $url;
+	if ($PGBuild::conf{branches_target})
+	{
+		$url = $PGBuild::conf{branches_target};
+	}
+	else
+	{
+		($url = $PGBuild::conf{target}) =~
+		  s/cgi-bin.*/branches_of_interest.json/;
+	}
 	$url =~ s/branches_of_interest/old_branches_of_interest/
 	  if $which eq 'OLD';
 	my $branches_of_interest;

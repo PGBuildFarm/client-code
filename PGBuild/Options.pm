@@ -133,7 +133,7 @@ sub fixup_conf
 {
 	my $conf = shift;
 	my $list = shift;
-	foreach my $tkey (qw(target upgrade_target))
+	foreach my $tkey (qw(target upgrade_target branches_target))
 	{
 		next unless exists $conf->{$tkey};
 		$conf->{$tkey} =~ s/www\.pgbuildfarm/buildfarm.postgresql/;
