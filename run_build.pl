@@ -827,21 +827,6 @@ elsif (!$from_source)
 	  if $scm_timeout_secs;
 
 	$savescmlog = $scm->checkout($branch);
-	$steps_completed = "SCM-checkout";
-
-	process_module_hooks('checkout', $savescmlog);
-
-	if ($timeout_pid)
-	{
-
-		# don't kill me, I finished in time
-		if (kill(SIGTERM, $timeout_pid))
-		{
-
-			# reap the zombie
-			waitpid($timeout_pid, 0);
-		}
-	}
 
 	print time_str(), "checking if build run needed ...\n"
 	  if $verbose && !($testmode || $from_source);
@@ -876,6 +861,24 @@ elsif (!$from_source)
 		\$current_snap, $last_run_snap, $last_success_snap,
 		\@changed_files, \@changed_since_success
 	);
+
+	# defer processing module checkout until after the find_changed.
+	# modules like PatchStack can add commits that will cause problems
+	process_module_hooks('checkout', $savescmlog);
+
+	if ($timeout_pid)
+	{
+
+		# don't kill me, I finished in time
+		if (kill(SIGTERM, $timeout_pid))
+		{
+
+			# reap the zombie
+			waitpid($timeout_pid, 0);
+		}
+	}
+
+	$steps_completed = "SCM-checkout";
 
 	#ignore changes to files specified by the trigger exclude filter, if any
 	if (defined($trigger_exclude))
