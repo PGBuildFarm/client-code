@@ -178,6 +178,7 @@ elsif ((ref $branches_to_build) =~ /Regexp/i)
 {
 	die "Can't check for work with regexp branches_to_build"
 	  if ($check_for_work);
+
 	# Enumerate upstream branches via ls-remote so we don't need a local
 	# checkout of any default branch (the upstream might not have one).
 	my $scm = PGBuild::SCM->new(\%PGBuild::conf);

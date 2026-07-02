@@ -492,6 +492,7 @@ sub save_install
 sub copydir
 {
 	my ($from, $to, $logfile) = @_;
+
 	# we assume tar and lz4 are available if this file exists
 	if (-e "$from.tar.lz4" && !-d $from)
 	{

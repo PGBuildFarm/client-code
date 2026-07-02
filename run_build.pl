@@ -220,7 +220,7 @@ if ($Config{osname} !~ /msys|MSWin/)
 else
 {
 	print "wait_timeout not supported on Windows, ignoring\n"
-	  if  ($wait_timeout || 0 > 0);
+	  if ($wait_timeout || 0 > 0);
 	$wait_timeout = 0;
 }
 
@@ -1971,6 +1971,7 @@ sub make_contrib_install_check
 sub meson_test_setup
 {
 	return unless step_wanted("check");
+
 	# we run test setup separately so we can pass test arguments
 	# in the check stage
 	local %ENV = _meson_env();
@@ -2550,7 +2551,7 @@ sub run_misc_tests
 		my $testname = basename($testdir);
 
 		# can't test it if we haven't built it
-		my @obj =  glob("$testdir/*.o $testdir/*.obj");
+		my @obj = glob("$testdir/*.o $testdir/*.obj");
 		next unless scalar @obj;
 
 		# skip sepgsql unless it's marked for testing
@@ -3173,8 +3174,11 @@ sub archive_report
 	mkpath $dest;
 	my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) =
 	  localtime(time);
-	my $suffix = sprintf("%.4d%.2d%.2d:%.2d%.2d%.2d",
-		$year + 1900, $mon + 1, $mday, $hour, $min, $sec);
+	my $suffix = sprintf(
+		"%.4d%.2d%.2d:%.2d%.2d%.2d",
+		$year + 1900,
+		$mon + 1, $mday, $hour, $min, $sec
+	);
 
 	my $fname = basename $report;
 	copy $report, "$dest/$fname.$suffix";
@@ -3321,6 +3325,7 @@ sub send_res
 	{
 
 		chdir($lrname);
+
 		# update lastcommand.log's timestamps to right now if we timed out,
 		# so the run time shown is realistic
 		utime(undef, undef, "lastcommand.log");
@@ -3493,6 +3498,7 @@ sub wait_timeout
 		$SIG{$sig} = 'DEFAULT';
 	}
 	$SIG{'TERM'} = \&silent_terminate;
+
 	# loop to absorb any unexpected signals without dying early
 	my $end_time = time + $wait_time;
 	while (time < $end_time)

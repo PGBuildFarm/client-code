@@ -973,7 +973,7 @@ sub _setup_new_head
 	# "remote HEAD refers to nonexistent ref" warning (we check out our own
 	# branch after the clone regardless).
 	my $clone =
-	  qq{git -c init.defaultBranch=bf_HEAD clone -q --no-checkout }
+		qq{git -c init.defaultBranch=bf_HEAD clone -q --no-checkout }
 	  . qq{$base "$head/$target"};
 	print "running ", $clone, "\n";
 	my @clonelog = run_log($clone);
@@ -1075,8 +1075,7 @@ sub _setup_new_workdir
 	}
 	else
 	{
-		@colog =
-		  run_log("git checkout -f -b $local --track origin/$branch");
+		@colog = run_log("git checkout -f -b $local --track origin/$branch");
 	}
 
 	# Make sure the branch we just checked out is up to date.
@@ -1107,8 +1106,8 @@ sub _setup_new_basedir
 	$base = abs_path($base) if $base =~ m!^[/\\]!;
 
 	# see _setup_new_head for the rationale for these flags
-	my @clonelog = run_log(
-		"git -c init.defaultBranch=bf_HEAD clone -q --no-checkout "
+	my @clonelog =
+	  run_log("git -c init.defaultBranch=bf_HEAD clone -q --no-checkout "
 		  . "$reference $base $target");
 	push(@gitlog, @clonelog);
 	$status = $? >> 8;
@@ -1124,10 +1123,11 @@ sub _setup_new_basedir
 			chomp $rbranch;
 		}
 
-		my $local = ($branch eq 'HEAD') ? 'bf_HEAD'
+		my $local =
+		  ($branch eq 'HEAD')
+		  ? 'bf_HEAD'
 		  : "$self->{bf_prefix}$branch";
-		my @colog =
-		  run_log("git checkout -b $local --track origin/$rbranch");
+		my @colog = run_log("git checkout -b $local --track origin/$rbranch");
 		push(@gitlog, @colog);
 		chdir "..";
 	}
@@ -1381,7 +1381,8 @@ sub get_branches
 sub list_remote_branches
 {
 	my $self = shift;
-	my $url = (exists $self->{mirror} && -d $self->{mirror})
+	my $url =
+	  (exists $self->{mirror} && -d $self->{mirror})
 	  ? $self->{mirror}
 	  : $self->{gitrepo};
 	$url = abs_path($url) if $url =~ m!^[/\\]!;

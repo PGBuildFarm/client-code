@@ -16,7 +16,7 @@ use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils;
 
-use Cwd qw(getcwd);
+use Cwd            qw(getcwd);
 use File::Basename qw(dirname);
 
 use strict;

@@ -157,8 +157,8 @@ sub _fetch_or_clone
 	push(@$log, @out);
 	die "fetching $br from $self->{repo}\n" if $? >> 8;
 
-	@out = run_log("git -C $local checkout --quiet -B patch_stack_local "
-		  . "FETCH_HEAD");
+	@out = run_log(
+		"git -C $local checkout --quiet -B patch_stack_local " . "FETCH_HEAD");
 	push(@$log, @out);
 	die "checking out $br at FETCH_HEAD\n" if $? >> 8;
 	return;
@@ -176,8 +176,7 @@ sub _patches_id
 	my $local = $self->{local_repo};
 	my $sub = $self->{subdir};
 
-	my $id =
-	  `git -C $local rev-parse --verify --quiet "HEAD:$sub" 2>$devnull`;
+	my $id = `git -C $local rev-parse --verify --quiet "HEAD:$sub" 2>$devnull`;
 	chomp $id;
 	return $id;
 }
@@ -199,6 +198,7 @@ sub _log_series
 	while (my $line = <$fh>)
 	{
 		chomp $line;
+
 		# mirror quiltimport's parsing: skip blanks and comments, and
 		# take the first whitespace-delimited token as the file name.
 		next if $line =~ /^\s*(#|$)/;
@@ -214,8 +214,7 @@ sub _log_series
 		my $subject = '';
 		if (-f $file)
 		{
-			my $info =
-			  `git mailinfo $devnull $devnull < '$file' 2>$devnull`;
+			my $info = `git mailinfo $devnull $devnull < '$file' 2>$devnull`;
 			($subject) = $info =~ /^Subject:[ \t]*(.*)$/m;
 		}
 		else
@@ -306,14 +305,16 @@ sub checkout
 
 	$self->{patches_id} = $self->_patches_id();
 	push(@$savescmlog,
-		"$MODULE: $self->{patches_branch}:$self->{subdir} = "
-		  . ($self->{patches_id} || '(absent)') . "\n");
+			"$MODULE: $self->{patches_branch}:$self->{subdir} = "
+		  . ($self->{patches_id} || '(absent)')
+		  . "\n");
 
 	unless ($self->{patches_id})
 	{
 		print time_str(),
 		  "$MODULE: subdirectory '$self->{subdir}' absent in"
 		  . " patches branch, skipping build\n";
+
 		# We exit here rather than trying to inhibit via need_run because
 		# the need-run hook can only force a run (by setting $$run_needed=1);
 		# it cannot suppress a run triggered by upstream file changes. The

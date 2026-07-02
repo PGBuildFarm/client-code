@@ -423,7 +423,11 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	rmtree "$other_branch/inst/$upgrade_test";
 
-	foreach my $oldfile(glob("$other_branch/*.log $other_branch/*.data $other_branch/inst/dump-*.log"))
+	foreach my $oldfile (
+		glob(
+			"$other_branch/*.log $other_branch/*.data $other_branch/inst/dump-*.log"
+		)
+	  )
 	{
 		lstat($oldfile) && (int(-M _) > 10) && unlink $oldfile;
 	}
@@ -856,7 +860,7 @@ sub installcheck
 		# Support for dumping/upgrading from pre-v10 servers is removed in
 		# v20 and later, so skip such combinations.
 		next
-		  if (($this_branch eq 'HEAD' || $this_branch ge 'REL_20_STABLE')
+		  if ( ($this_branch eq 'HEAD' || $this_branch ge 'REL_20_STABLE')
 			&& $oversion ne 'HEAD'
 			&& $oversion lt 'REL_10_STABLE');
 

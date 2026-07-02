@@ -807,14 +807,18 @@ sub _generate_abidw_xml
 	my $abidw_flags_str;
 	if (my $flags = $self->{bfconf}{abi_comp_check}{abidw_flags_list})
 	{
-		push @{ $flags }, '--drop-private-types'
-			unless grep { $_ eq  '--drop-private-types' } @{ $flags };
-		$abidw_flags_str = join ' ', @{ $flags }, qq{--headers-dir "$install_dir/include"};
-	} else {
-		$abidw_flags_str = '--drop-undefined-syms --no-architecture '
-			. '--no-comp-dir-path --no-elf-needed --no-show-locs '
-			. '--type-id-style hash --drop-private-types '
-			. qq{--headers-dir "$install_dir/include"};
+		push @{$flags}, '--drop-private-types'
+		  unless grep { $_ eq '--drop-private-types' } @{$flags};
+		$abidw_flags_str = join ' ', @{$flags},
+		  qq{--headers-dir "$install_dir/include"};
+	}
+	else
+	{
+		$abidw_flags_str =
+			'--drop-undefined-syms --no-architecture '
+		  . '--no-comp-dir-path --no-elf-needed --no-show-locs '
+		  . '--type-id-style hash --drop-private-types '
+		  . qq{--headers-dir "$install_dir/include"};
 	}
 
 	# Determine if this is for a baseline or current branch
