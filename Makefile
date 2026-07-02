@@ -21,6 +21,11 @@ PERLFILES = run_build.pl run_web_txn.pl run_branches.pl \
 	PGBuild/Modules/TestICU.pm \
 	PGBuild/Modules/CheckHeaders.pm \
 	PGBuild/Modules/CheckPerl.pm \
+	PGBuild/Modules/CheckIndent.pm \
+	PGBuild/Modules/ABICompCheck.pm \
+	PGBuild/Modules/Dist.pm \
+	PGBuild/Modules/PatchStack.pm \
+	PGBuild/Modules/RedisFDW.pm \
 	PGBuild/Modules/TestMyTap.pm
 
 OTHERFILES = License README
