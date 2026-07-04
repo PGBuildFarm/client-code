@@ -273,6 +273,12 @@ my $scm_timeout_secs = $PGBuild::conf{scm_timeout_secs}
 print scalar(localtime()), ": buildfarm run for $animal:$branch starting\n"
   if $verbose;
 
+# $using_meson isn't finalized until finalize_build_system() runs (we need
+# the checked-out source to know if meson.build exists), so this is only a
+# tentative forcing of vpath for the checkout/path-setup code that runs
+# before then. Keep the pre-forcing value so finalize_build_system() can
+# correct $use_vpath if the tentative $using_meson turns out to be wrong.
+my $configured_vpath = $use_vpath;
 $use_vpath ||= $using_meson;
 
 if (ref($force_every) eq 'HASH')
@@ -1318,6 +1324,12 @@ sub finalize_build_system
 	# regardless of what the config or branch-age check said. Fall back to
 	# autoconf silently.
 	$using_meson = undef unless $has_meson_build;
+
+	# Redo the vpath forcing now $using_meson is final, so a branch that
+	# turned out not to have meson.build doesn't keep the vpath forcing
+	# from the earlier tentative guess (e.g. old branches on an animal
+	# that otherwise prefers meson).
+	$use_vpath = $configured_vpath || $using_meson;
 
 	if ($using_meson)
 	{
