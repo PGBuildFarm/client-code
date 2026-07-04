@@ -15,6 +15,7 @@ PERLFILES = run_build.pl run_web_txn.pl run_branches.pl \
 	PGBuild/Modules/Skeleton.pm \
 	PGBuild/Modules/TestUpgrade.pm \
 	PGBuild/Modules/FileTextArrayFDW.pm PGBuild/Modules/BlackholeFDW.pm \
+	PGBuild/Modules/PGXSExtension.pm \
 	PGBuild/Modules/TestCollateLinuxUTF8.pm \
 	PGBuild/Modules/TestSepgsql.pm \
 	PGBuild/Modules/TestUpgradeXversion.pm \

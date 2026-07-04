@@ -422,6 +422,55 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		#             },
 	},
 
+	# settings for module PGXSExtension: a generic module for building
+	# and installchecking one or more out-of-tree PGXS extensions
+	# against the tree under test. Add 'PGXSExtension' to the modules
+	# list above (once) to enable it; this hash supplies one entry per
+	# extension, keyed by the label used for its step/result names.
+	#
+	# per-extension settings:
+	#   url                    - git repo to clone (required)
+	#   reponame               - local mirror dir name (default: the label)
+	#   branch                 - ref to check out: a literal ref, or
+	#                            'PGBRANCH' to track the Postgres branch
+	#                            being built (default: 'HEAD')
+	#   install_use_module_db  - add USE_MODULE_DB=1 to the install step
+	#                            (default: false)
+	#   installcheck           - run 'make installcheck' (default: true)
+	#   regress_diffs          - path, relative to the extension's build
+	#                            dir, of regression.diffs on failure
+	#                            (default: 'regression.diffs')
+	#   logfile_offset         - on failure, attach only the portion of
+	#                            the postmaster logfile written during
+	#                            this extension's installcheck, rather
+	#                            than the whole file (default: false)
+	#   serialize_installcheck - take a cross-branch lock around
+	#                            installcheck; use this if the extension
+	#                            depends on a shared external resource
+	#                            that can't be exercised concurrently
+	#                            (default: false)
+	#
+	# pgxs_extensions => {
+	#     BlackholeFDW => {
+	#         url => 'https://bitbucket.org/adunstan/blackhole_fdw.git',
+	#         reponame => 'blackhole_fdw',
+	#         installcheck => 0,
+	#     },
+	#     FileTextArrayFDW => {
+	#         url => 'https://github.com/adunstan/file_text_array_fdw.git',
+	#         reponame => 'file_text_array_fdw',
+	#         branch => 'PGBRANCH',
+	#     },
+	#     RedisFDW => {
+	#         url => 'https://github.com/pg-redis-fdw/redis_fdw.git',
+	#         reponame => 'redis_fdw',
+	#         install_use_module_db => 1,
+	#         regress_diffs => 'test/regression.diffs',
+	#         logfile_offset => 1,
+	#         serialize_installcheck => 1,
+	#     },
+	# },
+
 );
 
 
