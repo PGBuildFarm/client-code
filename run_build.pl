@@ -322,6 +322,14 @@ if ($from_source || $from_source_clean)
 	$from_source = abs_path($from_source)
 	  unless File::Spec->file_name_is_absolute($from_source);
 
+	# the source tree is already available under --from-source, so settle
+	# $using_meson/$use_vpath now rather than waiting for
+	# finalize_build_system() - otherwise the vpath-object-file check just
+	# below, and $pgsql/module setup further down, would all still see the
+	# stale tentative guess for animals that prefer meson but are building
+	# a branch with no meson.build.
+	finalize_vpath($from_source);
+
 	# we need to know where the lock should go, so unless
 	# they have explicitly said the branch let them know where
 	# things are going.
@@ -517,14 +525,7 @@ foreach my $kdir (glob("instkeep.* pgsqlkeep.*"))
 $branch_root = getcwd();
 
 my $pgsql;
-if ($from_source)
-{
-	$pgsql = $use_vpath ? "$branch_root/pgsql.build" : $from_source;
-}
-else
-{
-	$pgsql = $scm->get_build_path($use_vpath || $using_meson);
-}
+$pgsql = compute_pgsql_path();
 
 # set up modules
 foreach my $module (@{ $PGBuild::conf{modules} })
@@ -935,6 +936,12 @@ $scm->log_id($idname) unless $from_source;
 # now we have the code we can determine the build system to use
 finalize_build_system($from_source || "$branch_root/" . $scm->{target});
 
+# $use_vpath may have been corrected above once $using_meson was finalized
+# (e.g. an MSVC animal that prefers meson falling back to the legacy MSVC
+# build on a branch with no meson.build), so recompute $pgsql to match;
+# otherwise it would still point at the stale pre-finalization path.
+$pgsql = compute_pgsql_path();
+
 # copy/create according to vpath/scm settings
 
 if ($use_vpath)
@@ -1310,12 +1317,23 @@ sub check_make
 	return 'OK';
 }
 
-# Called after the source is in place (either checked out, or pre-existing
-# under --from-source). Finalizes the tentative $using_meson decision: if
-# the source tree has no meson.build we silently fall back.
-# Also does the config_opts/meson_opts cleanup and the GNU-make /
-# MSVC checks that depend on the final answer.
-sub finalize_build_system
+# Computes the build directory: the vpath/meson build dir when vpath is in
+# play, otherwise the from-source tree or SCM checkout path directly. Must
+# be recomputed whenever $use_vpath/$using_meson change (see finalize_vpath
+# and its callers).
+sub compute_pgsql_path
+{
+	return $from_source
+	  ? ($use_vpath ? "$branch_root/pgsql.build" : $from_source)
+	  : $scm->get_build_path($use_vpath || $using_meson);
+}
+
+# Settles $using_meson/$use_vpath from their tentative pre-checkout guesses
+# once the source tree ($src) is known, by checking whether it actually has
+# meson.build. Idempotent - safe to call more than once for the same $src,
+# which lets --from-source settle this before $pgsql/modules are set up
+# while finalize_build_system() still redoes it (harmlessly) later.
+sub finalize_vpath
 {
 	my $src = shift;
 	my $has_meson_build = $src && -e "$src/meson.build";
@@ -1330,6 +1348,17 @@ sub finalize_build_system
 	# from the earlier tentative guess (e.g. old branches on an animal
 	# that otherwise prefers meson).
 	$use_vpath = $configured_vpath || $using_meson;
+	return;
+}
+
+# Called after the source is in place (either checked out, or pre-existing
+# under --from-source). Finalizes the tentative $using_meson/$use_vpath
+# decision via finalize_vpath(). Also does the config_opts/meson_opts
+# cleanup and the GNU-make / MSVC checks that depend on the final answer.
+sub finalize_build_system
+{
+	my $src = shift;
+	finalize_vpath($src);
 
 	if ($using_meson)
 	{
