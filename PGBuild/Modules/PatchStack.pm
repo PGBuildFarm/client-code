@@ -187,13 +187,17 @@ sub _patches_id
 # creates -- via "git mailinfo", which unwraps the header and strips
 # any "[PATCH ...]" prefix -- falling back to the file name minus a
 # trailing ".patch" when the patch carries no Subject: header.
+#
+# Returns the parsed list as an arrayref of { name => , subject => }
+# hashrefs, so callers can reuse it (e.g. to write patch_stack.log)
+# without re-deriving the subjects.
 sub _log_series
 {
 	my $self = shift;
 	my $log = shift;
 	my $patchdir = shift;
 
-	open(my $fh, '<', "$patchdir/series") or return;
+	open(my $fh, '<', "$patchdir/series") or return [];
 	my @patches;
 	while (my $line = <$fh>)
 	{
@@ -208,6 +212,7 @@ sub _log_series
 	close $fh;
 
 	push(@$log, "$MODULE: series (" . scalar(@patches) . " patches):\n");
+	my @parsed;
 	foreach my $name (@patches)
 	{
 		my $file = "$patchdir/$name";
@@ -226,8 +231,9 @@ sub _log_series
 			($subject = $name) =~ s/\.patch$//;
 		}
 		push(@$log, "    $name: $subject\n");
+		push(@parsed, { name => $name, subject => $subject });
 	}
-	return;
+	return \@parsed;
 }
 
 sub _apply_patches
@@ -242,10 +248,11 @@ sub _apply_patches
 	unless (-f "$patchdir/series")
 	{
 		push(@$log, "$MODULE: no series file at $patchdir/series\n");
+		$self->{series_status} = 'no-series';
 		return 1;
 	}
 
-	$self->_log_series($log, $patchdir);
+	$self->{series_patches} = $self->_log_series($log, $patchdir);
 
 	# Capture the upstream HEAD before importing so cleanup (and
 	# error recovery below) can rewind past the commits quiltimport
@@ -255,6 +262,7 @@ sub _apply_patches
 	if ($? >> 8 || $sha eq '')
 	{
 		push(@$log, "$MODULE: cannot determine HEAD of $srcdir\n");
+		$self->{series_status} = 'broken';
 		return 0;
 	}
 	$self->{pre_apply_sha} = $sha;
@@ -279,11 +287,35 @@ sub _apply_patches
 		# rewind to a known state so a later cleanup or rerun starts
 		# from the upstream tip rather than a half-applied series.
 		run_log("git -C $srcdir reset --hard --quiet $sha");
+		$self->{series_status} = 'broken';
 		return 0;
 	}
 
 	$self->{applied} = 1;
+	$self->{series_status} = 'applied';
 	return 1;
+}
+
+# Write patch_stack.log: a small structured record of the patch series
+# just processed, separate from the free-form checkout log, so the
+# server can parse and render it distinctly (mirroring the githead.log
+# precedent) without needing a new webtxn field or DB column.
+sub _write_patch_stack_log
+{
+	my $self = shift;
+
+	my @lines;
+	push(@lines, "patch_stack_id: " . ($self->{patches_id} // '') . "\n");
+	push(@lines,
+		"patch_stack_source: $self->{patches_branch}:$self->{subdir}\n");
+	push(@lines,
+		"patch_stack_status: " . ($self->{series_status} // '') . "\n");
+	foreach my $p (@{ $self->{series_patches} // [] })
+	{
+		push(@lines, "$p->{name}\t$p->{subject}\n");
+	}
+	writelog('patch_stack', \@lines);
+	return;
 }
 
 sub checkout
@@ -323,10 +355,10 @@ sub checkout
 		exit 0;
 	}
 
-	unless ($self->_apply_patches($savescmlog))
-	{
-		send_result('PatchStackBroken', 1, $savescmlog);
-	}
+	my $ok = $self->_apply_patches($savescmlog);
+	$self->_write_patch_stack_log();
+
+	send_result('PatchStackBroken', 1, $savescmlog) unless $ok;
 
 	return;
 }
