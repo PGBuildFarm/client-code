@@ -933,6 +933,12 @@ cleanlogs() unless ($from_source_clean || !step_wanted('configure'));
 writelog('SCM-checkout', $savescmlog) unless $from_source;
 $scm->log_id($idname) unless $from_source;
 
+# modules such as PatchStack may have per-stage log files to write
+# (e.g. patch_stack.log) from data gathered during the 'checkout' hook
+# above; that hook runs before cleanlogs() empties lastrun-logs, so the
+# actual write is deferred to this hook, which runs after cleanlogs()
+process_module_hooks('post-checkout-log') unless $from_source;
+
 # now we have the code we can determine the build system to use
 finalize_build_system($from_source || "$branch_root/" . $scm->{target});
 

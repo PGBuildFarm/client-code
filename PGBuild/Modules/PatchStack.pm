@@ -72,6 +72,7 @@ our ($VERSION); $VERSION = 'REL_21';
 
 my $hooks = {
 	'checkout' => \&checkout,
+	'post-checkout-log' => \&_write_patch_stack_log,
 	'need-run' => \&need_run,
 	'cleanup' => \&cleanup,
 };
@@ -300,6 +301,17 @@ sub _apply_patches
 # just processed, separate from the free-form checkout log, so the
 # server can parse and render it distinctly (mirroring the githead.log
 # precedent) without needing a new webtxn field or DB column.
+#
+# checkout() runs before run_build.pl's cleanlogs() empties and
+# recreates lastrun-logs, so a write from there would normally be lost
+# as soon as cleanlogs() ran. When the series applies cleanly, checkout()
+# returns and the run continues on to cleanlogs(), so this is registered
+# as the 'post-checkout-log' hook, which run_build.pl fires after
+# cleanlogs(), once lastrun-logs is settled for the run. When the series
+# is broken, checkout() calls send_result(), which reports and exits the
+# process well before cleanlogs() would run -- so that path writes the
+# log directly, right before send_result(), instead of relying on the
+# hook.
 sub _write_patch_stack_log
 {
 	my $self = shift;
@@ -356,9 +368,12 @@ sub checkout
 	}
 
 	my $ok = $self->_apply_patches($savescmlog);
-	$self->_write_patch_stack_log();
 
-	send_result('PatchStackBroken', 1, $savescmlog) unless $ok;
+	unless ($ok)
+	{
+		$self->_write_patch_stack_log();
+		send_result('PatchStackBroken', 1, $savescmlog);
+	}
 
 	return;
 }
