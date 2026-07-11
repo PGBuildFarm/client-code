@@ -56,7 +56,6 @@ sub build
 	  if $verbose;
 	my $src = "$self->{buildroot}/$self->{pgbranch}/pgsql";
 	symlink("$src/.git", "$self->{pgsql}/.git");
-	system("ls -la $self->{pgsql}");
 	my @log = `cd $self->{pgsql} && make dist 2>&1`;
 	my $status = $? >> 8;
 	main::writelog('make-dist', \@log);
