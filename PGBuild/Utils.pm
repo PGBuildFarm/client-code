@@ -530,10 +530,27 @@ sub rmtree
 	return unless -d $dir;
 
 	# some Windows perls choke when calling rmtree if there are junctions
-	# so we provide our own.
+	# (e.g. pg_tblspc entries) so we provide our own.
 	if ($PGBuild::conf{using_msvc})
 	{
-		system(qq{rmdir /q /s "$dir"});
+		# Explicitly invoke through cmd.exe rather than a bare "rmdir /q
+		# /s $dir": cmd.exe's internal commands always take precedence
+		# over any same-named external executable, so this is immune to
+		# whatever else is on PATH (Windows itself never ships rmdir as a
+		# standalone executable, only as a cmd.exe builtin - a bare
+		# "rmdir ..." would let Perl's system() find and invoke a real
+		# rmdir.exe/.com/.bat/.cmd from Git for Windows/a coreutils
+		# package/MSYS2/etc directly instead, which doesn't understand /q
+		# /s and can't remove a non-empty directory at all).
+		#
+		# This also avoids depending on any third-party rm/rmdir's own
+		# junction handling being correct: cmd's own rmdir is what
+		# reliably removes a junction (e.g. a test's pg_tblspc entry)
+		# without recursing into its target and hitting permission errors
+		# there, which was tried as a fallback here previously (rm -rf,
+		# when a POSIX rmdir was detected on PATH) and did fail that way
+		# on at least one real buildfarm run.
+		system(qq{cmd /c "rmdir /q /s \"$dir\""});
 	}
 	else
 	{
