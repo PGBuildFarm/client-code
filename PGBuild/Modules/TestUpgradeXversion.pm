@@ -552,11 +552,13 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	unless ($using_localhost)
 	{
+		my $tdir = $tmpdir;
+		$tdir =~ s!\\!/!g;
 		my $tmp_param = "unix_socket_directories";
 		$tmp_param = "unix_socket_directory"
 		  if $this_branch ne 'HEAD' && $this_branch lt 'REL9_3_STABLE';
 		print $pgconf "listen_addresses = ''\n";
-		print $pgconf "$tmp_param = '$tmpdir'\n";
+		print $pgconf "$tmp_param = '$tdir'\n";
 	}
 
 	print $pgconf "autovacuum = off\n";
