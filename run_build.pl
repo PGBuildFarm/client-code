@@ -409,10 +409,11 @@ $st_prefix = $testmode ? "$animal-test." : "$animal.";
 # set environment from config
 while (my ($envkey, $envval) = each %{ $PGBuild::conf{build_env} })
 {
-	# ignore this setting for branches older than 13
+	# ignore this setting for branches older than 15
+	# it was enabled in 13 but TAP tests only worked from 15
 	next
 	  if $envkey eq 'PG_TEST_USE_UNIX_SOCKETS'
-	  && $branch lt "REL_13_STABLE"
+	  && $branch lt "REL_15_STABLE"
 	  && $branch ne 'HEAD';
 	$ENV{$envkey} = $envval;
 }
@@ -1743,7 +1744,7 @@ sub _meson_env
 	  LANG LC_CTYPE LC_COLLATE LC_MESSAGES LC_MONETARY LC_NUMERIC LC_TIME
 	  PGUSER PGHOST PG_TEST_PORT_DIR PG_TEST_EXTRA
 	  PG_TEST_USE_UNIX_SOCKETS PG_REGRESS_SOCK_DIR
-	  SystemRoot TEMP TMP MSYS TZ
+	  SystemRoot TEMP TMP TMPDIR MSYS TZ
 	  TEMP_CONFIG  PGCTLTIMEOUT
 	  USER USERNAME USERDOMAIN);
 
