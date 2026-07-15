@@ -25,6 +25,21 @@ files must carry C<From:> and C<Subject:> headers (i.e. be produced
 by C<git format-patch> or equivalent) so that C<git mailinfo> can
 extract the author. Bare diffs will not import.
 
+A patch shared unchanged across branches may be referenced rather
+than copied: either as a C<series> entry using a relative path into
+another branch's subdirectory (commonly C<../master/foo.patch>), or
+as a symlink into another branch's subdirectory. Both forms are
+resolved via git's own tree/blob data, not the checked-out working
+tree, so it works regardless of the platform's filesystem symlink
+support (and of whether C<..> in the path has been normalized -- a
+raw C<git show HEAD:path> silently returns empty content for an
+unnormalized path instead of erroring, so paths are normalized
+before being resolved). A patch listed in a branch's C<series> with
+no entry at all in the patches branch (not even by relative path or
+symlink) is a broken patch stack for that branch: it is logged and
+left out of the import, which then fails loudly rather than silently
+applying a substitute from elsewhere.
+
 =head2 RUN TRIGGER
 
 The module forces a run whenever the patch-stack subdirectory tree
@@ -61,7 +76,8 @@ use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils qw(:DEFAULT $st_prefix $branch_root $devnull);
 
-use File::Path qw(mkpath);
+use File::Path     qw(mkpath);
+use File::Basename qw(dirname);
 
 use strict;
 use warnings;
@@ -220,7 +236,7 @@ sub _log_series
 		my $subject = '';
 		if (-f $file)
 		{
-			my $info = `git mailinfo $devnull $devnull < '$file' 2>$devnull`;
+			my $info = `git mailinfo $devnull $devnull < "$file" 2>$devnull`;
 			($subject) = $info =~ /^Subject:[ \t]*(.*)$/m;
 		}
 		else
@@ -235,6 +251,152 @@ sub _log_series
 		push(@parsed, { name => $name, subject => $subject });
 	}
 	return \@parsed;
+}
+
+# Return the git mode ('100644', '120000', ...) of a path in the
+# patches repo at HEAD, or '' if it doesn't exist there.
+sub _git_mode
+{
+	my $self = shift;
+	my $path = shift;
+	my $local = $self->{local_repo};
+
+	my $line = `git -C $local ls-tree HEAD -- "$path" 2>$devnull`;
+	chomp $line;
+	return '' unless $line;
+	my ($mode) = split(/\s+/, $line);
+	return $mode // '';
+}
+
+# Return the raw content of the blob at the given path in the patches
+# repo at HEAD.
+sub _git_blob
+{
+	my $self = shift;
+	my $path = shift;
+	my $local = $self->{local_repo};
+
+	return `git -C $local show "HEAD:$path" 2>$devnull`;
+}
+
+# Collapse "." and ".." segments in a git-style forward-slash path
+# without touching the filesystem -- the target may not exist as a
+# real file on this platform (e.g. behind an unmaterialized symlink).
+sub _normalize_git_path
+{
+	my $path = shift;
+	my @out;
+	foreach my $part (split(m{/+}, $path))
+	{
+		next if $part eq '' || $part eq '.';
+		if   ($part eq '..') { pop @out; }
+		else                 { push @out, $part; }
+	}
+	return join('/', @out);
+}
+
+# Resolve a path in the patches repo to its real file content, following
+# git symlinks (mode 120000) by hand via git's tree/blob data rather
+# than the checked-out working tree. Patches repos may share an
+# unmodified patch across branches via a symlink; Windows without
+# core.symlinks enabled checks such a symlink out as a plain text file
+# containing the link target, which is useless to quiltimport. Reading
+# through git's plumbing instead sidesteps that platform limitation
+# entirely, and works the same way regardless of how (or whether) the
+# platform materializes real filesystem symlinks.
+sub _resolve_patch_content
+{
+	my $self = shift;
+	my $log = shift;
+	my $path = shift;
+
+	# A series entry may reference a patch in another branch's
+	# subdirectory via a relative path (e.g. "../master/foo.patch")
+	# rather than a symlink. "git ls-tree" resolves "." / ".." path
+	# segments itself, but "git show HEAD:<path>" does not -- it
+	# silently returns empty content for an unnormalized path instead
+	# of erroring, which would otherwise materialize a blank, useless
+	# patch file. Normalize up front so both plumbing calls agree on
+	# the same path.
+	$path = _normalize_git_path($path);
+
+	for (1 .. 5)
+	{
+		my $mode = $self->_git_mode($path);
+		return undef if $mode eq '';
+		if ($mode eq '120000')
+		{
+			my $target = $self->_git_blob($path);
+			$target =~ s/\s+$//;
+			my ($dir) = $path =~ m{^(.*)/[^/]*$};
+			$dir //= '';
+			$path = _normalize_git_path("$dir/$target");
+			next;
+		}
+		return $self->_git_blob($path);
+	}
+	push(@$log, "$MODULE: symlink chain too deep resolving $path\n");
+	return undef;
+}
+
+# Materialize a plain-file copy of the patch series with any symlinks
+# resolved to their real content (see _resolve_patch_content), so
+# quiltimport and our own mailinfo parsing operate on real patch
+# content regardless of the platform's symlink support.
+sub _build_resolved_dir
+{
+	my $self = shift;
+	my $log = shift;
+	my $sub = $self->{subdir};
+
+	my $dest = "$self->{local_repo}.resolved/$sub";
+	rmtree($dest) if -d $dest;
+	mkpath($dest);
+
+	my $series_content = $self->_resolve_patch_content($log, "$sub/series");
+	die "resolving $sub/series\n" unless defined $series_content;
+	open(my $sfh, '>', "$dest/series") or die "writing $dest/series: $!\n";
+	binmode $sfh;
+	print $sfh $series_content;
+	close $sfh;
+
+	# Derive the patch list from the just-resolved series content, not
+	# a fresh read of the checked-out series file: if the series file
+	# itself is shared via symlink (as this module allows -- see the
+	# module docs), the two can disagree on a platform without
+	# filesystem symlink support, where the raw checkout is just a
+	# text file holding the link target.
+	my @names;
+	foreach my $line (split /\n/, $series_content)
+	{
+		next if $line =~ /^\s*(#|$)/;
+		my ($name) = split(/\s+/, $line);
+		push(@names, $name) if defined $name && $name ne '';
+	}
+
+	foreach my $name (@names)
+	{
+		my $content = $self->_resolve_patch_content($log, "$sub/$name");
+		unless (defined $content)
+		{
+			push(@$log, "$MODULE: could not resolve $sub/$name, skipping\n");
+			next;
+		}
+
+		# $name may itself be a relative path out of this branch's
+		# subdirectory (e.g. "../master/foo.patch", used to share a
+		# patch unchanged across branches without a symlink), so its
+		# parent directory may not be $dest itself and may not exist
+		# yet.
+		my $target_file = "$dest/$name";
+		mkpath(dirname($target_file));
+		open(my $pfh, '>', $target_file)
+		  or die "writing $target_file: $!\n";
+		binmode $pfh;
+		print $pfh $content;
+		close $pfh;
+	}
+	return $dest;
 }
 
 sub _apply_patches
@@ -253,6 +415,15 @@ sub _apply_patches
 		return 1;
 	}
 
+	my $resolved = eval { $self->_build_resolved_dir($log) };
+	if ($@)
+	{
+		push(@$log, "$MODULE: $@");
+		$self->{series_status} = 'broken';
+		return 0;
+	}
+	$patchdir = $resolved;
+
 	$self->{series_patches} = $self->_log_series($log, $patchdir);
 
 	# Capture the upstream HEAD before importing so cleanup (and
@@ -269,16 +440,29 @@ sub _apply_patches
 	$self->{pre_apply_sha} = $sha;
 
 	# quiltimport uses git-am internally; abort any interrupted state
-	# left by a previous run before starting fresh.
+	# left by a previous run before starting fresh. A rebase-apply
+	# directory left behind by a run that failed before git-am finished
+	# writing its full state (e.g. an empty-patch mailsplit error) can
+	# be incomplete enough that "am --abort" itself silently fails to
+	# remove it, so fall back to forcibly clearing it -- otherwise the
+	# next quiltimport's internal git-am fails at mkdir because the
+	# directory still exists.
 	if (-d "$srcdir/.git/rebase-apply")
 	{
 		push(@$log, "$MODULE: aborting stale rebase-apply state\n");
 		run_log("git -C $srcdir am --abort");
+		if (-d "$srcdir/.git/rebase-apply")
+		{
+			push(@$log,
+					"$MODULE: am --abort left rebase-apply state behind,"
+				  . " removing it directly\n");
+			rmtree("$srcdir/.git/rebase-apply");
+		}
 	}
 
 	push(@$log, "$MODULE: importing patch series from $patchdir\n");
 
-	my @out = run_log("git -C $srcdir quiltimport --patches '$patchdir'");
+	my @out = run_log(qq{git -C $srcdir quiltimport --patches "$patchdir"});
 	my $status = $? >> 8;
 	push(@$log, "------ quiltimport (status=$status) ------\n", @out);
 
