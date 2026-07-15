@@ -112,7 +112,7 @@ fail("buildroot is not a directory: $buildroot\n") unless -d $buildroot;
 # Symlinked/shared-path patches are resolved via git plumbing against
 # HEAD (see resolve_patch_content), so the repo must actually be a git
 # checkout -- a plain directory of files isn't enough.
-system("git -C '$repo' rev-parse --git-dir >$devnull 2>&1") == 0
+system(qq{git -C "$repo" rev-parse --git-dir >$devnull 2>&1}) == 0
   or fail("patch-stack repo is not a git repository: $repo\n");
 
 # subdir -> branch overrides. 'master' maps to HEAD by default, mirroring
@@ -177,7 +177,7 @@ foreach my $sub (@subdirs)
 	# it builds a fresh worktree from HEAD -- so the warning is skipped.
 	unless ($sequential)
 	{
-		my $dirty = `git -C '$tree' status --porcelain 2>$devnull`;
+		my $dirty = `git -C "$tree" status --porcelain 2>$devnull`;
 		print "  WARNING: source tree has uncommitted changes\n"
 		  if defined $dirty && $dirty ne '';
 	}
@@ -221,7 +221,7 @@ sub git_mode
 {
 	my ($repo, $path) = @_;
 
-	my $line = `git -C '$repo' ls-tree HEAD -- '$path' 2>$devnull`;
+	my $line = `git -C "$repo" ls-tree HEAD -- "$path" 2>$devnull`;
 	chomp $line;
 	return '' unless $line;
 	my ($mode) = split(/\s+/, $line);
@@ -234,7 +234,7 @@ sub git_blob
 {
 	my ($repo, $path) = @_;
 
-	return `git -C '$repo' show 'HEAD:$path' 2>$devnull`;
+	return `git -C "$repo" show "HEAD:$path" 2>$devnull`;
 }
 
 # Collapse "." and ".." segments in a git-style forward-slash path
@@ -382,7 +382,7 @@ sub test_sequential
 
 	my $scratch = tempdir("patchstack.XXXXXX", TMPDIR => 1, CLEANUP => 1);
 	my $wt = "$scratch/wt";
-	my @out = `git -C '$tree' worktree add --detach -q '$wt' HEAD 2>&1`;
+	my @out = `git -C "$tree" worktree add --detach -q "$wt" HEAD 2>&1`;
 	if (($? >> 8) != 0)
 	{
 		print "  SKIP: cannot create scratch worktree from HEAD\n";
@@ -424,7 +424,7 @@ sub test_sequential
 			next;
 		}
 
-		my $aerr = `git -C '$wt' apply -p$used_strip -- '$file' 2>&1`;
+		my $aerr = `git -C "$wt" apply -p$used_strip -- "$file" 2>&1`;
 		if (($? >> 8) != 0)
 		{
 			printf "  %-7s %s\n", '[FAIL]', "$name (apply failed)";
@@ -440,8 +440,8 @@ sub test_sequential
 	}
 
 	# Remove the worktree registration; CLEANUP unlinks the files.
-	system("git -C '$tree' worktree remove --force '$wt' " . ">$devnull 2>&1");
-	system("git -C '$tree' worktree prune >$devnull 2>&1");
+	system(qq{git -C "$tree" worktree remove --force "$wt" >$devnull 2>&1});
+	system(qq{git -C "$tree" worktree prune >$devnull 2>&1});
 
 	return ($clean, $fail, $miss);
 }
@@ -497,7 +497,7 @@ sub check_apply
 	my $last_err = '';
 	foreach my $lvl (@levels)
 	{
-		my $err = `git -C '$tree' apply --check -p$lvl -- '$file' 2>&1`;
+		my $err = `git -C "$tree" apply --check -p$lvl -- "$file" 2>&1`;
 		return (1, $lvl, '') if ($? >> 8) == 0;
 		$last_err = $err;
 	}
