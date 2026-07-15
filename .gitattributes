@@ -8,3 +8,5 @@
 copyright.template export-ignore
 make_copyright.sh export-ignore
 Makefile export-ignore
+
+* text=auto eol=lf
