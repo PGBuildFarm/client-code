@@ -35,6 +35,17 @@ the first patch that fails to apply -- mirroring C<quiltimport>, which
 also halts on the first bad patch -- and the remaining patches are
 reported as skipped.
 
+A series entry may reference a patch shared unchanged with another
+branch's subdirectory rather than a copy: either as a relative path
+(commonly C<../master/foo.patch>) or as a symlink. Both are resolved
+via C<git ls-tree>/C<git show> against the patch-stack repo's C<HEAD>
+rather than the checked-out working tree, mirroring how
+C<PGBuild::Modules::PatchStack> resolves them -- so this script sees
+exactly what a buildfarm animal would apply, including on platforms
+where a checked-out symlink is just a text file holding its target
+path. For this reason C<< <patch_stack_repo> >> must itself be a git
+repository (a plain directory of files is not enough).
+
 =head1 USAGE
 
     check_patch_stack.pl [options] <patch_stack_repo> <buildroot>
@@ -61,8 +72,15 @@ use warnings;
 
 use Getopt::Long;
 use File::Spec;
-use File::Temp qw(tempdir);
-use Cwd        qw(abs_path);
+use File::Temp     qw(tempdir);
+use File::Path     qw(mkpath);
+use File::Basename qw(dirname);
+use Cwd            qw(abs_path);
+
+# Platform-correct null device (e.g. 'nul' on Windows), matching how
+# PGBuild::Utils derives $devnull -- hardcoding '/dev/null' would defeat
+# the point of resolving patches via git plumbing for Windows support.
+my $devnull = File::Spec->devnull;
 
 my @only_branches;
 my @map_args;
@@ -85,11 +103,17 @@ usage(0) if $help;
 my ($repo, $buildroot) = @ARGV;
 usage(2) unless defined $repo && defined $buildroot;
 
-$repo = abs_path($repo) // die "no such patch-stack repo: $ARGV[0]\n";
-$buildroot = abs_path($buildroot) // die "no such buildroot: $ARGV[1]\n";
+$repo = abs_path($repo) // fail("no such patch-stack repo: $ARGV[0]\n");
+$buildroot = abs_path($buildroot) // fail("no such buildroot: $ARGV[1]\n");
 
-die "patch-stack repo is not a directory: $repo\n" unless -d $repo;
-die "buildroot is not a directory: $buildroot\n" unless -d $buildroot;
+fail("patch-stack repo is not a directory: $repo\n") unless -d $repo;
+fail("buildroot is not a directory: $buildroot\n") unless -d $buildroot;
+
+# Symlinked/shared-path patches are resolved via git plumbing against
+# HEAD (see resolve_patch_content), so the repo must actually be a git
+# checkout -- a plain directory of files isn't enough.
+system("git -C '$repo' rev-parse --git-dir >$devnull 2>&1") == 0
+  or fail("patch-stack repo is not a git repository: $repo\n");
 
 # subdir -> branch overrides. 'master' maps to HEAD by default, mirroring
 # the common PatchStack subdir map (HEAD => 'master'); --map can override.
@@ -97,7 +121,7 @@ my %subdir_to_branch = (master => 'HEAD');
 foreach my $m (@map_args)
 {
 	my ($sub, $br) = split(/=/, $m, 2);
-	die "bad --map value '$m' (expected SUB=BRANCH)\n"
+	fail("bad --map value '$m' (expected SUB=BRANCH)\n")
 	  unless defined $sub && defined $br && $sub ne '' && $br ne '';
 	$subdir_to_branch{$sub} = $br;
 }
@@ -106,13 +130,21 @@ my %only = map { $_ => 1 } @only_branches;
 
 # Discover series: immediate subdirectories of the repo holding a
 # 'series' file (the documented per-branch layout).
-opendir(my $dh, $repo) or die "cannot read $repo: $!\n";
+opendir(my $dh, $repo) or fail("cannot read $repo: $!\n");
 my @subdirs =
   sort grep { -d "$repo/$_" && -f "$repo/$_/series" }
   grep { $_ ne '.' && $_ ne '..' } readdir($dh);
 closedir $dh;
 
-die "no series subdirectories found under $repo\n" unless @subdirs;
+fail("no series subdirectories found under $repo\n") unless @subdirs;
+
+# Shared destination for resolved (symlink-free) copies of each series
+# tested below, so relative-path series entries that point at another
+# subdirectory (e.g. "../master/foo.patch") resolve to a sibling
+# directory here, the same way they resolve to a sibling of
+# local_repo.resolved/<subdir> in PatchStack.pm.
+my $resolved_root =
+  tempdir("patchstack-check.XXXXXX", TMPDIR => 1, CLEANUP => 1);
 
 my $exit = 0;
 my ($tot_clean, $tot_fail, $tot_miss, $tot_series) = (0, 0, 0, 0);
@@ -145,18 +177,27 @@ foreach my $sub (@subdirs)
 	# it builds a fresh worktree from HEAD -- so the warning is skipped.
 	unless ($sequential)
 	{
-		my $dirty = `git -C '$tree' status --porcelain 2>/dev/null`;
+		my $dirty = `git -C '$tree' status --porcelain 2>$devnull`;
 		print "  WARNING: source tree has uncommitted changes\n"
 		  if defined $dirty && $dirty ne '';
 	}
 
 	$tot_series++;
-	my @patches = parse_series("$repo/$sub/series");
+
+	my ($resolved_dir, $patches) =
+	  eval { build_resolved_dir($repo, $sub, $resolved_root) };
+	if ($@)
+	{
+		print "  BROKEN: $@";
+		$exit = 1;
+		next;
+	}
+	my @patches = @$patches;
 
 	my ($clean, $fail, $miss) =
 	  $sequential
-	  ? test_sequential($tree, "$repo/$sub", \@patches)
-	  : test_independent($tree, "$repo/$sub", \@patches);
+	  ? test_sequential($tree, $resolved_dir, \@patches)
+	  : test_independent($tree, $resolved_dir, \@patches);
 
 	printf "  %d patches: %d clean, %d failed, %d missing\n\n",
 	  scalar(@patches), $clean, $fail, $miss;
@@ -173,6 +214,124 @@ printf "TOTAL across %d series: %d clean, %d failed, %d missing\n",
 exit $exit;
 
 #---------------------------------------------------------------------
+
+# Return the git mode ('100644', '120000', ...) of a path in the
+# patch-stack repo at HEAD, or '' if it doesn't exist there.
+sub git_mode
+{
+	my ($repo, $path) = @_;
+
+	my $line = `git -C '$repo' ls-tree HEAD -- '$path' 2>$devnull`;
+	chomp $line;
+	return '' unless $line;
+	my ($mode) = split(/\s+/, $line);
+	return $mode // '';
+}
+
+# Return the raw content of the blob at the given path in the
+# patch-stack repo at HEAD.
+sub git_blob
+{
+	my ($repo, $path) = @_;
+
+	return `git -C '$repo' show 'HEAD:$path' 2>$devnull`;
+}
+
+# Collapse "." and ".." segments in a git-style forward-slash path
+# without touching the filesystem -- the target may not exist as a
+# real file on this platform (e.g. behind an unmaterialized symlink).
+sub normalize_git_path
+{
+	my $path = shift;
+	my @out;
+	foreach my $part (split(m{/+}, $path))
+	{
+		next if $part eq '' || $part eq '.';
+		if   ($part eq '..') { pop @out; }
+		else                 { push @out, $part; }
+	}
+	return join('/', @out);
+}
+
+# Resolve a path in the patch-stack repo to its real file content,
+# following git symlinks (mode 120000) by hand via git's tree/blob
+# data rather than the checked-out working tree. Mirrors
+# PGBuild::Modules::PatchStack::_resolve_patch_content: a patches repo
+# may share an unmodified patch across branches via a symlink, and on
+# platforms without filesystem symlink support (e.g. Windows without
+# core.symlinks) a checked-out symlink is just a text file containing
+# the link target, which git apply cannot use as patch content. Reading
+# through git's plumbing instead works the same way regardless of how
+# (or whether) the platform materializes real filesystem symlinks.
+sub resolve_patch_content
+{
+	my ($repo, $path) = @_;
+
+	$path = normalize_git_path($path);
+
+	for (1 .. 5)
+	{
+		my $mode = git_mode($repo, $path);
+		return undef if $mode eq '';
+		if ($mode eq '120000')
+		{
+			my $target = git_blob($repo, $path);
+			$target =~ s/\s+$//;
+			(my $dir = $path) =~ s{/[^/]*$}{};
+			$path = normalize_git_path("$dir/$target");
+			next;
+		}
+		return git_blob($repo, $path);
+	}
+	return undef;    # symlink chain too deep
+}
+
+# Materialize a plain-file copy of a series subdirectory's series file
+# and the patches it lists, with any symlinks resolved to their real
+# content (see resolve_patch_content), so the same checks run below
+# operate on real patch content regardless of the platform's symlink
+# support -- exactly what PatchStack.pm's quiltimport will actually
+# see. Dies if the series file itself can't be resolved; a patch entry
+# that can't be resolved is left out of $dest so the caller's normal
+# "file not found" [MISS] handling reports it, mirroring how a broken
+# patch stack fails quiltimport rather than silently substituting
+# something else. Returns (resolved_dir, \@patches).
+sub build_resolved_dir
+{
+	my ($repo, $sub, $resolved_root) = @_;
+	my $dest = "$resolved_root/$sub";
+	mkpath($dest) unless -d $dest;
+
+	my $series_content = resolve_patch_content($repo, "$sub/series");
+	die "cannot resolve $sub/series\n" unless defined $series_content;
+
+	open(my $sfh, '>', "$dest/series") or die "writing $dest/series: $!\n";
+	binmode $sfh;
+	print $sfh $series_content;
+	close $sfh;
+
+	my @patches = parse_series("$dest/series");
+
+	foreach my $p (@patches)
+	{
+		my $name = $p->{name};
+		my $content = resolve_patch_content($repo, "$sub/$name");
+		next unless defined $content;
+
+		# $name may itself be a relative path out of this subdirectory
+		# (e.g. "../master/foo.patch", used to share a patch unchanged
+		# across branches without a symlink), so its parent directory
+		# may not be $dest itself and may not exist yet.
+		my $target_file = "$dest/$name";
+		mkpath(dirname($target_file));
+		open(my $pfh, '>', $target_file)
+		  or die "writing $target_file: $!\n";
+		binmode $pfh;
+		print $pfh $content;
+		close $pfh;
+	}
+	return ($dest, \@patches);
+}
 
 # Default mode: dry-run each patch independently against the pristine
 # tree with git apply --check. Returns (clean, failed, missing).
@@ -281,8 +440,8 @@ sub test_sequential
 	}
 
 	# Remove the worktree registration; CLEANUP unlinks the files.
-	system("git -C '$tree' worktree remove --force '$wt' " . ">/dev/null 2>&1");
-	system("git -C '$tree' worktree prune >/dev/null 2>&1");
+	system("git -C '$tree' worktree remove --force '$wt' " . ">$devnull 2>&1");
+	system("git -C '$tree' worktree prune >$devnull 2>&1");
 
 	return ($clean, $fail, $miss);
 }
@@ -343,6 +502,17 @@ sub check_apply
 		$last_err = $err;
 	}
 	return (0, $strip, $last_err);
+}
+
+# Report a setup/usage error and exit 2, per the documented contract.
+# A plain "die" won't do -- its exit status is $! or $? if either is
+# nonzero at the time (e.g. inherited from a just-run git/system call,
+# as happens for the git-repository check above) and 255 otherwise,
+# neither of which is the documented code.
+sub fail
+{
+	print STDERR @_;
+	exit 2;
 }
 
 sub usage
