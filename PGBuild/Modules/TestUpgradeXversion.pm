@@ -404,6 +404,17 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	print time_str(), "checking upgrade from $oversion to $this_branch ...\n"
 	  if $verbose;
 
+	# Pin the session time zone for both the origin and the converted dumps.
+	# The old cluster carries the timezone setting written into its
+	# postgresql.conf by initdb on whatever machine created the saved data
+	# directory, while the new cluster is freshly initdb'd on this machine.
+	# If those machines are in different time zones (e.g. when data
+	# directories are imported from elsewhere), timestamptz values render
+	# differently in the two dumps and the comparison spuriously fails. A
+	# fixed PGTZ makes the comparison timezone-independent; libpq applies it
+	# as the session TimeZone regardless of each cluster's configured zone.
+	local $ENV{PGTZ} = 'UTC';
+
 	my $srcdir = $from_source || "$self->{buildroot}/$this_branch/pgsql";
 
 	# load helper module from source tree
