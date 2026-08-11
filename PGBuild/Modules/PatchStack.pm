@@ -19,11 +19,16 @@ git repo, with a per-Postgres-branch subdirectory holding a C<series>
 file and the patch files referenced by it (one per line, applied in
 order).
 
-Patches are imported with C<git quiltimport>, which creates a real
-commit per patch and preserves authorship. This means the patch
-files must carry C<From:> and C<Subject:> headers (i.e. be produced
-by C<git format-patch> or equivalent) so that C<git mailinfo> can
-extract the author. Bare diffs will not import.
+Patches are applied with C<git apply>, one at a time in series order,
+stopping at the first entry that is missing or fails to apply. No
+commits are created and C<HEAD> never moves; the working tree is
+restored after the run.
+
+Patch files should still carry C<From:> and C<Subject:> headers (i.e.
+be produced by C<git format-patch> or equivalent), because the subject
+is extracted with C<git mailinfo> for the build report. Unlike
+C<git quiltimport>, which this replaced, a bare diff will now apply --
+it will simply be reported under its file name.
 
 A patch shared unchanged across branches may be referenced rather than
 copied, as a C<series> entry giving a relative path into another
@@ -38,10 +43,11 @@ filesystem symlink support (and of whether C<..> in the path has been
 normalized -- a raw C<git show HEAD:path> silently returns empty
 content for an unnormalized path instead of erroring, so paths are
 normalized before being resolved). A patch listed in a branch's
-C<series> with no entry at all in the patches branch is a broken patch
-stack for that branch: it is logged and left out of the import, which
-then fails loudly rather than silently applying a substitute from
-elsewhere.
+C<series> with no entry in the patches branch is a broken patch stack
+for that branch: the run stops there and reports C<PatchStackBroken>,
+naming the entry. C<git quiltimport>, used before this, skipped such
+an entry and exited zero, so a branch could build and report a green
+result with a patch missing from its stack.
 
 =head2 RUN TRIGGER
 
@@ -105,7 +111,7 @@ package PGBuild::Modules::PatchStack;
 use PGBuild::Options;
 use PGBuild::SCM;
 use PGBuild::Utils       qw(:DEFAULT $st_prefix $branch_root $devnull);
-use PGBuild::PatchSeries qw(series_manifest materialize_series);
+use PGBuild::PatchSeries qw(series_manifest materialize_series apply_series);
 
 use File::Path qw(mkpath);
 
@@ -161,7 +167,6 @@ sub setup
 		patches_id => '',
 		stack_commit => '',
 		manifest => undef,
-		pre_apply_sha => '',
 	};
 	bless($self, $class);
 
@@ -326,57 +331,32 @@ sub _apply_patches
 
 	$self->{series_patches} = $self->_log_series($log, $patchdir);
 
-	# Capture the upstream HEAD before importing so cleanup (and
-	# error recovery below) can rewind past the commits quiltimport
-	# is about to create.
-	my $sha = `git -C $srcdir rev-parse --verify --quiet HEAD 2>$devnull`;
-	chomp $sha;
-	if ($? >> 8 || $sha eq '')
-	{
-		push(@$log, "$MODULE: cannot determine HEAD of $srcdir\n");
-		$self->{series_status} = 'broken';
-		return 0;
-	}
-	$self->{pre_apply_sha} = $sha;
-
-	# quiltimport uses git-am internally; abort any interrupted state
-	# left by a previous run before starting fresh. A rebase-apply
-	# directory left behind by a run that failed before git-am finished
-	# writing its full state (e.g. an empty-patch mailsplit error) can
-	# be incomplete enough that "am --abort" itself silently fails to
-	# remove it, so fall back to forcibly clearing it -- otherwise the
-	# next quiltimport's internal git-am fails at mkdir because the
-	# directory still exists.
-	if (-d "$srcdir/.git/rebase-apply")
-	{
-		push(@$log, "$MODULE: aborting stale rebase-apply state\n");
-		run_log("git -C $srcdir am --abort");
-		if (-d "$srcdir/.git/rebase-apply")
-		{
-			push(@$log,
-					"$MODULE: am --abort left rebase-apply state behind,"
-				  . " removing it directly\n");
-			rmtree("$srcdir/.git/rebase-apply");
-		}
-	}
-
-	push(@$log, "$MODULE: importing patch series from $patchdir\n");
-
-	my @out = run_log(qq{git -C $srcdir quiltimport --patches "$patchdir"});
-	my $status = $? >> 8;
-	push(@$log, "------ quiltimport (status=$status) ------\n", @out);
-
-	if ($status)
-	{
-		# quiltimport leaves a partial commit history on failure;
-		# rewind to a known state so a later cleanup or rerun starts
-		# from the upstream tip rather than a half-applied series.
-		run_log("git -C $srcdir reset --hard --quiet $sha");
-		$self->{series_status} = 'broken';
-		return 0;
-	}
-
+	# A partially applied series must still be cleaned up, so record
+	# that the tree has been touched before the first patch lands.
 	$self->{applied} = 1;
+
+	push(@$log, "$MODULE: applying patch series from $patchdir\n");
+
+	my $result = apply_series($self->{manifest}, $patchdir, $srcdir, undef);
+
+	# git apply reports context reduction on a SUCCESSFUL apply, so
+	# carry the output of every entry, not just a failing one.
+	foreach my $a (@{ $result->{applied} })
+	{
+		push(@$log, "  $a->{name}\n");
+		push(@$log, $a->{output}) if defined $a->{output} && $a->{output} ne '';
+	}
+
+	unless ($result->{ok})
+	{
+		my $f = $result->{failure};
+		push(@$log,
+			"$MODULE: $f->{reason}: $sub/$f->{name}\n",
+			defined $f->{detail} ? $f->{detail} : '');
+		$self->{series_status} = 'broken';
+		return 0;
+	}
+
 	$self->{series_status} = 'applied';
 	return 1;
 }
@@ -554,27 +534,26 @@ sub cleanup
 {
 	my $self = shift;
 
-	return unless $self->{applied};
-
 	# When rm_worktrees is on the END block has already wiped the
-	# worktree files; running git reset here would just resurrect them.
-	# The imported commits left at HEAD are harmless: the next run's
-	# SCM update (PGBuild::SCM::_update_target) restores the worktree
-	# with "git checkout ." and then "git reset --hard origin/<branch>",
-	# which discards them and returns the tree to pristine upstream
-	# before any build happens.
+	# worktree files; running git commands here would just resurrect
+	# them. The next run's SCM update restores the tree anyway.
 	return if $self->{bfconf}->{rm_worktrees};
 
 	my $srcdir = $self->{srcdir};
 	return unless -d "$srcdir/.git";
 
-	# Reset to the upstream tip captured before quiltimport so the
-	# imported commits are discarded and the worktree is back to
-	# pristine upstream state for the next run.
-	my $target = $self->{pre_apply_sha} || 'HEAD';
-	print time_str(), "$MODULE: resetting $srcdir to $target\n"
-	  if $verbose > 1;
-	run_log("git -C $srcdir reset --hard --quiet $target");
+	return unless $self->{applied};
+
+	# HEAD never moved, so this restores pristine upstream. Because the
+	# patches were applied with --index, it also removes files they
+	# added. The clean sweeps anything that escaped: the buildfarm never
+	# builds in the source tree, so nothing untracked there is ours to
+	# keep, and one leaked file would otherwise be compiled on every
+	# subsequent run. -fd rather than -fdx: ignored files are left
+	# alone.
+	print time_str(), "$MODULE: restoring $srcdir\n" if $verbose > 1;
+	run_log("git -C $srcdir reset --hard --quiet HEAD");
+	run_log("git -C $srcdir clean -qfd");
 	return;
 }
 

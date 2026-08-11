@@ -58,9 +58,9 @@ order.
 
 ## Patch file format
 
-Patches **must** carry mail-style headers (`From:`, `Date:`, `Subject:`) so
-that `git mailinfo` can extract the author and subject.  The standard way to
-produce them is `git format-patch`:
+Patches should still carry mail-style headers (`From:`, `Date:`, `Subject:`)
+so that `git mailinfo` can extract the subject for the build report.  The
+standard way to produce them is `git format-patch`:
 
 ```sh
 # Single commit:
@@ -70,8 +70,9 @@ git format-patch -1 <commit>
 git format-patch <base>..<tip>
 ```
 
-Bare unified diffs (output of `diff -u` or `git diff`) will not work — they
-lack the authorship information that the importer requires.
+Bare unified diffs (output of `diff -u` or `git diff`) will apply — the
+series is applied with `git apply`, not imported — but they carry no
+subject, so they are reported under their filename instead.
 
 
 ## Setting up the repository from scratch
@@ -166,6 +167,11 @@ Until the stack is rebased, animals will report `PatchStackBroken` for that
 branch rather than a generic build failure, making it easy to tell "stack needs
 maintenance" apart from "PostgreSQL broke something."
 
+A `series` entry naming a patch file that is not present now stops the run and reports
+`PatchStackBroken`, naming the entry. Until this changed the entry was
+silently skipped and the branch built and reported green without it, so a
+typo in `series` could hide a patch from testing indefinitely.
+
 
 ## Supporting multiple PostgreSQL branches
 
@@ -204,6 +210,17 @@ Symlinks into another branch's subdirectory also work and are still
 supported, but relative paths are preferred: they are visible in the
 `series` file itself, and they behave identically on platforms without
 filesystem symlink support.
+
+Note that a shared patch is applied with more tolerance for drifting
+context than one stored in the branch's own subdirectory.  A patch
+written for a branch should apply to that branch exactly; if it stops
+doing so, upstream has moved beneath the stack and you want to be told,
+not to have it quietly absorbed.  A patch written against `master` and
+reached from a stable branch is a different case: the surrounding code
+legitimately differs, so it is allowed to match on less context.  If a
+shared patch drifts far enough that even that fails, it has stopped
+being the same patch for both branches and wants splitting into
+per-branch copies.
 
 
 ## Viewing what was applied on the web dashboard
@@ -268,12 +285,16 @@ changes there are invisible to it — including right before you push, which
 is exactly when you are most likely to run it.  Commit first, then run
 `--manifest`, to be sure it's reporting what you're about to push.
 
-You can also apply the series by hand in a throw-away clone:
+You can also apply the series by hand the same way an animal does:
 
 ```sh
 git clone --branch REL_17_STABLE https://git.postgresql.org/git/postgresql.git /tmp/pg-test
-git -C /tmp/pg-test quiltimport --patches /path/to/patches.git/REL_17_STABLE
+cd /tmp/pg-test
+while read -r patch rest; do
+  case "$patch" in ''|\#*) continue;; esac
+  git apply --index -C3 "/path/to/patches.git/REL_17_STABLE/$patch" || break
+done < /path/to/patches.git/REL_17_STABLE/series
 ```
 
-A zero exit code means every patch applied; a non-zero exit code (plus the
-reject output) shows what needs attention before you push.
+`check_patch_stack.pl --sequential` does exactly this, and reports which
+patch failed.
