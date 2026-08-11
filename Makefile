@@ -3,7 +3,13 @@
 
 # See accompanying License file for license details
 
-ALLPERLFILES = $(shell find . -path ./sandbox -prune -o -path ./*root -prune -o \( -name '*.pl' -o -name '*.pm' \) -print | sed 's!\./!!') build-farm.conf.sample
+# Our perl lives in exactly two places: scripts at the top level, and the
+# PGBuild hierarchy. Name those rather than walking the whole tree and
+# pruning what turns up, which meant every new directory -- buildroots,
+# sandbox, results/ -- had to be excluded by hand as it appeared. That
+# matters most for tidy, which would otherwise rewrite files in results/,
+# where review artifacts and plans live.
+ALLPERLFILES = $(shell find . -maxdepth 1 \( -name '*.pl' -o -name '*.pm' \) -print | sed 's!\./!!'; find PGBuild \( -name '*.pl' -o -name '*.pm' \) -print) build-farm.conf.sample
 
 # these are the explicitly selected perl files that will go in a 
 # release tarball
