@@ -17,7 +17,7 @@ PERLFILES = run_build.pl run_web_txn.pl run_branches.pl \
 	update_personality.pl setnotes.pl manage_alerts.pl \
 	build-farm.conf.sample  \
 	PGBuild/SCM.pm PGBuild/Options.pm PGBuild/WebTxn.pm PGBuild/Utils.pm \
-	PGBuild/Log.pm PGBuild/VSenv.pm \
+	PGBuild/Log.pm PGBuild/VSenv.pm PGBuild/PatchSeries.pm \
 	PGBuild/Modules/Skeleton.pm \
 	PGBuild/Modules/TestUpgrade.pm \
 	PGBuild/Modules/FileTextArrayFDW.pm PGBuild/Modules/BlackholeFDW.pm \
