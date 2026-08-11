@@ -36,19 +36,20 @@ also halts on the first bad patch -- and the remaining patches are
 reported as skipped.
 
 A series entry may reference a patch shared unchanged with another
-branch's subdirectory rather than a copy: either as a relative path
-(commonly C<../master/foo.patch>) or as a symlink. Both are resolved
-via C<git ls-tree>/C<git show> against the patch-stack repo's C<HEAD>
-rather than the checked-out working tree, mirroring how
-C<PGBuild::Modules::PatchStack> resolves them -- so this script sees
-exactly what a buildfarm animal would apply, including on platforms
-where a checked-out symlink is just a text file holding its target
-path. For this reason C<< <patch_stack_repo> >> must itself be a git
-repository (a plain directory of files is not enough).
+branch's subdirectory rather than a copy, by giving a relative path --
+commonly C<../master/foo.patch>. Symlinks are also resolved, but are no
+longer used in practice and are supported only so existing stacks do
+not regress. Both are resolved via git plumbing against the patch-stack
+repo's C<HEAD> rather than the checked-out working tree, mirroring
+C<PGBuild::Modules::PatchStack> -- so this script sees exactly what a
+buildfarm animal would apply, including on platforms where a
+checked-out symlink is just a text file holding its target path. For
+this reason C<< <patch_stack_repo> >> must itself be a git repository
+(a plain directory of files is not enough).
 
 =head1 USAGE
 
-    check_patch_stack.pl [options] <patch_stack_repo> <buildroot>
+    check_patch_stack.pl [options] <patch_stack_repo> [<buildroot>]
 
 Options:
 
@@ -59,6 +60,10 @@ Options:
                        (default 1)
     --sequential       apply patches cumulatively in series order (in a
                        scratch worktree), stopping at the first failure
+    --manifest         check that every series entry resolves to a patch
+                       that is present, printing what each resolves to;
+                       reads only the patches repo, so <buildroot> is not
+                       required. Exit 1 if any entry is missing
     --verbose          show git apply diagnostics for failing patches
     --help             this message
 
@@ -71,22 +76,20 @@ use strict;
 use warnings;
 
 use Getopt::Long;
-use File::Spec;
-use File::Temp     qw(tempdir);
-use File::Path     qw(mkpath);
-use File::Basename qw(dirname);
-use Cwd            qw(abs_path);
+use File::Temp qw(tempdir);
+use Cwd        qw(abs_path);
 
-# Platform-correct null device (e.g. 'nul' on Windows), matching how
-# PGBuild::Utils derives $devnull -- hardcoding '/dev/null' would defeat
-# the point of resolving patches via git plumbing for Windows support.
-my $devnull = File::Spec->devnull;
+use FindBin;
+use lib $FindBin::RealBin;
+use PGBuild::PatchSeries qw(series_manifest materialize_series);
+use PGBuild::Utils       qw($devnull);
 
 my @only_branches;
 my @map_args;
 my $default_strip = 1;
 my $sequential = 0;
 my $verbose = 0;
+my $manifest_only = 0;
 my $help = 0;
 
 GetOptions(
@@ -95,23 +98,31 @@ GetOptions(
 	'strip=i' => \$default_strip,
 	'sequential' => \$sequential,
 	'verbose' => \$verbose,
+	'manifest' => \$manifest_only,
 	'help' => \$help,
 ) or usage(2);
 
 usage(0) if $help;
 
 my ($repo, $buildroot) = @ARGV;
-usage(2) unless defined $repo && defined $buildroot;
+
+# --manifest reads only the patches repo, so a buildroot is not needed.
+usage(2) unless defined $repo;
+usage(2) unless defined $buildroot || $manifest_only;
 
 $repo = abs_path($repo) // fail("no such patch-stack repo: $ARGV[0]\n");
-$buildroot = abs_path($buildroot) // fail("no such buildroot: $ARGV[1]\n");
-
 fail("patch-stack repo is not a directory: $repo\n") unless -d $repo;
-fail("buildroot is not a directory: $buildroot\n") unless -d $buildroot;
+
+if (defined $buildroot)
+{
+	$buildroot = abs_path($buildroot) // fail("no such buildroot: $ARGV[1]\n");
+	fail("buildroot is not a directory: $buildroot\n") unless -d $buildroot;
+}
 
 # Symlinked/shared-path patches are resolved via git plumbing against
-# HEAD (see resolve_patch_content), so the repo must actually be a git
-# checkout -- a plain directory of files isn't enough.
+# HEAD (see PGBuild::PatchSeries::resolve_patch_path), so the repo must
+# actually be a git checkout -- a plain directory of files isn't
+# enough.
 system(qq{git -C "$repo" rev-parse --git-dir >$devnull 2>&1}) == 0
   or fail("patch-stack repo is not a git repository: $repo\n");
 
@@ -137,6 +148,44 @@ my @subdirs =
 closedir $dh;
 
 fail("no series subdirectories found under $repo\n") unless @subdirs;
+
+if ($manifest_only)
+{
+	my $bad = 0;
+	foreach my $sub (@subdirs)
+	{
+		next if %only && !$only{$sub};
+
+		print "=== series: $sub ===\n";
+		my $manifest = series_manifest($repo, $sub);
+		unless ($manifest)
+		{
+			print "  BROKEN: cannot resolve $sub/series\n\n";
+			$bad = 1;
+			next;
+		}
+
+		printf "  %-28s %s\n", 'series', substr($manifest->{series_sha}, 0, 7);
+		foreach my $e (@{ $manifest->{entries} })
+		{
+			if ($e->{missing})
+			{
+				printf "  %-28s %s\n", $e->{name}, '(missing)';
+				$bad = 1;
+				next;
+			}
+
+			# Show where an entry resolved only when that differs from
+			# the entry itself, so shared patches stand out.
+			my $where =
+			  ($e->{path} eq "$sub/$e->{name}") ? '' : "  -> $e->{path}";
+			printf "  %-28s %s%s\n", $e->{name}, substr($e->{sha}, 0, 7),
+			  $where;
+		}
+		print "  patch_stack_id: $manifest->{id}\n\n";
+	}
+	exit($bad ? 1 : 0);
+}
 
 # Shared destination for resolved (symlink-free) copies of each series
 # tested below, so relative-path series entries that point at another
@@ -215,122 +264,29 @@ exit $exit;
 
 #---------------------------------------------------------------------
 
-# Return the git mode ('100644', '120000', ...) of a path in the
-# patch-stack repo at HEAD, or '' if it doesn't exist there.
-sub git_mode
-{
-	my ($repo, $path) = @_;
-
-	my $line = `git -C "$repo" ls-tree HEAD -- "$path" 2>$devnull`;
-	chomp $line;
-	return '' unless $line;
-	my ($mode) = split(/\s+/, $line);
-	return $mode // '';
-}
-
-# Return the raw content of the blob at the given path in the
-# patch-stack repo at HEAD.
-sub git_blob
-{
-	my ($repo, $path) = @_;
-
-	return `git -C "$repo" show "HEAD:$path" 2>$devnull`;
-}
-
-# Collapse "." and ".." segments in a git-style forward-slash path
-# without touching the filesystem -- the target may not exist as a
-# real file on this platform (e.g. behind an unmaterialized symlink).
-sub normalize_git_path
-{
-	my $path = shift;
-	my @out;
-	foreach my $part (split(m{/+}, $path))
-	{
-		next if $part eq '' || $part eq '.';
-		if   ($part eq '..') { pop @out; }
-		else                 { push @out, $part; }
-	}
-	return join('/', @out);
-}
-
-# Resolve a path in the patch-stack repo to its real file content,
-# following git symlinks (mode 120000) by hand via git's tree/blob
-# data rather than the checked-out working tree. Mirrors
-# PGBuild::Modules::PatchStack::_resolve_patch_content: a patches repo
-# may share an unmodified patch across branches via a symlink, and on
-# platforms without filesystem symlink support (e.g. Windows without
-# core.symlinks) a checked-out symlink is just a text file containing
-# the link target, which git apply cannot use as patch content. Reading
-# through git's plumbing instead works the same way regardless of how
-# (or whether) the platform materializes real filesystem symlinks.
-sub resolve_patch_content
-{
-	my ($repo, $path) = @_;
-
-	$path = normalize_git_path($path);
-
-	for (1 .. 5)
-	{
-		my $mode = git_mode($repo, $path);
-		return undef if $mode eq '';
-		if ($mode eq '120000')
-		{
-			my $target = git_blob($repo, $path);
-			$target =~ s/\s+$//;
-			(my $dir = $path) =~ s{/[^/]*$}{};
-			$path = normalize_git_path("$dir/$target");
-			next;
-		}
-		return git_blob($repo, $path);
-	}
-	return undef;    # symlink chain too deep
-}
-
 # Materialize a plain-file copy of a series subdirectory's series file
 # and the patches it lists, with any symlinks resolved to their real
-# content (see resolve_patch_content), so the same checks run below
-# operate on real patch content regardless of the platform's symlink
-# support -- exactly what PatchStack.pm's quiltimport will actually
-# see. Dies if the series file itself can't be resolved; a patch entry
-# that can't be resolved is left out of $dest so the caller's normal
-# "file not found" [MISS] handling reports it, mirroring how a broken
-# patch stack fails quiltimport rather than silently substituting
-# something else. Returns (resolved_dir, \@patches).
+# content (see PGBuild::PatchSeries::series_manifest), so the same
+# checks run below operate on real patch content regardless of the
+# platform's symlink support -- exactly what PatchStack.pm's
+# quiltimport will actually see. Dies if the series file itself can't
+# be resolved; a patch entry that can't be resolved is left out of
+# $dest so the caller's normal "file not found" [MISS] handling
+# reports it, mirroring how a broken patch stack fails quiltimport
+# rather than silently substituting something else. Returns
+# (resolved_dir, \@patches).
 sub build_resolved_dir
 {
-	my ($repo, $sub, $resolved_root) = @_;
-	my $dest = "$resolved_root/$sub";
-	mkpath($dest) unless -d $dest;
+	my ($stack_repo, $sub, $dest_root) = @_;
+	my $dest = "$dest_root/$sub";
 
-	my $series_content = resolve_patch_content($repo, "$sub/series");
-	die "cannot resolve $sub/series\n" unless defined $series_content;
+	my $manifest = series_manifest($stack_repo, $sub);
+	die "cannot resolve $sub/series\n" unless $manifest;
 
-	open(my $sfh, '>', "$dest/series") or die "writing $dest/series: $!\n";
-	binmode $sfh;
-	print $sfh $series_content;
-	close $sfh;
-
-	my @patches = parse_series("$dest/series");
-
-	foreach my $p (@patches)
-	{
-		my $name = $p->{name};
-		my $content = resolve_patch_content($repo, "$sub/$name");
-		next unless defined $content;
-
-		# $name may itself be a relative path out of this subdirectory
-		# (e.g. "../master/foo.patch", used to share a patch unchanged
-		# across branches without a symlink), so its parent directory
-		# may not be $dest itself and may not exist yet.
-		my $target_file = "$dest/$name";
-		mkpath(dirname($target_file));
-		open(my $pfh, '>', $target_file)
-		  or die "writing $target_file: $!\n";
-		binmode $pfh;
-		print $pfh $content;
-		close $pfh;
-	}
-	return ($dest, \@patches);
+	# Unresolvable entries are simply left out of $dest; the caller's
+	# existing "file not found" handling reports them as [MISS].
+	materialize_series($stack_repo, $manifest, $dest);
+	return ($dest, $manifest->{entries});
 }
 
 # Default mode: dry-run each patch independently against the pristine
@@ -456,34 +412,6 @@ sub print_diag
 	return;
 }
 
-sub parse_series
-{
-	my $path = shift;
-	open(my $fh, '<', $path) or die "cannot read $path: $!\n";
-	my @out;
-	while (my $line = <$fh>)
-	{
-		chomp $line;
-		$line =~ s/^\s+//;
-
-		# quilt convention: skip blanks and comments
-		next if $line =~ /^(#|$)/;
-		my @tok = split(/\s+/, $line);
-		my $name = shift @tok;
-		next unless defined $name && $name ne '';
-
-		# an optional -pN token sets this patch's strip level
-		my $strip;
-		foreach my $t (@tok)
-		{
-			$strip = $1 if $t =~ /^-p(\d+)$/;
-		}
-		push(@out, { name => $name, strip => $strip });
-	}
-	close $fh;
-	return @out;
-}
-
 # Try git apply --check at the requested strip level. If the series
 # line gave no explicit level and -p1 fails, also try -p0, since plain
 # quilt diffs are sometimes generated without a/ b/ prefixes.
@@ -520,7 +448,7 @@ sub usage
 	my $code = shift // 0;
 	my $fh = $code ? \*STDERR : \*STDOUT;
 	print $fh <<'EOT';
-Usage: check_patch_stack.pl [options] <patch_stack_repo> <buildroot>
+Usage: check_patch_stack.pl [options] <patch_stack_repo> [<buildroot>]
 
   Report which patches in which series apply cleanly to the matching
   <buildroot>/<branch>/pgsql source tree. Each patch is dry-run
@@ -535,6 +463,9 @@ Options:
                      (default 1)
   --sequential       apply patches cumulatively in series order (in a
                      scratch worktree), stopping at the first failure
+  --manifest         print each series' resolved blob SHAs and the
+                     identity the buildfarm uses to detect changes,
+                     then exit; <buildroot> is not required
   --verbose          show git apply diagnostics for failing patches
   --help             this message
 
