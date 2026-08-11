@@ -25,15 +25,23 @@ By default each patch is dry-run independently with C<git apply
 Because every patch is checked against the unpatched base, a patch
 that only applies on top of an earlier patch in the series will be
 reported as failing here even though it would apply in a real
-sequential C<quiltimport>.
+sequential run.
 
 With C<--sequential> the patches are instead applied cumulatively, in
 series order, inside a throwaway C<git worktree> checked out from the
 tree's HEAD (so the real source tree is never touched and the base is
-pristine regardless of the working tree's state). Application stops at
-the first patch that fails to apply -- mirroring C<quiltimport>, which
-also halts on the first bad patch -- and the remaining patches are
-reported as skipped.
+pristine regardless of the working tree's state). That mode calls
+C<PGBuild::PatchSeries::apply_series>, the same code the buildfarm
+itself uses, so what it reports is what an animal will do rather than
+an approximation of it. Application stops at the first patch that is
+missing or fails to apply, and the remaining patches are reported as
+skipped.
+
+Note that C<--sequential> therefore does not fall back from C<-p1> to
+C<-p0> the way the default mode does: C<apply_series> applies at the
+strip level the C<series> line gives and does not guess. The default
+mode keeps the fallback, since it is checking each patch in isolation
+rather than predicting a real run.
 
 A series entry may reference a patch shared unchanged with another
 branch's subdirectory rather than a copy, by giving a relative path --
@@ -81,7 +89,7 @@ use Cwd        qw(abs_path);
 
 use FindBin;
 use lib $FindBin::RealBin;
-use PGBuild::PatchSeries qw(series_manifest materialize_series);
+use PGBuild::PatchSeries qw(series_manifest materialize_series apply_series);
 use PGBuild::Utils       qw($devnull);
 
 my @only_branches;
@@ -233,7 +241,7 @@ foreach my $sub (@subdirs)
 
 	$tot_series++;
 
-	my ($resolved_dir, $patches) =
+	my ($resolved_dir, $patches, $manifest) =
 	  eval { build_resolved_dir($repo, $sub, $resolved_root) };
 	if ($@)
 	{
@@ -245,7 +253,7 @@ foreach my $sub (@subdirs)
 
 	my ($clean, $fail, $miss) =
 	  $sequential
-	  ? test_sequential($tree, $resolved_dir, \@patches)
+	  ? test_sequential($tree, $resolved_dir, \@patches, $manifest)
 	  : test_independent($tree, $resolved_dir, \@patches);
 
 	printf "  %d patches: %d clean, %d failed, %d missing\n\n",
@@ -268,13 +276,13 @@ exit $exit;
 # and the patches it lists, with any symlinks resolved to their real
 # content (see PGBuild::PatchSeries::series_manifest), so the same
 # checks run below operate on real patch content regardless of the
-# platform's symlink support -- exactly what PatchStack.pm's
-# quiltimport will actually see. Dies if the series file itself can't
-# be resolved; a patch entry that can't be resolved is left out of
-# $dest so the caller's normal "file not found" [MISS] handling
-# reports it, mirroring how a broken patch stack fails quiltimport
-# rather than silently substituting something else. Returns
-# (resolved_dir, \@patches).
+# platform's symlink support -- exactly what PatchStack.pm will
+# actually apply. Dies if the series file itself can't be resolved; a
+# patch entry that can't be resolved is left out of $dest so the
+# caller's normal "file not found" [MISS] handling reports it, which
+# is also what apply_series does with a missing entry: stop and say so,
+# rather than silently substituting something else or skipping past it.
+# Returns (resolved_dir, \@patches, $manifest).
 sub build_resolved_dir
 {
 	my ($stack_repo, $sub, $dest_root) = @_;
@@ -286,7 +294,7 @@ sub build_resolved_dir
 	# Unresolvable entries are simply left out of $dest; the caller's
 	# existing "file not found" handling reports them as [MISS].
 	materialize_series($stack_repo, $manifest, $dest);
-	return ($dest, $manifest->{entries});
+	return ($dest, $manifest->{entries}, $manifest);
 }
 
 # Default mode: dry-run each patch independently against the pristine
@@ -326,15 +334,17 @@ sub test_independent
 	return ($clean, $fail, $miss);
 }
 
-# --sequential mode: apply the patches cumulatively, in order, inside a
-# throwaway worktree checked out from the tree's HEAD. Stops at the
-# first failure (or missing file), the way quiltimport does, and marks
-# the rest skipped. Returns (clean, failed, missing); a stop counts the
-# offending patch as failed/missing and the rest as neither.
+# --sequential: apply the series cumulatively into a throwaway worktree,
+# using the same apply_series() the buildfarm uses, so what this
+# validates is exactly what an animal will do. Returns
+# (clean, failed, missing).
+#
+# Unlike test_independent this does NOT fall back from -p1 to -p0:
+# apply_series deliberately does not guess strip levels, and the point
+# of this mode is to match the farm rather than to be forgiving.
 sub test_sequential
 {
-	my ($tree, $dir, $patches) = @_;
-	my ($clean, $fail, $miss) = (0, 0, 0);
+	my ($tree, $dir, $patches, $manifest) = @_;
 
 	my $scratch = tempdir("patchstack.XXXXXX", TMPDIR => 1, CLEANUP => 1);
 	my $wt = "$scratch/wt";
@@ -346,53 +356,41 @@ sub test_sequential
 		return (0, 0, 0);
 	}
 
-	my $stopped = 0;
+	my $logdir = "$scratch/log";
+	my $result = apply_series($manifest, $dir, $wt, $logdir);
+
+	my ($clean, $fail, $miss) = (0, 0, 0);
+	my %done;
+	foreach my $a (@{ $result->{applied} })
+	{
+		$done{ $a->{name} } = 1;
+		$clean++;
+		printf "  %-7s %s\n", '[ ok ]', $a->{name};
+		print_diag($a->{output})
+		  if $verbose && defined $a->{output} && $a->{output} ne '';
+	}
+
+	if (!$result->{ok})
+	{
+		my $f = $result->{failure};
+		$done{ $f->{name} } = 1;
+		if ($f->{reason} eq 'missing')
+		{
+			printf "  %-7s %s\n", '[MISS]', "$f->{name} (file not found)";
+			$miss++;
+		}
+		else
+		{
+			printf "  %-7s %s\n", '[FAIL]', $f->{name};
+			$fail++;
+			print_diag($f->{detail});
+		}
+	}
+
 	foreach my $p (@$patches)
 	{
-		my $name = $p->{name};
-
-		if ($stopped)
-		{
-			printf "  %-7s %s\n", '[SKIP]', "$name (earlier patch failed)";
-			next;
-		}
-
-		my $strip = defined $p->{strip} ? $p->{strip} : $default_strip;
-		my $file = "$dir/$name";
-
-		unless (-f $file)
-		{
-			printf "  %-7s %s\n", '[MISS]', "$name (file not found)";
-			$miss++;
-			$stopped = 1;
-			next;
-		}
-
-		# pick the working strip level without mutating the tree, then
-		# apply for real at that level so later patches build on it.
-		my ($ok, $used_strip, $err) = check_apply($wt, $file, $strip);
-		unless ($ok)
-		{
-			printf "  %-7s %s\n", '[FAIL]', $name;
-			$fail++;
-			$stopped = 1;
-			print_diag($err);
-			next;
-		}
-
-		my $aerr = `git -C "$wt" apply -p$used_strip -- "$file" 2>&1`;
-		if (($? >> 8) != 0)
-		{
-			printf "  %-7s %s\n", '[FAIL]', "$name (apply failed)";
-			$fail++;
-			$stopped = 1;
-			print_diag($aerr);
-			next;
-		}
-
-		my $note = $used_strip == $strip ? '' : " (-p$used_strip)";
-		printf "  %-7s %s%s\n", '[ ok ]', $name, $note;
-		$clean++;
+		next if $done{ $p->{name} };
+		printf "  %-7s %s\n", '[SKIP]', "$p->{name} (earlier patch failed)";
 	}
 
 	# Remove the worktree registration; CLEANUP unlinks the files.
