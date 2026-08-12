@@ -122,7 +122,7 @@ sub run_web_txn
 	my $sig = '.256h.' . hmac_sha256_hex($content, $secret);
 
 	my $ua = LWP::UserAgent->new;
-	$ua->agent("Postgres Build Farm Reporter");
+	$ua->agent("Postgres Build Farm Reporter/$VERSION");
 	if (my $proxy = $ENV{BF_PROXY})
 	{
 		my $targetURI = URI->new($target);

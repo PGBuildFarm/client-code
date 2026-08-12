@@ -86,7 +86,7 @@ while (my ($envkey, $envval) = each %{ $PGBuild::conf{build_env} })
 }
 
 my $ua = LWP::UserAgent->new;
-$ua->agent("Postgres Build Farm Reporter");
+$ua->agent("Postgres Build Farm Reporter/$VERSION");
 if (my $proxy = $ENV{BF_PROXY})
 {
 	my $targetURI = URI->new($target);
