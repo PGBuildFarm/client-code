@@ -68,10 +68,16 @@ sub send_result
 # something like IPC::RUN but without requiring it, as some installations
 # lack it.
 
+# $filedir is optional. Omitted, the location is inferred from the
+# buildfarm run's globals, which is what every in-tree caller wants.
+# Passing it explicitly lets code that runs outside a buildfarm run --
+# check_patch_stack.pl, via PGBuild::PatchSeries -- use run_log at all:
+# $branch_root, $st_prefix and $logdirname are set by run_build.pl and
+# are undef otherwise, so the inferred path would collapse to "/".
 sub run_log
 {
 	my $command = shift;
-	my $filedir = "$branch_root/$st_prefix$logdirname";
+	my $filedir = shift || "$branch_root/$st_prefix$logdirname";
 	mkpath($filedir);
 	my $file = "$filedir/lastcommand.log";
 	my $stfile = "$filedir/laststatus";
