@@ -40,7 +40,7 @@ sub setup
 	return unless ref $locales eq 'ARRAY';
 	foreach my $locale (@$locales)
 	{
-		next unless $locale =~ /utf8$/i;
+		next unless locale_is_utf8($locale->{label});
 		$found = 1;
 		last;
 	}
@@ -76,7 +76,7 @@ sub installcheck
 	  ($branch ne 'HEAD' && $branch lt 'REL9_5') ? 'psqldir' : 'bindir';
 	my $installdir = "$buildroot/inst";
 
-	return unless $locale =~ /utf8$/i;
+	return unless locale_is_utf8($locale);
 
 	return unless step_wanted("installcheck-collate-$locale");
 

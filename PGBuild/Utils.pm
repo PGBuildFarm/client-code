@@ -35,7 +35,7 @@ our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
   file_lines file_contents check_make_log_warnings
   find_in_path $log_file_marker set_last_stage get_last_stage
   check_install_is_complete spawn save_install copydir
-  rmtree
+  rmtree normalize_locales locale_is_utf8
 );
 %EXPORT_TAGS = qw();
 @EXPORT_OK = qw($st_prefix $logdirname $branch_root $steps_completed
@@ -557,6 +557,103 @@ sub rmtree
 		File::Path::rmtree($dir);
 	}
 	return;
+}
+
+# Turn the "locales" config setting into a list of records, one per
+# cluster to be built. An entry is either a bare string, which is the
+# historical form and names a locale with no encoding specified, or a
+# hashref with a "locale" and an optional "encoding".
+#
+# The record's locale is what initdb is given; its encoding is what
+# initdb is given for --encoding, or undef to let initdb derive one from
+# the locale, which is what the client has always done. Its label
+# identifies the cluster everywhere else -- the data directory, the log
+# file names, the stage names reported to the server -- so whitespace
+# becomes dashes, as it did when the raw locale served that purpose.
+sub normalize_locales
+{
+	my $raw = shift;
+	my (@out, %seen);
+	my $idx = 0;
+
+	foreach my $entry (@{ $raw || [] })
+	{
+		my ($locale, $encoding);
+		my $this_idx = $idx++;
+
+		if (ref $entry eq 'HASH')
+		{
+			foreach my $k (sort keys %$entry)
+			{
+				croak "locales: unknown key '$k'"
+				  unless $k eq 'locale' || $k eq 'encoding';
+			}
+			$locale = $entry->{locale};
+			$encoding = $entry->{encoding};
+		}
+		elsif (ref $entry)
+		{
+			croak "locales: entry $this_idx is neither a string nor a hash";
+		}
+		else
+		{
+			$locale = $entry;
+		}
+
+		croak "locales: entry $this_idx has no locale"
+		  unless defined $locale && $locale ne '';
+
+		# The encoding ends up in a directory name and on the initdb
+		# command line, so keep it to what an encoding name can be.
+		# initdb accepts dashes and underscores in encoding names (see
+		# clean_encoding_name() in src/common/encnames.c), so allow '-'
+		# here too rather than just alphanumerics and underscore.
+		croak "locales: bad encoding '$encoding'"
+		  if defined $encoding && $encoding !~ /^[A-Za-z0-9_-]+$/;
+
+		my $label = defined $encoding ? "$locale-$encoding" : $locale;
+		$label =~ s/\s/-/g;
+
+		croak "locales: duplicate label '$label'" if $seen{$label}++;
+
+		push(@out,
+			{ locale => $locale, encoding => $encoding, label => $label });
+	}
+
+	# The plain C cluster is where the run-once steps happen, so it has
+	# to be present whatever the config says.
+	unshift(@out, { locale => 'C', encoding => undef, label => 'C' })
+	  unless $seen{'C'};
+
+	return @out;
+}
+
+# Is the cluster with this label UTF8?
+#
+# When the config named an encoding we know the answer. When it did not,
+# initdb derived one from the locale and the best available answer is
+# what the locale's name says -- which is the test this replaced, kept
+# here so the guess is made in one place rather than in each caller.
+sub locale_is_utf8
+{
+	my $label = shift;
+
+	foreach my $rec (@{ $PGBuild::conf{locales} || [] })
+	{
+		next unless $rec->{label} eq $label;
+		if (defined $rec->{encoding})
+		{
+			# Compare canonically: initdb (via clean_encoding_name())
+			# folds case and ignores '-' and '_' in encoding names, so
+			# do the same here rather than requiring the owner's exact
+			# spelling to be "UTF8".
+			my $canon = uc $rec->{encoding};
+			$canon =~ s/[-_]//g;
+			return ($canon eq 'UTF8' ? 1 : 0);
+		}
+		return ($rec->{locale} =~ /utf8$/i ? 1 : 0);
+	}
+	return 0;
 }
 
 1;

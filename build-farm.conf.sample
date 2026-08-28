@@ -371,7 +371,12 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 	# see doc/src/sgml/Makefile for complete list
 	extra_doc_targets => undef,
 
-	# locales to test
+	# locales to test. An entry is either a locale name, in which case
+	# the encoding is whatever initdb derives from that locale, or a
+	# hashref naming the locale and the encoding explicitly. C is always
+	# tested whether or not it is listed here.
+	#
+	# locales => [ 'C', 'en_US.utf8', { locale => 'C', encoding => 'UTF8' } ],
 
 	locales => [qw( C )],
 

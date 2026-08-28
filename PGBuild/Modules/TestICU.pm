@@ -64,15 +64,13 @@ sub installcheck
 	my $self = shift;
 	my $locale = shift;
 
-	return unless $locale =~ /utf8/i;
+	return unless locale_is_utf8($locale);
 
 	my $pgsql = $self->{pgsql};
 	my $branch = $self->{pgbranch};
 	my $buildroot = "$self->{buildroot}/$branch";
 	my $binswitch = 'bindir';
 	my $installdir = "$buildroot/inst";
-
-	return unless $locale =~ /utf8$/i;
 
 	return unless step_wanted("installcheck-icu");
 

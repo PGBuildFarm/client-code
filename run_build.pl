@@ -353,9 +353,16 @@ if ($from_source || $from_source_clean)
 	}
 }
 
-my @locales;
-@locales = @{ $PGBuild::conf{locales} } if exists $PGBuild::conf{locales};
-unshift(@locales, 'C') unless grep { $_ eq "C" } @locales;
+# Records, not strings: see PGBuild::Utils::normalize_locales. Written
+# back to the config as well, because TestCollateLinuxUTF8's setup routine
+# reads this list directly, and locale_is_utf8() reads it on behalf of
+# both that module and TestICU. Keep what the owner actually wrote (if
+# anything) so the reported Script_Config shows their config, not the
+# normalized records; get_script_config_dump() puts it back.
+my $had_locales_config = exists $PGBuild::conf{locales};
+my $orig_locales_config = $PGBuild::conf{locales};
+my @locales = normalize_locales($PGBuild::conf{locales});
+$PGBuild::conf{locales} = [@locales];
 
 # sanity checks
 # several people have run into these
@@ -688,8 +695,9 @@ END
 		{
 			chdir $installdir;
 			system(qq{"bin/pg_ctl" -D data stop >$devnull 2>&1});
-			foreach my $loc (@locales)
+			foreach my $lrec (@locales)
 			{
+				my $loc = $lrec->{label};
 				next unless -d "data-$loc";
 				system(qq{"bin/pg_ctl" -D "data-$loc" stop >$devnull 2>&1});
 			}
@@ -1042,15 +1050,17 @@ else
 	run_misc_tests();
 }
 
-foreach my $locale (@locales)
+foreach my $lrec (@locales)
 {
 	last unless step_wanted('install');
 
+	# Everything below identifies the cluster by its label. Only initdb
+	# needs the locale and encoding themselves.
+	my $locale = $lrec->{label};
+
 	print time_str(), "setting up db cluster ($locale)...\n" if $verbose;
 
-	initdb($locale);
-
-	$locale =~ s/\s/-/g;
+	initdb($lrec);
 
 	do
 	{
@@ -1640,7 +1650,8 @@ sub make_testmodules_install
 
 sub initdb
 {
-	my $locale = shift;
+	my $lrec = shift;
+	my $locale = $lrec->{label};
 	$started_times = 0;
 	my @initout;
 
@@ -1648,9 +1659,12 @@ sub initdb
 
 	chdir $installdir;
 
-	my $initdbopts = qq{-A trust -U buildfarm --locale="$locale"};
+	my $initdbopts = qq{-A trust -U buildfarm --locale="$lrec->{locale}"};
 
-	$locale =~ s/\s/-/g;
+	# Only when the config asked for one. Otherwise initdb derives the
+	# encoding from the locale, which is what it has always done here.
+	$initdbopts .= qq{ --encoding="$lrec->{encoding}"}
+	  if defined $lrec->{encoding};
 
 	if ($use_discard_caches && ($branch eq 'HEAD' || $branch ge 'REL_14'))
 	{
@@ -3489,6 +3503,18 @@ sub get_script_config_dump
 		bf_perl_version => "$Config{version}",
 	};
 	delete $conf->{secret};
+
+	# Report locales as the owner wrote it, not as normalize_locales()
+	# turned it into for run-time use, and don't report a key the owner
+	# never set.
+	if ($had_locales_config)
+	{
+		$conf->{locales} = $orig_locales_config;
+	}
+	else
+	{
+		delete $conf->{locales};
+	}
 	my @modkeys = grep { /^PGBuild/ } keys %INC;
 	foreach (@modkeys)
 	{
