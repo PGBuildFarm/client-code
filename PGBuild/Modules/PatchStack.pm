@@ -81,6 +81,18 @@ that point -- and is handed the materialized copy of the series
 described above, so a shared entry or a symlink is an ordinary file by
 the time it sees one, exactly as on wrap day against a real checkout.
 
+Before anything is applied, the driver is run with C<--list>, which
+prints its own reading of the C<series> file and exits without touching
+anything: one line per entry, in order, the name and the strip level
+separated by a tab, C<-> where the line gave no level. That is compared
+against the reading behind the manifest, and a disagreement is reported
+with both readings and nothing applied. Two programs parse the same
+file -- we do because the rebuild digest and the list of blobs to
+materialize come out of it, the driver does because its reading is what
+gets applied -- and nothing else would notice if they differed. A driver
+that does not understand C<--list> is reported the same way, rather than
+skipping the check.
+
 It applies with C<git am>, so C<HEAD> moves and a commit is created per
 patch. C<cleanup> resets to the commit the tree was on beforehand, and
 first clears any C<git am> state left behind by an entry that failed,
@@ -462,6 +474,8 @@ sub _apply_with_driver
 
 	$self->{applier} = $self->{driver};
 
+	return 0 unless $self->_check_series_agreement($log, $patchdir, $driver);
+
 	# git am moves HEAD, unlike the built-in loop, so record where the
 	# tree started: that, not HEAD, is what cleanup() resets to.
 	my $base = `git -C "$srcdir" rev-parse --verify --quiet HEAD 2>$devnull`;
@@ -527,6 +541,95 @@ sub _apply_with_driver
 
 	$self->{series_status} = 'applied';
 	return 1;
+}
+
+# Check the driver's reading of the series against our own before
+# anything is applied.
+#
+# Two programs parse the same series file. We parse it because the
+# digest that decides whether this branch rebuilds, and the list of
+# blobs to materialize, both come out of that reading; the driver parses
+# it because that reading is what gets applied. Nothing would otherwise
+# notice if the two read a line differently, and they have: a strip
+# level written past the "#" that starts a comment -- where the security
+# stacks keep a redmine id -- was a level to us and comment text to
+# quilt, so the farm would have applied a patch at a level no wrap would
+# use and reported a green build for it.
+#
+# The driver's --list prints its reading and exits without touching
+# anything: one line per entry, in series order, the name and the strip
+# level separated by a tab, with "-" where the line gave no level. It is
+# run against the materialized copy, which holds a byte copy of the
+# series blob we parsed, so the two are reading the same text.
+#
+# A driver that does not understand --list exits with a usage error, and
+# that is a broken stack too. A check that quietly skips itself when the
+# other side is unfamiliar is the failure this exists to prevent, and
+# --list is part of the interface from the first driver onwards.
+sub _check_series_agreement
+{
+	my $self = shift;
+	my $log = shift;
+	my $patchdir = shift;
+	my $driver = shift;
+	my $name = $self->{driver};
+
+	my @out = eval { run_log(qq{"$^X" "$driver" --list "$patchdir"}) };
+	if ($@)
+	{
+		push(@$log, "$MODULE: running $name --list: $@");
+		$self->{series_status} = 'broken';
+		return 0;
+	}
+	if ($? >> 8)
+	{
+		push(@$log,
+			"$MODULE: $name --list failed, so its reading of"
+			  . " $self->{subdir}/series cannot be checked against ours\n",
+			@out);
+		$self->{series_status} = 'broken';
+		return 0;
+	}
+
+	my @theirs;
+	foreach my $line (@out)
+	{
+		chomp $line;
+		next if $line eq '';
+		my ($pname, $strip) = split(/\t/, $line, 2);
+		push(@theirs, { name => $pname, strip => $strip });
+	}
+
+	my @ours = map {
+		{
+			name => $_->{name},
+			strip => defined $_->{strip} ? $_->{strip} : '-'
+		}
+	} @{ $self->{manifest}{entries} };
+
+	my $agreed = scalar(@ours) == scalar(@theirs);
+	foreach my $i (0 .. $#ours)
+	{
+		last unless $agreed;
+		my $t = $theirs[$i];
+		$agreed = 0
+		  if $ours[$i]{name} ne $t->{name} || $ours[$i]{strip} ne $t->{strip};
+	}
+	return 1 if $agreed;
+
+	# Report both readings in full rather than the first line they differ
+	# on: the point of disagreement is not always where the damage is,
+	# and this is rare enough to be worth the log space.
+	push(@$log,
+			"$MODULE: $name reads $self->{subdir}/series differently than"
+		  . " we do, so what would be applied is not what was digested\n");
+	push(@$log, "$MODULE: our reading:\n");
+	push(@$log, "    $_->{name}\t$_->{strip}\n") foreach @ours;
+	push(@$log, "$MODULE: theirs ($name --list):\n");
+	push(@$log, "    $_->{name}\t$_->{strip}\n") foreach @theirs;
+
+	$self->{series_status} = 'broken';
+	return 0;
 }
 
 # Apply the series ourselves, for a patches repository that carries no
