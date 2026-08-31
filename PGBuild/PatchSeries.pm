@@ -123,6 +123,12 @@ sub resolve_patch_path
 # the leading strip, split(/\s+/, "  0001.patch") yields an empty first
 # field and the entry is silently dropped; the trailing strip keeps a
 # CRLF series file from producing names with a stray carriage return.
+#
+# Scanning for the strip level stops at a "#" token: everything from
+# there on is comment, which is where the security stacks keep a redmine
+# id. Reading past it took a "-p2" written in a comment as a strip level
+# -- a level neither git quiltimport nor a release wrap would use, so
+# the farm would have applied the patch somewhere the wrap did not.
 sub parse_series
 {
 	my $content = shift;
@@ -143,7 +149,11 @@ sub parse_series
 		my $strip;
 		foreach my $t (@tok)
 		{
-			$strip = $1 if $t =~ /^-p(\d+)$/;
+			last if $t =~ /^#/;
+			if ($t =~ /^-p(\d+)$/)
+			{
+				$strip = $1;
+			}
 		}
 		push(@out, { name => $name, strip => $strip });
 	}
