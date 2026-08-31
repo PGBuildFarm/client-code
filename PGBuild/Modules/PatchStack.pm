@@ -19,34 +19,128 @@ git repo, with a per-Postgres-branch subdirectory holding a C<series>
 file and the patch files referenced by it (one per line, applied in
 order).
 
-Patches are imported with C<git quiltimport>, which creates a real
-commit per patch and preserves authorship. This means the patch
-files must carry C<From:> and C<Subject:> headers (i.e. be produced
-by C<git format-patch> or equivalent) so that C<git mailinfo> can
-extract the author. Bare diffs will not import.
+The series is applied by the driver script at the top of the patches
+repository when there is one, and otherwise by this module's own
+C<git apply> loop -- see L</DRIVER> below.
 
-A patch shared unchanged across branches may be referenced rather
-than copied: either as a C<series> entry using a relative path into
-another branch's subdirectory (commonly C<../master/foo.patch>), or
-as a symlink into another branch's subdirectory. Both forms are
-resolved via git's own tree/blob data, not the checked-out working
-tree, so it works regardless of the platform's filesystem symlink
-support (and of whether C<..> in the path has been normalized -- a
-raw C<git show HEAD:path> silently returns empty content for an
-unnormalized path instead of erroring, so paths are normalized
-before being resolved). A patch listed in a branch's C<series> with
-no entry at all in the patches branch (not even by relative path or
-symlink) is a broken patch stack for that branch: it is logged and
-left out of the import, which then fails loudly rather than silently
-applying a substitute from elsewhere.
+The built-in loop applies the patches one at a time in series order,
+stopping at the first entry that is missing or fails to apply. No
+commits are created and C<HEAD> never moves; the working tree is
+restored after the run.
+
+Patch files should still carry C<From:> and C<Subject:> headers (i.e.
+be produced by C<git format-patch> or equivalent), because the subject
+is extracted with C<git mailinfo> for the build report. Unlike
+C<git quiltimport>, which this replaced, a bare diff will now apply --
+it will simply be reported under its file name.
+
+A patch shared unchanged across branches may be referenced rather than
+copied, as a C<series> entry giving a relative path into another
+branch's subdirectory -- commonly C<../master/foo.patch>. Symlinks into
+another branch's subdirectory are also resolved, but are no longer used
+in practice; the support remains so that existing stacks do not
+regress.
+
+Both forms are resolved via git's own tree and blob data, not the
+checked-out working tree, so they work regardless of the platform's
+filesystem symlink support (and of whether C<..> in the path has been
+normalized -- a raw C<git show HEAD:path> silently returns empty
+content for an unnormalized path instead of erroring, so paths are
+normalized before being resolved). A patch listed in a branch's
+C<series> with no entry in the patches branch is a broken patch stack
+for that branch: the run stops there and reports C<PatchStackBroken>,
+naming the entry. C<git quiltimport>, used before this, skipped such
+an entry and exited zero, so a branch could build and report a green
+result with a patch missing from its stack.
+
+=head2 DRIVER
+
+A patch stack that a release wrap will apply should be applied here by
+the same code the wrap runs, so that what the animal tests is what the
+wrap produces rather than something resembling it. That code is a
+script at the top of the patches repository, taking the directory
+holding a C<series> file as its only argument, named C<import-series.pl>
+unless the C<driver> config setting says otherwise.
+
+The name is really an interface between the patches repository and
+every animal that clones it, not an implementation detail of either, so
+the default is what the security farm relies on and the setting exists
+for a repository that has good reason to differ. Configuring one is
+also a statement that the repository has an applier of its own: if the
+named script is not there the run reports C<PatchStackBroken>, rather
+than falling back and reporting a green build for a stack applied by
+something other than what the config asked for. Only the default name
+is allowed to be absent.
+
+C<driver> left undef is the default rather than a setting of its own,
+as for C<local_repo>. Set to an empty string or C<0> it asks for the
+built-in loop and skips the lookup entirely.
+
+The script is run in the source tree -- clean and at upstream's tip at
+that point -- and is handed the materialized copy of the series
+described above, so a shared entry or a symlink is an ordinary file by
+the time it sees one, exactly as on wrap day against a real checkout.
+
+Before anything is applied, the driver is run with C<--list>, which
+prints its own reading of the C<series> file and exits without touching
+anything: one line per entry, in order, the name and the strip level
+separated by a tab, C<-> where the line gave no level. That is compared
+against the reading behind the manifest, and a disagreement is reported
+with both readings and nothing applied. Two programs parse the same
+file -- we do because the rebuild digest and the list of blobs to
+materialize come out of it, the driver does because its reading is what
+gets applied -- and nothing else would notice if they differed. A driver
+that does not understand C<--list> is reported the same way, rather than
+skipping the check.
+
+It applies with C<git am>, so C<HEAD> moves and a commit is created per
+patch. C<cleanup> resets to the commit the tree was on beforehand, and
+first clears any C<git am> state left behind by an entry that failed,
+which a reset does not remove. Any nonzero exit is reported as
+C<PatchStackBroken>.
+
+When no driver is configured and the patches repository carries no
+script under the default name, the built-in C<git apply> loop runs
+instead. That is not a transition measure:
+C<PatchStack> is a general module, and a quilt-style repository that no
+release wrap consumes has no reason to carry a driver. Which of the two
+applied the series is recorded in C<patch_stack.log> as
+C<patch_stack_applier>.
 
 =head2 RUN TRIGGER
 
-The module forces a run whenever the patch-stack subdirectory tree
-identifier (the git tree SHA of C<< I<patches_branch>:I<subdir> >>)
-differs from the value recorded on the previous run. This is in
-addition to the usual upstream-branch trigger, so a build kicks off
-when either the upstream branch or the patch series moves.
+The module forces a run whenever the identity of this branch's patch
+series differs from the value recorded on the previous run. That
+identity is a digest over the resolved blob SHA of every patch the
+series names, in order -- not the git tree SHA of the branch's
+subdirectory.
+
+The distinction matters when a patch is shared between branches. A
+series entry may name a patch in another branch's subdirectory, as
+C<../master/foo.patch>. Editing that patch does not change the
+referring branch's subdirectory tree, because the C<series> blob still
+holds the same text, so a tree-SHA trigger never fired and the branch
+was neither rebuilt nor retested against the changed patch.
+
+The series was still applied on every run -- the C<checkout> hook fires
+unconditionally, and C<run_branches.pl> declines to prune branches when
+this module is configured -- so a patch that had stopped applying was
+still reported as C<PatchStackBroken>. What was missing was any
+verification that the patched tree still built and passed its tests,
+and any record of which stack content had been exercised.
+
+Digesting resolved content instead tracks what the branch would
+actually apply. Patches the branch does not name contribute nothing, so
+an unrelated change elsewhere in the patches repo still does not cause
+a build here.
+
+This is in addition to the usual upstream-branch trigger, so a build
+kicks off when either the upstream branch or the patch series moves.
+
+The identity changed shape when content digests replaced subdirectory
+tree SHAs. On the first run after upgrading from an earlier client,
+the recorded value is a tree SHA and the computed one is a digest, so
+each configured branch rebuilds once and then settles.
 
 =head2 CONFIGURATION
 
@@ -56,6 +150,11 @@ In the animal's C<build-farm.conf>:
         repo            => 'https://example.org/git/some-patches.git',
         patches_branch  => 'quilt',       # default: quilt
         local_repo      => undef,         # default: <buildroot>/patch_stack.<animal>
+        # the applier the patches repo supplies for itself. Unset or
+        # undef, 'import-series.pl' is used if the repo has one. Named,
+        # the named script must be there or the run reports broken. Set
+        # to '' to use the built-in apply loop and look for nothing.
+        driver          => 'import-series.pl',
         subdir => {
             # map Postgres branch name to subdirectory name in the
             # patches branch. Default for unlisted branches is the
@@ -74,15 +173,28 @@ package PGBuild::Modules::PatchStack;
 
 use PGBuild::Options;
 use PGBuild::SCM;
-use PGBuild::Utils qw(:DEFAULT $st_prefix $branch_root $devnull);
+use PGBuild::Utils       qw(:DEFAULT $st_prefix $branch_root $devnull);
+use PGBuild::PatchSeries qw(series_manifest materialize_series apply_series);
 
-use File::Path     qw(mkpath);
-use File::Basename qw(dirname);
+use Cwd        qw(getcwd);
+use File::Path qw(mkpath);
 
 use strict;
 use warnings;
 
 (my $MODULE = __PACKAGE__) =~ s/PGBuild::Modules:://;
+
+# The name the applier a patches repository supplies for itself is
+# looked for under, at the top of the repository, when the animal's
+# config does not name one. See L</DRIVER>.
+my $DRIVER = 'import-series.pl';
+
+# What each of the driver's documented exit codes means, for the log.
+my %DRIVER_EXIT = (
+	1 => 'patch files named in series are missing',
+	2 => 'usage or setup error',
+	3 => 'a patch failed to apply',
+);
 
 our ($VERSION); $VERSION = 'REL_21';
 
@@ -92,6 +204,27 @@ my $hooks = {
 	'need-run' => \&need_run,
 	'cleanup' => \&cleanup,
 };
+
+# The driver to look for, and whether its absence is an error: a driver
+# named in the config has to be there, because naming one is a statement
+# that this repository has an applier of its own, and falling back from a
+# name that turned out to be wrong would apply the stack with something
+# other than what the config asked for and still report a green build.
+# Left at the default, the name is looked for and its absence is
+# ordinary.
+#
+# undef is the default rather than a setting of its own, as it is for
+# local_repo: an undef in a generated config means the animal has no
+# opinion. An empty string or a 0 is an opinion, and asks for the
+# built-in loop.
+sub _driver_config
+{
+	my $stackconf = shift;
+
+	my $driver = $stackconf->{driver};
+	$driver = $DRIVER unless defined $driver;
+	return ($driver, ($driver && defined $stackconf->{driver}) ? 1 : 0);
+}
 
 sub setup
 {
@@ -117,6 +250,8 @@ sub setup
 	my $local_repo = $stackconf->{local_repo}
 	  || "$buildroot/patch_stack.$conf->{animal}";
 
+	my ($driver, $driver_required) = _driver_config($stackconf);
+
 	my $self = {
 		buildroot => $buildroot,
 		pgbranch => $branch,
@@ -127,9 +262,14 @@ sub setup
 		patches_branch => $stackconf->{patches_branch} || 'quilt',
 		subdir => $subdir,
 		local_repo => $local_repo,
+		driver => $driver,
+		driver_required => $driver_required,
 		applied => 0,
 		patches_id => '',
-		pre_apply_sha => '',
+		stack_commit => '',
+		manifest => undef,
+		applier => '',
+		src_head => '',
 	};
 	bless($self, $class);
 
@@ -181,13 +321,13 @@ sub _fetch_or_clone
 	return;
 }
 
-# Stable identifier for "the patches as they exist right now" for
-# this Postgres branch — the git tree SHA of the per-branch
-# subdirectory. Empty string if the subdirectory doesn't exist.
-# Using the subdirectory tree SHA rather than the patches repo's
-# commit SHA means that a change to another branch's subdirectory
-# does not trigger a rebuild for this branch.
-sub _patches_id
+# Tree SHA of this branch's subdirectory in the patches branch, or empty
+# string if the subdirectory is not there at all. Used only to decide
+# whether this branch has a stack; the identity that decides whether the
+# stack has *changed* is the content digest from series_manifest(),
+# because a subdirectory tree SHA does not move when a patch reached by
+# a "../master/foo.patch" series entry is edited.
+sub _subdir_tree
 {
 	my $self = shift;
 	my $local = $self->{local_repo};
@@ -198,40 +338,30 @@ sub _patches_id
 	return $id;
 }
 
-# Log the patch series we are about to import, one line per patch:
-# the file name (as listed in series) followed by the subject. We
-# derive the subject the same way quiltimport does for the commit it
-# creates -- via "git mailinfo", which unwraps the header and strips
-# any "[PATCH ...]" prefix -- falling back to the file name minus a
-# trailing ".patch" when the patch carries no Subject: header.
+# Log the patch series from the manifest computed in checkout(), rather
+# than a fresh read of series, one line per patch: the file name (as
+# listed in series) followed by the subject. We derive the subject the
+# same way quiltimport does for the commit it creates -- via
+# "git mailinfo", which unwraps the header and strips any "[PATCH ...]"
+# prefix -- falling back to the file name minus a trailing ".patch" when
+# the patch carries no Subject: header.
 #
-# Returns the parsed list as an arrayref of { name => , subject => }
-# hashrefs, so callers can reuse it (e.g. to write patch_stack.log)
-# without re-deriving the subjects.
+# Returns the parsed list as an arrayref of { name => , sha => ,
+# subject => } hashrefs, so callers can reuse it (e.g. to write
+# patch_stack.log) without re-deriving the subjects.
 sub _log_series
 {
 	my $self = shift;
 	my $log = shift;
 	my $patchdir = shift;
 
-	open(my $fh, '<', "$patchdir/series") or return [];
-	my @patches;
-	while (my $line = <$fh>)
-	{
-		chomp $line;
+	my $entries = $self->{manifest} ? $self->{manifest}{entries} : [];
 
-		# mirror quiltimport's parsing: skip blanks and comments, and
-		# take the first whitespace-delimited token as the file name.
-		next if $line =~ /^\s*(#|$)/;
-		my ($name) = split(/\s+/, $line);
-		push(@patches, $name) if defined $name && $name ne '';
-	}
-	close $fh;
-
-	push(@$log, "$MODULE: series (" . scalar(@patches) . " patches):\n");
+	push(@$log, "$MODULE: series (" . scalar(@$entries) . " patches):\n");
 	my @parsed;
-	foreach my $name (@patches)
+	foreach my $e (@$entries)
 	{
+		my $name = $e->{name};
 		my $file = "$patchdir/$name";
 		my $subject = '';
 		if (-f $file)
@@ -247,155 +377,33 @@ sub _log_series
 		{
 			($subject = $name) =~ s/\.patch$//;
 		}
-		push(@$log, "    $name: $subject\n");
-		push(@parsed, { name => $name, subject => $subject });
+
+		my $short = substr(defined $e->{sha} ? $e->{sha} : '', 0, 7);
+		push(@$log, "    $name [$short]: $subject\n");
+		push(@parsed, { name => $name, sha => $e->{sha}, subject => $subject });
 	}
 	return \@parsed;
 }
 
-# Return the git mode ('100644', '120000', ...) of a path in the
-# patches repo at HEAD, or '' if it doesn't exist there.
-sub _git_mode
-{
-	my $self = shift;
-	my $path = shift;
-	my $local = $self->{local_repo};
-
-	my $line = `git -C $local ls-tree HEAD -- "$path" 2>$devnull`;
-	chomp $line;
-	return '' unless $line;
-	my ($mode) = split(/\s+/, $line);
-	return $mode // '';
-}
-
-# Return the raw content of the blob at the given path in the patches
-# repo at HEAD.
-sub _git_blob
-{
-	my $self = shift;
-	my $path = shift;
-	my $local = $self->{local_repo};
-
-	return `git -C $local show "HEAD:$path" 2>$devnull`;
-}
-
-# Collapse "." and ".." segments in a git-style forward-slash path
-# without touching the filesystem -- the target may not exist as a
-# real file on this platform (e.g. behind an unmaterialized symlink).
-sub _normalize_git_path
-{
-	my $path = shift;
-	my @out;
-	foreach my $part (split(m{/+}, $path))
-	{
-		next if $part eq '' || $part eq '.';
-		if   ($part eq '..') { pop @out; }
-		else                 { push @out, $part; }
-	}
-	return join('/', @out);
-}
-
-# Resolve a path in the patches repo to its real file content, following
-# git symlinks (mode 120000) by hand via git's tree/blob data rather
-# than the checked-out working tree. Patches repos may share an
-# unmodified patch across branches via a symlink; Windows without
-# core.symlinks enabled checks such a symlink out as a plain text file
-# containing the link target, which is useless to quiltimport. Reading
-# through git's plumbing instead sidesteps that platform limitation
-# entirely, and works the same way regardless of how (or whether) the
-# platform materializes real filesystem symlinks.
-sub _resolve_patch_content
-{
-	my $self = shift;
-	my $log = shift;
-	my $path = shift;
-
-	# A series entry may reference a patch in another branch's
-	# subdirectory via a relative path (e.g. "../master/foo.patch")
-	# rather than a symlink. "git ls-tree" resolves "." / ".." path
-	# segments itself, but "git show HEAD:<path>" does not -- it
-	# silently returns empty content for an unnormalized path instead
-	# of erroring, which would otherwise materialize a blank, useless
-	# patch file. Normalize up front so both plumbing calls agree on
-	# the same path.
-	$path = _normalize_git_path($path);
-
-	for (1 .. 5)
-	{
-		my $mode = $self->_git_mode($path);
-		return undef if $mode eq '';
-		if ($mode eq '120000')
-		{
-			my $target = $self->_git_blob($path);
-			$target =~ s/\s+$//;
-			my ($dir) = $path =~ m{^(.*)/[^/]*$};
-			$dir //= '';
-			$path = _normalize_git_path("$dir/$target");
-			next;
-		}
-		return $self->_git_blob($path);
-	}
-	push(@$log, "$MODULE: symlink chain too deep resolving $path\n");
-	return undef;
-}
-
 # Materialize a plain-file copy of the patch series with any symlinks
-# resolved to their real content (see _resolve_patch_content), so
-# quiltimport and our own mailinfo parsing operate on real patch
+# resolved to their real content (see PGBuild::PatchSeries::series_manifest),
+# so quiltimport and our own mailinfo parsing operate on real patch
 # content regardless of the platform's symlink support.
 sub _build_resolved_dir
 {
 	my $self = shift;
 	my $log = shift;
 	my $sub = $self->{subdir};
+	my $local = $self->{local_repo};
+	my $manifest = $self->{manifest};
 
-	my $dest = "$self->{local_repo}.resolved/$sub";
+	die "resolving $sub/series\n" unless $manifest;
+
+	my $dest = "$local.resolved/$sub";
 	rmtree($dest) if -d $dest;
-	mkpath($dest);
-
-	my $series_content = $self->_resolve_patch_content($log, "$sub/series");
-	die "resolving $sub/series\n" unless defined $series_content;
-	open(my $sfh, '>', "$dest/series") or die "writing $dest/series: $!\n";
-	binmode $sfh;
-	print $sfh $series_content;
-	close $sfh;
-
-	# Derive the patch list from the just-resolved series content, not
-	# a fresh read of the checked-out series file: if the series file
-	# itself is shared via symlink (as this module allows -- see the
-	# module docs), the two can disagree on a platform without
-	# filesystem symlink support, where the raw checkout is just a
-	# text file holding the link target.
-	my @names;
-	foreach my $line (split /\n/, $series_content)
-	{
-		next if $line =~ /^\s*(#|$)/;
-		my ($name) = split(/\s+/, $line);
-		push(@names, $name) if defined $name && $name ne '';
-	}
-
-	foreach my $name (@names)
-	{
-		my $content = $self->_resolve_patch_content($log, "$sub/$name");
-		unless (defined $content)
-		{
-			push(@$log, "$MODULE: could not resolve $sub/$name, skipping\n");
-			next;
-		}
-
-		# $name may itself be a relative path out of this branch's
-		# subdirectory (e.g. "../master/foo.patch", used to share a
-		# patch unchanged across branches without a symlink), so its
-		# parent directory may not be $dest itself and may not exist
-		# yet.
-		my $target_file = "$dest/$name";
-		mkpath(dirname($target_file));
-		open(my $pfh, '>', $target_file)
-		  or die "writing $target_file: $!\n";
-		binmode $pfh;
-		print $pfh $content;
-		close $pfh;
-	}
+	my $skipped = materialize_series($local, $manifest, $dest);
+	push(@$log, "$MODULE: could not resolve $sub/$_, skipping\n")
+	  foreach @$skipped;
 	return $dest;
 }
 
@@ -405,7 +413,6 @@ sub _apply_patches
 	my $log = shift;
 	my $local = $self->{local_repo};
 	my $sub = $self->{subdir};
-	my $srcdir = $self->{srcdir};
 	my $patchdir = "$local/$sub";
 
 	unless (-f "$patchdir/series")
@@ -426,57 +433,240 @@ sub _apply_patches
 
 	$self->{series_patches} = $self->_log_series($log, $patchdir);
 
-	# Capture the upstream HEAD before importing so cleanup (and
-	# error recovery below) can rewind past the commits quiltimport
-	# is about to create.
-	my $sha = `git -C $srcdir rev-parse --verify --quiet HEAD 2>$devnull`;
-	chomp $sha;
-	if ($? >> 8 || $sha eq '')
-	{
-		push(@$log, "$MODULE: cannot determine HEAD of $srcdir\n");
-		$self->{series_status} = 'broken';
-		return 0;
-	}
-	$self->{pre_apply_sha} = $sha;
+	# A partially applied series must still be cleaned up, so record
+	# that the tree has been touched before the first patch lands.
+	$self->{applied} = 1;
 
-	# quiltimport uses git-am internally; abort any interrupted state
-	# left by a previous run before starting fresh. A rebase-apply
-	# directory left behind by a run that failed before git-am finished
-	# writing its full state (e.g. an empty-patch mailsplit error) can
-	# be incomplete enough that "am --abort" itself silently fails to
-	# remove it, so fall back to forcibly clearing it -- otherwise the
-	# next quiltimport's internal git-am fails at mkdir because the
-	# directory still exists.
-	if (-d "$srcdir/.git/rebase-apply")
+	my $name = $self->{driver};
+	if ($name)
 	{
-		push(@$log, "$MODULE: aborting stale rebase-apply state\n");
-		run_log("git -C $srcdir am --abort");
-		if (-d "$srcdir/.git/rebase-apply")
+		my $driver = "$local/$name";
+		return $self->_apply_with_driver($log, $patchdir, $driver)
+		  if -f $driver;
+
+		if ($self->{driver_required})
 		{
-			push(@$log,
-					"$MODULE: am --abort left rebase-apply state behind,"
-				  . " removing it directly\n");
-			rmtree("$srcdir/.git/rebase-apply");
+			push(@$log, "$MODULE: no $name at the top of $self->{repo}\n");
+			$self->{series_status} = 'broken';
+			return 0;
 		}
 	}
 
-	push(@$log, "$MODULE: importing patch series from $patchdir\n");
+	return $self->_apply_builtin($log, $patchdir);
+}
 
-	my @out = run_log(qq{git -C $srcdir quiltimport --patches "$patchdir"});
-	my $status = $? >> 8;
-	push(@$log, "------ quiltimport (status=$status) ------\n", @out);
+# Hand the series to the patches repository's own driver, which is what
+# a release wrap runs, so the farm exercises the wrap's applier rather
+# than an imitation of it. Everything the two callers do differently --
+# choosing branches, fetching, resetting to upstream, deciding whether
+# to run at all -- stays out of the driver and on this side.
+#
+# The driver is run in the source tree because that is the tree it acts
+# on: it checks that it is in a clean git working tree and applies with
+# "git am", both of which read the current directory.
+sub _apply_with_driver
+{
+	my $self = shift;
+	my $log = shift;
+	my $patchdir = shift;
+	my $driver = shift;
+	my $srcdir = $self->{srcdir};
 
-	if ($status)
+	$self->{applier} = $self->{driver};
+
+	return 0 unless $self->_check_series_agreement($log, $patchdir, $driver);
+
+	# git am moves HEAD, unlike the built-in loop, so record where the
+	# tree started: that, not HEAD, is what cleanup() resets to.
+	my $base = `git -C "$srcdir" rev-parse --verify --quiet HEAD 2>$devnull`;
+	chomp $base;
+	$self->{src_head} = $base;
+
+	push(@$log, "$MODULE: applying patch series from $patchdir with $driver\n");
+
+	# A commit per patch needs an identity to commit as. Supply one only
+	# when git cannot find its own: an animal's git is often unconfigured,
+	# and git's guess from the host name fails outright on a host with no
+	# domain, but an owner who has configured an identity should keep it.
+	# The env vars would otherwise override the config. A patch's own
+	# From: still wins either way -- git am sets the author fields from
+	# the patch before it commits.
+	my %ident;
+	my $have_ident = `git -C "$srcdir" var GIT_COMMITTER_IDENT 2>$devnull`;
+	if ($? >> 8 || !$have_ident)
 	{
-		# quiltimport leaves a partial commit history on failure;
-		# rewind to a known state so a later cleanup or rerun starts
-		# from the upstream tip rather than a half-applied series.
-		run_log("git -C $srcdir reset --hard --quiet $sha");
+		my $animal = $self->{bfconf}->{animal} || 'buildfarm';
+		%ident = (
+			GIT_COMMITTER_NAME => 'PostgreSQL Buildfarm',
+			GIT_COMMITTER_EMAIL => "$animal\@buildfarm.invalid",
+			GIT_AUTHOR_NAME => 'PostgreSQL Buildfarm',
+			GIT_AUTHOR_EMAIL => "$animal\@buildfarm.invalid",
+		);
+	}
+	local @ENV{ keys %ident } = values %ident;
+
+	# Run the driver with the perl we are running under rather than
+	# relying on the shebang line and an execute bit, neither of which
+	# survives a checkout on every platform an animal runs on.
+	my $here = getcwd();
+	unless (chdir $srcdir)
+	{
+		push(@$log, "$MODULE: cannot chdir to $srcdir: $!\n");
+		$self->{series_status} = 'broken';
+		return 0;
+	}
+	my @out = eval { run_log(qq{"$^X" "$driver" "$patchdir"}) };
+	my $err = $@;
+	my $status = $? >> 8;
+	chdir $here;
+
+	if ($err)
+	{
+		push(@$log, "$MODULE: running $self->{driver}: $err");
 		$self->{series_status} = 'broken';
 		return 0;
 	}
 
-	$self->{applied} = 1;
+	push(@$log, @out);
+
+	if ($status)
+	{
+		my $why = $DRIVER_EXIT{$status} || 'unknown failure';
+		push(@$log,
+				"$MODULE: $self->{driver} exited $status ($why)"
+			  . " on $self->{subdir}/series\n");
+		$self->{series_status} = 'broken';
+		return 0;
+	}
+
+	$self->{series_status} = 'applied';
+	return 1;
+}
+
+# Check the driver's reading of the series against our own before
+# anything is applied.
+#
+# Two programs parse the same series file. We parse it because the
+# digest that decides whether this branch rebuilds, and the list of
+# blobs to materialize, both come out of that reading; the driver parses
+# it because that reading is what gets applied. Nothing would otherwise
+# notice if the two read a line differently, and they have: a strip
+# level written past the "#" that starts a comment -- where the security
+# stacks keep a redmine id -- was a level to us and comment text to
+# quilt, so the farm would have applied a patch at a level no wrap would
+# use and reported a green build for it.
+#
+# The driver's --list prints its reading and exits without touching
+# anything: one line per entry, in series order, the name and the strip
+# level separated by a tab, with "-" where the line gave no level. It is
+# run against the materialized copy, which holds a byte copy of the
+# series blob we parsed, so the two are reading the same text.
+#
+# A driver that does not understand --list exits with a usage error, and
+# that is a broken stack too. A check that quietly skips itself when the
+# other side is unfamiliar is the failure this exists to prevent, and
+# --list is part of the interface from the first driver onwards.
+sub _check_series_agreement
+{
+	my $self = shift;
+	my $log = shift;
+	my $patchdir = shift;
+	my $driver = shift;
+	my $name = $self->{driver};
+
+	my @out = eval { run_log(qq{"$^X" "$driver" --list "$patchdir"}) };
+	if ($@)
+	{
+		push(@$log, "$MODULE: running $name --list: $@");
+		$self->{series_status} = 'broken';
+		return 0;
+	}
+	if ($? >> 8)
+	{
+		push(@$log,
+			"$MODULE: $name --list failed, so its reading of"
+			  . " $self->{subdir}/series cannot be checked against ours\n",
+			@out);
+		$self->{series_status} = 'broken';
+		return 0;
+	}
+
+	my @theirs;
+	foreach my $line (@out)
+	{
+		chomp $line;
+		next if $line eq '';
+		my ($pname, $strip) = split(/\t/, $line, 2);
+		push(@theirs, { name => $pname, strip => $strip });
+	}
+
+	my @ours = map {
+		{
+			name => $_->{name},
+			strip => defined $_->{strip} ? $_->{strip} : '-'
+		}
+	} @{ $self->{manifest}{entries} };
+
+	my $agreed = scalar(@ours) == scalar(@theirs);
+	foreach my $i (0 .. $#ours)
+	{
+		last unless $agreed;
+		my $t = $theirs[$i];
+		$agreed = 0
+		  if $ours[$i]{name} ne $t->{name} || $ours[$i]{strip} ne $t->{strip};
+	}
+	return 1 if $agreed;
+
+	# Report both readings in full rather than the first line they differ
+	# on: the point of disagreement is not always where the damage is,
+	# and this is rare enough to be worth the log space.
+	push(@$log,
+			"$MODULE: $name reads $self->{subdir}/series differently than"
+		  . " we do, so what would be applied is not what was digested\n");
+	push(@$log, "$MODULE: our reading:\n");
+	push(@$log, "    $_->{name}\t$_->{strip}\n") foreach @ours;
+	push(@$log, "$MODULE: theirs ($name --list):\n");
+	push(@$log, "    $_->{name}\t$_->{strip}\n") foreach @theirs;
+
+	$self->{series_status} = 'broken';
+	return 0;
+}
+
+# Apply the series ourselves, for a patches repository that carries no
+# driver. See L</DRIVER> for why this is a permanent path and not a
+# fallback waiting to be removed.
+sub _apply_builtin
+{
+	my $self = shift;
+	my $log = shift;
+	my $patchdir = shift;
+	my $sub = $self->{subdir};
+	my $srcdir = $self->{srcdir};
+
+	$self->{applier} = 'git-apply';
+
+	push(@$log, "$MODULE: applying patch series from $patchdir\n");
+
+	my $result = apply_series($self->{manifest}, $patchdir, $srcdir, undef);
+
+	# git apply reports context reduction on a SUCCESSFUL apply, so
+	# carry the output of every entry, not just a failing one.
+	foreach my $a (@{ $result->{applied} })
+	{
+		push(@$log, "  $a->{name}\n");
+		push(@$log, $a->{output}) if defined $a->{output} && $a->{output} ne '';
+	}
+
+	unless ($result->{ok})
+	{
+		my $f = $result->{failure};
+		push(@$log,
+			"$MODULE: $f->{reason}: $sub/$f->{name}\n",
+			defined $f->{detail} ? $f->{detail} : '');
+		$self->{series_status} = 'broken';
+		return 0;
+	}
+
 	$self->{series_status} = 'applied';
 	return 1;
 }
@@ -496,21 +686,63 @@ sub _apply_patches
 # process well before cleanlogs() would run -- so that path writes the
 # log directly, right before send_result(), instead of relying on the
 # hook.
-sub _write_patch_stack_log
+# Build the contents of patch_stack.log as a list of lines. Split out
+# from _write_patch_stack_log so the format can be exercised without a
+# lastrun-logs directory to write into.
+#
+# Header lines must not contain a tab. A server that does not know a key
+# skips it precisely because it matches neither the "key: value" pattern
+# nor the tab-delimited patch pattern, so a tab in a header would be
+# parsed as a bogus patch entry by older servers.
+sub _patch_stack_log_lines
 {
 	my $self = shift;
 
 	my @lines;
-	push(@lines, "patch_stack_id: " . ($self->{patches_id} // '') . "\n");
+	push(@lines, "patch_stack_format: 2\n");
+	push(@lines,
+			"patch_stack_id: "
+		  . (defined $self->{patches_id} ? $self->{patches_id} : '')
+		  . "\n");
+	push(@lines,
+			"patch_stack_commit: "
+		  . (defined $self->{stack_commit} ? $self->{stack_commit} : '')
+		  . "\n");
 	push(@lines,
 		"patch_stack_source: $self->{patches_branch}:$self->{subdir}\n");
 	push(@lines,
-		"patch_stack_status: " . ($self->{series_status} // '') . "\n");
-	foreach my $p (@{ $self->{series_patches} // [] })
+			"patch_stack_status: "
+		  . (defined $self->{series_status} ? $self->{series_status} : '')
+		  . "\n");
+
+	# Which applier ran: the patches repository's own driver, named, or
+	# the built-in loop as "git-apply". Empty when nothing was applied.
+	# A server that predates the key ignores it, as it does any other
+	# key it does not know.
+	push(@lines,
+			"patch_stack_applier: "
+		  . (defined $self->{applier} ? $self->{applier} : '')
+		  . "\n");
+
+	foreach my $p (@{ $self->{series_patches} || [] })
 	{
-		push(@lines, "$p->{name}\t$p->{subject}\n");
+		push(
+			@lines,
+			join("\t",
+				$p->{name},
+				(defined $p->{sha}     ? $p->{sha}     : ''),
+				(defined $p->{subject} ? $p->{subject} : ''))
+			  . "\n"
+		);
 	}
-	writelog('patch_stack', \@lines);
+	return \@lines;
+}
+
+sub _write_patch_stack_log
+{
+	my $self = shift;
+
+	writelog('patch_stack', $self->_patch_stack_log_lines());
 	return;
 }
 
@@ -531,13 +763,13 @@ sub checkout
 		send_result("$MODULE-fetch", 1, $savescmlog);
 	}
 
-	$self->{patches_id} = $self->_patches_id();
+	my $subdir_tree = $self->_subdir_tree();
 	push(@$savescmlog,
 			"$MODULE: $self->{patches_branch}:$self->{subdir} = "
-		  . ($self->{patches_id} || '(absent)')
+		  . ($subdir_tree || '(absent)')
 		  . "\n");
 
-	unless ($self->{patches_id})
+	unless ($subdir_tree)
 	{
 		print time_str(),
 		  "$MODULE: subdirectory '$self->{subdir}' absent in"
@@ -550,6 +782,22 @@ sub checkout
 		# prevent the build without modifying run_build.pl.
 		exit 0;
 	}
+
+	# Compute the series identity before applying anything, so that a
+	# series which fails to apply still has an identity to report.
+	my $manifest = series_manifest($self->{local_repo}, $self->{subdir});
+	$self->{manifest} = $manifest;
+	$self->{patches_id} = $manifest ? $manifest->{id} : '';
+
+	my $commit =
+	  `git -C $self->{local_repo} rev-parse --verify --quiet HEAD 2>$devnull`;
+	chomp $commit;
+	$self->{stack_commit} = $commit;
+
+	push(@$savescmlog,
+			"$MODULE: patches commit $commit, series id "
+		  . ($self->{patches_id} || '(none)')
+		  . "\n");
 
 	my $ok = $self->_apply_patches($savescmlog);
 
@@ -605,27 +853,38 @@ sub cleanup
 {
 	my $self = shift;
 
-	return unless $self->{applied};
-
 	# When rm_worktrees is on the END block has already wiped the
-	# worktree files; running git reset here would just resurrect them.
-	# The imported commits left at HEAD are harmless: the next run's
-	# SCM update (PGBuild::SCM::_update_target) restores the worktree
-	# with "git checkout ." and then "git reset --hard origin/<branch>",
-	# which discards them and returns the tree to pristine upstream
-	# before any build happens.
+	# worktree files; running git commands here would just resurrect
+	# them. The next run's SCM update restores the tree anyway.
 	return if $self->{bfconf}->{rm_worktrees};
 
 	my $srcdir = $self->{srcdir};
 	return unless -d "$srcdir/.git";
 
-	# Reset to the upstream tip captured before quiltimport so the
-	# imported commits are discarded and the worktree is back to
-	# pristine upstream state for the next run.
-	my $target = $self->{pre_apply_sha} || 'HEAD';
-	print time_str(), "$MODULE: resetting $srcdir to $target\n"
-	  if $verbose > 1;
-	run_log("git -C $srcdir reset --hard --quiet $target");
+	return unless $self->{applied};
+
+	# Reset to the commit the tree was on before the series was applied.
+	# The built-in loop creates no commits and never moves HEAD, so
+	# there that is HEAD itself; the driver applies with git am, which
+	# commits, so there it is the recorded starting point.
+	#
+	# A driver run that stopped partway also leaves git am state behind,
+	# which a reset does not clear, so back that out first. The abort
+	# exits nonzero when no am is in progress, which is the ordinary
+	# case, so its status is ignored.
+	#
+	# Resetting restores pristine upstream. Because the patches were
+	# applied with --index (or committed), it also removes files they
+	# added. The clean sweeps anything that escaped: the buildfarm never
+	# builds in the source tree, so nothing untracked there is ours to
+	# keep, and one leaked file would otherwise be compiled on every
+	# subsequent run. -fd rather than -fdx: ignored files are left
+	# alone.
+	print time_str(), "$MODULE: restoring $srcdir\n" if $verbose > 1;
+	my $base = $self->{src_head};
+	run_log("git -C $srcdir am --abort") if $base;
+	run_log("git -C $srcdir reset --hard --quiet " . ($base || 'HEAD'));
+	run_log("git -C $srcdir clean -qfd");
 	return;
 }
 
