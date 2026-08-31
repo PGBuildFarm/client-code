@@ -19,7 +19,11 @@ git repo, with a per-Postgres-branch subdirectory holding a C<series>
 file and the patch files referenced by it (one per line, applied in
 order).
 
-Patches are applied with C<git apply>, one at a time in series order,
+The series is applied by the driver script at the top of the patches
+repository when there is one, and otherwise by this module's own
+C<git apply> loop -- see L</DRIVER> below.
+
+The built-in loop applies the patches one at a time in series order,
 stopping at the first entry that is missing or fails to apply. No
 commits are created and C<HEAD> never moves; the working tree is
 restored after the run.
@@ -48,6 +52,48 @@ for that branch: the run stops there and reports C<PatchStackBroken>,
 naming the entry. C<git quiltimport>, used before this, skipped such
 an entry and exited zero, so a branch could build and report a green
 result with a patch missing from its stack.
+
+=head2 DRIVER
+
+A patch stack that a release wrap will apply should be applied here by
+the same code the wrap runs, so that what the animal tests is what the
+wrap produces rather than something resembling it. That code is a
+script at the top of the patches repository, taking the directory
+holding a C<series> file as its only argument, named C<import-series.pl>
+unless the C<driver> config setting says otherwise.
+
+The name is really an interface between the patches repository and
+every animal that clones it, not an implementation detail of either, so
+the default is what the security farm relies on and the setting exists
+for a repository that has good reason to differ. Configuring one is
+also a statement that the repository has an applier of its own: if the
+named script is not there the run reports C<PatchStackBroken>, rather
+than falling back and reporting a green build for a stack applied by
+something other than what the config asked for. Only the default name
+is allowed to be absent.
+
+C<driver> left undef is the default rather than a setting of its own,
+as for C<local_repo>. Set to an empty string or C<0> it asks for the
+built-in loop and skips the lookup entirely.
+
+The script is run in the source tree -- clean and at upstream's tip at
+that point -- and is handed the materialized copy of the series
+described above, so a shared entry or a symlink is an ordinary file by
+the time it sees one, exactly as on wrap day against a real checkout.
+
+It applies with C<git am>, so C<HEAD> moves and a commit is created per
+patch. C<cleanup> resets to the commit the tree was on beforehand, and
+first clears any C<git am> state left behind by an entry that failed,
+which a reset does not remove. Any nonzero exit is reported as
+C<PatchStackBroken>.
+
+When no driver is configured and the patches repository carries no
+script under the default name, the built-in C<git apply> loop runs
+instead. That is not a transition measure:
+C<PatchStack> is a general module, and a quilt-style repository that no
+release wrap consumes has no reason to carry a driver. Which of the two
+applied the series is recorded in C<patch_stack.log> as
+C<patch_stack_applier>.
 
 =head2 RUN TRIGGER
 
@@ -92,6 +138,11 @@ In the animal's C<build-farm.conf>:
         repo            => 'https://example.org/git/some-patches.git',
         patches_branch  => 'quilt',       # default: quilt
         local_repo      => undef,         # default: <buildroot>/patch_stack.<animal>
+        # the applier the patches repo supplies for itself. Unset or
+        # undef, 'import-series.pl' is used if the repo has one. Named,
+        # the named script must be there or the run reports broken. Set
+        # to '' to use the built-in apply loop and look for nothing.
+        driver          => 'import-series.pl',
         subdir => {
             # map Postgres branch name to subdirectory name in the
             # patches branch. Default for unlisted branches is the
@@ -113,12 +164,25 @@ use PGBuild::SCM;
 use PGBuild::Utils       qw(:DEFAULT $st_prefix $branch_root $devnull);
 use PGBuild::PatchSeries qw(series_manifest materialize_series apply_series);
 
+use Cwd        qw(getcwd);
 use File::Path qw(mkpath);
 
 use strict;
 use warnings;
 
 (my $MODULE = __PACKAGE__) =~ s/PGBuild::Modules:://;
+
+# The name the applier a patches repository supplies for itself is
+# looked for under, at the top of the repository, when the animal's
+# config does not name one. See L</DRIVER>.
+my $DRIVER = 'import-series.pl';
+
+# What each of the driver's documented exit codes means, for the log.
+my %DRIVER_EXIT = (
+	1 => 'patch files named in series are missing',
+	2 => 'usage or setup error',
+	3 => 'a patch failed to apply',
+);
 
 our ($VERSION); $VERSION = 'REL_21';
 
@@ -128,6 +192,27 @@ my $hooks = {
 	'need-run' => \&need_run,
 	'cleanup' => \&cleanup,
 };
+
+# The driver to look for, and whether its absence is an error: a driver
+# named in the config has to be there, because naming one is a statement
+# that this repository has an applier of its own, and falling back from a
+# name that turned out to be wrong would apply the stack with something
+# other than what the config asked for and still report a green build.
+# Left at the default, the name is looked for and its absence is
+# ordinary.
+#
+# undef is the default rather than a setting of its own, as it is for
+# local_repo: an undef in a generated config means the animal has no
+# opinion. An empty string or a 0 is an opinion, and asks for the
+# built-in loop.
+sub _driver_config
+{
+	my $stackconf = shift;
+
+	my $driver = $stackconf->{driver};
+	$driver = $DRIVER unless defined $driver;
+	return ($driver, ($driver && defined $stackconf->{driver}) ? 1 : 0);
+}
 
 sub setup
 {
@@ -153,6 +238,8 @@ sub setup
 	my $local_repo = $stackconf->{local_repo}
 	  || "$buildroot/patch_stack.$conf->{animal}";
 
+	my ($driver, $driver_required) = _driver_config($stackconf);
+
 	my $self = {
 		buildroot => $buildroot,
 		pgbranch => $branch,
@@ -163,10 +250,14 @@ sub setup
 		patches_branch => $stackconf->{patches_branch} || 'quilt',
 		subdir => $subdir,
 		local_repo => $local_repo,
+		driver => $driver,
+		driver_required => $driver_required,
 		applied => 0,
 		patches_id => '',
 		stack_commit => '',
 		manifest => undef,
+		applier => '',
+		src_head => '',
 	};
 	bless($self, $class);
 
@@ -310,7 +401,6 @@ sub _apply_patches
 	my $log = shift;
 	my $local = $self->{local_repo};
 	my $sub = $self->{subdir};
-	my $srcdir = $self->{srcdir};
 	my $patchdir = "$local/$sub";
 
 	unless (-f "$patchdir/series")
@@ -334,6 +424,123 @@ sub _apply_patches
 	# A partially applied series must still be cleaned up, so record
 	# that the tree has been touched before the first patch lands.
 	$self->{applied} = 1;
+
+	my $name = $self->{driver};
+	if ($name)
+	{
+		my $driver = "$local/$name";
+		return $self->_apply_with_driver($log, $patchdir, $driver)
+		  if -f $driver;
+
+		if ($self->{driver_required})
+		{
+			push(@$log, "$MODULE: no $name at the top of $self->{repo}\n");
+			$self->{series_status} = 'broken';
+			return 0;
+		}
+	}
+
+	return $self->_apply_builtin($log, $patchdir);
+}
+
+# Hand the series to the patches repository's own driver, which is what
+# a release wrap runs, so the farm exercises the wrap's applier rather
+# than an imitation of it. Everything the two callers do differently --
+# choosing branches, fetching, resetting to upstream, deciding whether
+# to run at all -- stays out of the driver and on this side.
+#
+# The driver is run in the source tree because that is the tree it acts
+# on: it checks that it is in a clean git working tree and applies with
+# "git am", both of which read the current directory.
+sub _apply_with_driver
+{
+	my $self = shift;
+	my $log = shift;
+	my $patchdir = shift;
+	my $driver = shift;
+	my $srcdir = $self->{srcdir};
+
+	$self->{applier} = $self->{driver};
+
+	# git am moves HEAD, unlike the built-in loop, so record where the
+	# tree started: that, not HEAD, is what cleanup() resets to.
+	my $base = `git -C "$srcdir" rev-parse --verify --quiet HEAD 2>$devnull`;
+	chomp $base;
+	$self->{src_head} = $base;
+
+	push(@$log, "$MODULE: applying patch series from $patchdir with $driver\n");
+
+	# A commit per patch needs an identity to commit as. Supply one only
+	# when git cannot find its own: an animal's git is often unconfigured,
+	# and git's guess from the host name fails outright on a host with no
+	# domain, but an owner who has configured an identity should keep it.
+	# The env vars would otherwise override the config. A patch's own
+	# From: still wins either way -- git am sets the author fields from
+	# the patch before it commits.
+	my %ident;
+	my $have_ident = `git -C "$srcdir" var GIT_COMMITTER_IDENT 2>$devnull`;
+	if ($? >> 8 || !$have_ident)
+	{
+		my $animal = $self->{bfconf}->{animal} || 'buildfarm';
+		%ident = (
+			GIT_COMMITTER_NAME => 'PostgreSQL Buildfarm',
+			GIT_COMMITTER_EMAIL => "$animal\@buildfarm.invalid",
+			GIT_AUTHOR_NAME => 'PostgreSQL Buildfarm',
+			GIT_AUTHOR_EMAIL => "$animal\@buildfarm.invalid",
+		);
+	}
+	local @ENV{ keys %ident } = values %ident;
+
+	# Run the driver with the perl we are running under rather than
+	# relying on the shebang line and an execute bit, neither of which
+	# survives a checkout on every platform an animal runs on.
+	my $here = getcwd();
+	unless (chdir $srcdir)
+	{
+		push(@$log, "$MODULE: cannot chdir to $srcdir: $!\n");
+		$self->{series_status} = 'broken';
+		return 0;
+	}
+	my @out = eval { run_log(qq{"$^X" "$driver" "$patchdir"}) };
+	my $err = $@;
+	my $status = $? >> 8;
+	chdir $here;
+
+	if ($err)
+	{
+		push(@$log, "$MODULE: running $self->{driver}: $err");
+		$self->{series_status} = 'broken';
+		return 0;
+	}
+
+	push(@$log, @out);
+
+	if ($status)
+	{
+		my $why = $DRIVER_EXIT{$status} || 'unknown failure';
+		push(@$log,
+				"$MODULE: $self->{driver} exited $status ($why)"
+			  . " on $self->{subdir}/series\n");
+		$self->{series_status} = 'broken';
+		return 0;
+	}
+
+	$self->{series_status} = 'applied';
+	return 1;
+}
+
+# Apply the series ourselves, for a patches repository that carries no
+# driver. See L</DRIVER> for why this is a permanent path and not a
+# fallback waiting to be removed.
+sub _apply_builtin
+{
+	my $self = shift;
+	my $log = shift;
+	my $patchdir = shift;
+	my $sub = $self->{subdir};
+	my $srcdir = $self->{srcdir};
+
+	$self->{applier} = 'git-apply';
 
 	push(@$log, "$MODULE: applying patch series from $patchdir\n");
 
@@ -403,6 +610,15 @@ sub _patch_stack_log_lines
 	push(@lines,
 			"patch_stack_status: "
 		  . (defined $self->{series_status} ? $self->{series_status} : '')
+		  . "\n");
+
+	# Which applier ran: the patches repository's own driver, named, or
+	# the built-in loop as "git-apply". Empty when nothing was applied.
+	# A server that predates the key ignores it, as it does any other
+	# key it does not know.
+	push(@lines,
+			"patch_stack_applier: "
+		  . (defined $self->{applier} ? $self->{applier} : '')
 		  . "\n");
 
 	foreach my $p (@{ $self->{series_patches} || [] })
@@ -544,15 +760,27 @@ sub cleanup
 
 	return unless $self->{applied};
 
-	# HEAD never moved, so this restores pristine upstream. Because the
-	# patches were applied with --index, it also removes files they
+	# Reset to the commit the tree was on before the series was applied.
+	# The built-in loop creates no commits and never moves HEAD, so
+	# there that is HEAD itself; the driver applies with git am, which
+	# commits, so there it is the recorded starting point.
+	#
+	# A driver run that stopped partway also leaves git am state behind,
+	# which a reset does not clear, so back that out first. The abort
+	# exits nonzero when no am is in progress, which is the ordinary
+	# case, so its status is ignored.
+	#
+	# Resetting restores pristine upstream. Because the patches were
+	# applied with --index (or committed), it also removes files they
 	# added. The clean sweeps anything that escaped: the buildfarm never
 	# builds in the source tree, so nothing untracked there is ours to
 	# keep, and one leaked file would otherwise be compiled on every
 	# subsequent run. -fd rather than -fdx: ignored files are left
 	# alone.
 	print time_str(), "$MODULE: restoring $srcdir\n" if $verbose > 1;
-	run_log("git -C $srcdir reset --hard --quiet HEAD");
+	my $base = $self->{src_head};
+	run_log("git -C $srcdir am --abort") if $base;
+	run_log("git -C $srcdir reset --hard --quiet " . ($base || 'HEAD'));
 	run_log("git -C $srcdir clean -qfd");
 	return;
 }
