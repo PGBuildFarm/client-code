@@ -24,6 +24,26 @@ use JSON::PP;
 
 our ($VERSION); $VERSION = 'REL_21';
 
+# retry/backoff settings for run_web_txn's result-submission POST.
+# Not exposed as build-farm.conf keys.
+use constant {    ## no critic (ProhibitConstantPragma)
+	MAX_ATTEMPTS => 6,    # 1 initial attempt + 5 retries
+	RETRY_DELAY => 60,    # seconds to wait between retries
+};
+
+# A 503 response with "Backend Fetch Failed" as its status line's reason
+# phrase indicates a transient backend-unavailable condition that is
+# worth retrying. The response body is not checked -- it's not a
+# reliable place to look for this. Everything else - other 5xx, 4xx,
+# and network-level failures (which LWP turns into a synthetic
+# response, typically 500) - is not retried.
+sub _is_retryable_failure
+{
+	my $response = shift;
+	return 0 unless $response->code == 503;
+	return $response->status_line =~ /Backend Fetch Failed/i;
+}
+
 sub run_web_txn
 {
 	my $lrname = shift || 'lastrun-logs';
@@ -133,7 +153,18 @@ sub run_web_txn
 	$request->content_type("application/x-www-form-urlencoded");
 	$request->content($content);
 
-	my $response = $ua->request($request);
+	my $response;
+	foreach my $attempt (1 .. MAX_ATTEMPTS)
+	{
+		$response = $ua->request($request);
+		last if $response->is_success;
+		last unless _is_retryable_failure($response);
+		last if $attempt == MAX_ATTEMPTS;
+		print "Web transaction got 503 Backend Fetch Failed, ",
+		  "retrying in ", RETRY_DELAY,
+		  "s (attempt $attempt of ", MAX_ATTEMPTS, ")\n";
+		sleep(RETRY_DELAY);
+	}
 
 	unless ($response->is_success)
 	{
