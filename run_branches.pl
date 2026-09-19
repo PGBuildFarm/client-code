@@ -307,7 +307,7 @@ sub get_branches_of_interest
 		# make sure we have https protocol support if it's required
 		require LWP::Protocol::https if $url =~ /^https:/;
 		my $ua = LWP::UserAgent->new;
-		$ua->agent("Postgres Build Farm Reporter");
+		$ua->agent("Postgres Build Farm Reporter/$VERSION");
 		if (my $proxy = $ENV{BF_PROXY})
 		{
 			my $targetURI = URI->new($url);
