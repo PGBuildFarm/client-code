@@ -2493,8 +2493,15 @@ sub run_tap_test
 	{
 		my $instflags = $temp_inst_ok ? "NO_TEMP_INSTALL=yes" : "";
 
-		@makeout =
-		  run_log("cd $dir && $make NO_LOCALE=1 $pflags $instflags $taptarget");
+		my $flags = "$pflags $instflags";
+
+		# From release 12, "make check" in a PGXS module also runs its
+		# REGRESS and ISOLATION suites, which are run elsewhere. Run only
+		# the TAP tests here.
+		$flags .= " REGRESS= ISOLATION="
+		  if ($branch eq 'HEAD' || $branch ge 'REL_12');
+
+		@makeout = run_log("cd $dir && $make NO_LOCALE=1 $flags $taptarget");
 	}
 
 	my $status = $? >> 8;
