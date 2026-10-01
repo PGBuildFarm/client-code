@@ -814,6 +814,7 @@ my $last_status;
 my $last_run_snap;
 my $last_success_snap;
 my $current_snap;
+my $failed_stage_log;
 my @filtered_files;
 my $savescmlog = "";
 
@@ -3315,6 +3316,18 @@ sub send_res
 	my $full_log = $log;
 	$log = ["log too long - see stage log\n"] if $loglen > 20_000_000;
 
+	# stage logs are not sent for these stages
+	my $send_stage_logs = $stage !~ /CVS|Git|SCM|Pre-run-port-check/;
+
+	# If the log is exactly what is in a stage log, which the server gets
+	# anyway, just name that stage log in the config instead of sending
+	# the log again.
+	if ($stage ne 'OK' && $send_stage_logs)
+	{
+		$failed_stage_log = written_log_file($full_log);
+		$log = [] if $failed_stage_log;
+	}
+
 	unshift(@$log,
 		"Last file mtime in snapshot: ",
 		scalar(gmtime($current_snap)),
@@ -3334,7 +3347,7 @@ sub send_res
 	{
 		$confsum = $saved_config;
 	}
-	elsif ($stage !~ /CVS|Git|SCM|Pre-run-port-check/)
+	elsif ($send_stage_logs)
 	{
 		$confsum = get_config_summary();
 	}
@@ -3383,7 +3396,7 @@ sub send_res
 		}
 	}
 
-	if ($stage !~ /CVS|Git|SCM|Pre-run-port-check/)
+	if ($send_stage_logs)
 	{
 
 		chdir($lrname);
@@ -3529,6 +3542,7 @@ sub get_script_config_dump
 		eval $str;
 	}
 	$conf->{module_versions} = \%versions;
+	$conf->{failed_stage_log} = $failed_stage_log if $failed_stage_log;
 	$conf->{skip_steps} = join(" ", keys %skip_steps) if %skip_steps;
 	$conf->{only_steps} = join(" ", keys %only_steps) if %only_steps;
 	no warnings qw(once);    # silence old perls about following line

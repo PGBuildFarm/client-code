@@ -30,7 +30,7 @@ our ($VERSION); $VERSION = 'REL_21';
 use Exporter qw(import);
 our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 @EXPORT = qw(run_log time_str process_module_hooks register_module_hooks
-  get_stack_trace cleanlogs writelog
+  get_stack_trace cleanlogs writelog written_log_file
   set_last find_last step_wanted send_result
   file_lines file_contents check_make_log_warnings
   find_in_path $log_file_marker set_last_stage get_last_stage
@@ -43,6 +43,10 @@ our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 );
 
 my %module_hooks;
+
+# the file name and lines of the log last written by writelog()
+my ($last_log_file, $last_log_lines);
+
 our (
 	$core_file_glob, $st_prefix, $logdirname, $branch_root,
 	$steps_completed, %skip_steps, %only_steps, $tmpdir,
@@ -282,7 +286,16 @@ sub writelog
 	open($handle, '>', "$lrname/$fname") || die "opening $lrname/$fname: $!";
 	print $handle @$loglines;
 	close($handle);
+	($last_log_file, $last_log_lines) = ($fname, $loglines);
 	return;
+}
+
+# if $loglines is the log last written by writelog(), return its file name
+sub written_log_file
+{
+	my $loglines = shift;
+	return unless $last_log_lines && $loglines == $last_log_lines;
+	return $last_log_file;
 }
 
 sub check_make_log_warnings
