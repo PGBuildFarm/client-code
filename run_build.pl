@@ -2299,11 +2299,12 @@ sub make_misc_check
 
 		# skip redundant TAP tests which are called elsewhere
 		my @out = run_log("cd $dir && $make $instflags TAP_TESTS= check");
-		$status ||= $? >> 8;
+		my $module_status = $? >> 8;
+		$status ||= $module_status;
 		push(@checklog, "=========== Module $test check =============\n", @out);
 		my @logs =
 		  glob("$dir/*.diffs $dir/*/*.diffs $dir/log/*.log $dir/*/log/*.log");
-		$log->add_log($_) foreach (@logs);
+		$log->add_logs($module_status, @logs);
 	}
 	push(@checklog, $log->log_string);
 	return unless ($status || @checklog);
@@ -2348,7 +2349,7 @@ sub make_testmodules_install_check
 		glob("$pgsql/src/test/modules/*/tmp_check/log/*")
 	);
 	push(@logs, "inst/logfile") if $status;
-	$log->add_log($_) foreach (@logs);
+	$log->add_logs($status, @logs);
 	if ($status)
 	{
 		my @trace = get_stack_trace("$installdir/bin", "$installdir/data");
@@ -2434,7 +2435,7 @@ sub make_isolation_check
 	  if (-e "$pgsql/src/test/isolation/regression.diffs");
 	unshift(@logs, "$pgsql/src/test/isolation/output_iso/regression.diffs")
 	  if (-e "$pgsql/src/test/isolation/output_iso/regression.diffs");
-	$log->add_log($_) foreach (@logs);
+	$log->add_logs($status, @logs);
 	if ($status)
 	{
 		my @trace =
@@ -2513,7 +2514,7 @@ sub run_tap_test
 
 	my @logs = glob("$dir/tmp_check/log/* $dir/log/*");
 
-	$log->add_log($_) foreach (@logs);
+	$log->add_logs($status, @logs);
 
 	if ($status)
 	{
@@ -2694,7 +2695,9 @@ sub make_check
 	  );
 	unshift @logs, "$_/regression.diffs"
 	  foreach ("$pgsql/src/test/regress", "$pgsql/testrun/regress/regress");
-	$log->add_log($_) foreach (@logs);
+
+	# meson output is unchanged for now
+	$log->add_logs($status || $using_meson, @logs);
 	my $base = "$pgsql/src/test/regress/tmp_check";
 	if ($status)
 	{
@@ -2751,7 +2754,7 @@ sub make_ecpg_check
 	my @logs = glob("$ecpg_dir/test/log/*.log");
 	unshift(@logs, "$ecpg_dir/test/regression.diffs")
 	  if (-e "$ecpg_dir/test/regression.diffs");
-	$log->add_log($_) foreach (@logs);
+	$log->add_logs($status, @logs);
 	if ($status)
 	{
 		my $base = "$ecpg_dir/test/regress/tmp_check";

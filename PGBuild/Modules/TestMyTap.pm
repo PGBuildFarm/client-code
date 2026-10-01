@@ -160,7 +160,7 @@ sub installcheck
 
 	my @logs = glob("$self->{where}/tmp_check/log/* $self->{where}/log/*");
 	my $log = PGBuild::Log->new("$testset-installcheck");
-	$log->add_log($_) foreach @logs;
+	$log->add_logs($status, @logs);
 	push(@log, $log->log_string);
 	writelog("$testset-install-check", \@log);
 	print "======== testset $testset installcheck log ===========\n", @log

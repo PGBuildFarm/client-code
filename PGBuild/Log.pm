@@ -26,6 +26,7 @@ our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
 @EXPORT_OK = ();
 
 use PGBuild::Utils;
+use File::Basename;
 
 sub print_header_line
 {
@@ -70,6 +71,29 @@ sub add_log_lines
 	my $list = $self->{files};
 	my $fobj = { name => $logfile, contents => $contents };
 	push(@$list, $fobj);
+	return;
+}
+
+# Does this log file, from position $pos on, report any valgrind errors?
+# Only looks if valgrind is in use.
+sub has_valgrind_errors
+{
+	my ($file, $pos) = @_;
+	return 0 unless $PGBuild::conf{use_valgrind} && -e $file;
+	my $contents = file_contents($file, $pos) || "";
+	return $contents =~ /VALGRINDERROR-/ ? 1 : 0;
+}
+
+# Add these log files. If the step passed, add only the TAP tests'
+# regress_log_* files, and any other file that reports valgrind errors.
+sub add_logs
+{
+	my ($self, $status, @logfiles) = @_;
+	@logfiles =
+	  grep { basename($_) =~ /^regress_log_/ || has_valgrind_errors($_) }
+	  @logfiles
+	  unless $status;
+	$self->add_log($_) foreach (@logfiles);
 	return;
 }
 

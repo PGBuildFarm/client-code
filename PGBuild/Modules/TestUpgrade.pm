@@ -128,6 +128,8 @@ sub check
 		@checklog = run_log($cmd);
 	}
 
+	my $status = $? >> 8;
+
 	my $log = PGBuild::Log->new("check-pg_upgrade");
 
 	# This list tries to cover all the places that upgrade regression diffs
@@ -142,9 +144,7 @@ sub check
          $self->{pgsql}/src/bin/pg_upgrade/tmp_check/data/pg_upgrade_output.d/log/*
          $self->{pgsql}/src/test/regress/*.diffs"
 	);
-	$log->add_log($_) foreach (@logfiles);
-
-	my $status = $? >> 8;
+	$log->add_logs($status, @logfiles);
 
 	if ($status && !$self->{bfconf}->{using_msvc})
 	{

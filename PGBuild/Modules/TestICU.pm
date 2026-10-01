@@ -103,7 +103,10 @@ sub installcheck
 
 	my $log = PGBuild::Log->new("install-check-ICU-$locale");
 
-	my @logfiles = ("$pgsql/src/test/regress/regression.diffs", "inst/logfile");
+	my @logfiles = ("$pgsql/src/test/regress/regression.diffs");
+	push(@logfiles, "inst/logfile")
+	  if $status
+	  || PGBuild::Log::has_valgrind_errors("inst/logfile", $logpos);
 	foreach my $logfile (@logfiles)
 	{
 		my $lpos = 0;
