@@ -9,7 +9,7 @@ See accompanying License file for license details
 
 Shared reading of a "quilt-style" patch-stack repository: resolving a
 C<series> entry to the patch content it actually names, parsing the
-C<series> file, and computing a stable identity for a branch's series.
+C<series> file, and copying the patches a series names out of git.
 
 Used by both C<PGBuild::Modules::PatchStack> (which applies the series)
 and C<check_patch_stack.pl> (which checks that it applies). Those two
@@ -34,7 +34,6 @@ package PGBuild::PatchSeries;
 use strict;
 use warnings;
 
-use Digest::SHA    qw(sha1_hex);
 use File::Path     qw(mkpath);
 use File::Basename qw(dirname);
 
@@ -161,22 +160,24 @@ sub parse_series
 }
 
 # Build the manifest for one branch's subdirectory: what every entry in
-# the series resolves to, in series order, plus a digest over the lot.
-# Returns undef when the subdirectory has no resolvable series file.
+# the series resolves to, in series order. Returns undef when the
+# subdirectory has no resolvable series file.
 #
-# The digest is what the buildfarm compares to decide whether a branch's
-# stack has changed. It is computed from resolved blob SHAs rather than
-# from the subdirectory's tree SHA, so that a patch shared from another
-# branch by a "../master/foo.patch" entry triggers this branch when its
-# content changes. A subdirectory tree SHA does not move in that case,
-# because the series blob still holds the same text -- which is why such
-# branches were not being rebuilt.
+# $reader, when given, is the reading of the series file to use instead
+# of parse_series(): a code ref called with the series text and
+# returning a list of { name => , strip => } hashrefs in series order,
+# or dying if it cannot read it. A patches repository that supplies its
+# own applier also supplies its own reading of series, and the buildfarm
+# client passes that in here so the entries it resolves, materializes
+# and reports are the ones the applier will apply, rather than its own
+# parse of the same file.
 #
-# Only patches this branch actually names contribute, so an unrelated
-# change elsewhere in the patches repo does not cause a build here.
+# The manifest carries no identity for the series. Whether a branch's
+# stack has changed is decided from what applying it did to the source
+# tree; see PGBuild::Modules::PatchStack.
 sub series_manifest
 {
-	my ($repo, $subdir) = @_;
+	my ($repo, $subdir, $reader) = @_;
 
 	my ($series_path, $series_sha) =
 	  resolve_patch_path($repo, "$subdir/series");
@@ -184,7 +185,7 @@ sub series_manifest
 
 	my @entries;
 	my $blob = git_blob($repo, $series_path);
-	my @parsed = parse_series($blob);
+	my @parsed = $reader ? $reader->($blob) : parse_series($blob);
 
 	foreach my $e (@parsed)
 	{
@@ -196,8 +197,7 @@ sub series_manifest
 		# when matching context, since it was written against a different
 		# branch; a patch stored here was written for here and should
 		# apply exactly.
-		my $shared =
-		  (defined $path && $path ne "$subdir/$e->{name}") ? 1 : 0;
+		my $shared = (defined $path && $path ne "$subdir/$e->{name}") ? 1 : 0;
 
 		push(
 			@entries,
@@ -212,22 +212,10 @@ sub series_manifest
 		);
 	}
 
-	# Canonical text behind the digest. Series order is preserved, so a
-	# reordering registers as a change. An entry that does not resolve
-	# contributes the literal "missing" rather than an empty field, so
-	# the digest moves again once the patch appears.
-	my $canon = "series\t$series_sha\n";
-	foreach my $e (@entries)
-	{
-		$canon .=
-		  "$e->{name}\t" . ($e->{missing} ? 'missing' : $e->{sha}) . "\n";
-	}
-
 	return {
 		series_path => $series_path,
 		series_sha => $series_sha,
 		entries => \@entries,
-		id => sha1_hex($canon),
 	};
 }
 
@@ -364,8 +352,8 @@ sub apply_series
 		# matches in full is applied in full either way.
 		my $context = $e->{shared} ? '-C1' : '-C3';
 
-		my @out = run_log(
-			qq{git -C "$srcdir" apply --index $context $strip-- "$file"},
+		my @out =
+		  run_log(qq{git -C "$srcdir" apply --index $context $strip-- "$file"},
 			$logdir);
 		my $status = $? >> 8;
 		my $text = join('', @out);
