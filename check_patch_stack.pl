@@ -190,7 +190,7 @@ if ($manifest_only)
 			printf "  %-28s %s%s\n", $e->{name}, substr($e->{sha}, 0, 7),
 			  $where;
 		}
-		print "  patch_stack_id: $manifest->{id}\n\n";
+		print "\n";
 	}
 	exit($bad ? 1 : 0);
 }
@@ -461,9 +461,8 @@ Options:
                      (default 1)
   --sequential       apply patches cumulatively in series order (in a
                      scratch worktree), stopping at the first failure
-  --manifest         print each series' resolved blob SHAs and the
-                     identity the buildfarm uses to detect changes,
-                     then exit; <buildroot> is not required
+  --manifest         print each series' resolved blob SHAs, then exit;
+                     <buildroot> is not required
   --verbose          show git apply diagnostics for failing patches
   --help             this message
 

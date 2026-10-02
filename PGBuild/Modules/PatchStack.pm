@@ -81,17 +81,14 @@ that point -- and is handed the materialized copy of the series
 described above, so a shared entry or a symlink is an ordinary file by
 the time it sees one, exactly as on wrap day against a real checkout.
 
-Before anything is applied, the driver is run with C<--list>, which
-prints its own reading of the C<series> file and exits without touching
-anything: one line per entry, in order, the name and the strip level
-separated by a tab, C<-> where the line gave no level. That is compared
-against the reading behind the manifest, and a disagreement is reported
-with both readings and nothing applied. Two programs parse the same
-file -- we do because the rebuild digest and the list of blobs to
-materialize come out of it, the driver does because its reading is what
-gets applied -- and nothing else would notice if they differed. A driver
-that does not understand C<--list> is reported the same way, rather than
-skipping the check.
+The driver's reading of the C<series> file is the only one used when
+there is a driver. It is asked for with C<--list>, which prints that
+reading and exits without touching anything: one line per entry, in
+order, the name and the strip level separated by a tab, C<-> where the
+line gave no level. The names it prints are what get copied out of git,
+logged, and reported, so nothing the module records about a series can
+describe a different set of patches from the one the driver applied. A
+driver that does not understand C<--list> is a broken stack.
 
 It applies with C<git am>, so C<HEAD> moves and a commit is created per
 patch. C<cleanup> resets to the commit the tree was on beforehand, and
@@ -109,38 +106,36 @@ C<patch_stack_applier>.
 
 =head2 RUN TRIGGER
 
-The module forces a run whenever the identity of this branch's patch
-series differs from the value recorded on the previous run. That
-identity is a digest over the resolved blob SHA of every patch the
-series names, in order -- not the git tree SHA of the branch's
-subdirectory.
+The series is applied on every run, before the decision whether to
+build is made -- the C<checkout> hook fires unconditionally, and
+C<run_branches.pl> declines to prune branches when this module is
+configured. So rather than predict whether the stack has changed from
+the C<series> file and the patches it names, the module looks at what
+applying it did, and forces a run whenever that differs from the
+previous run's.
 
-The distinction matters when a patch is shared between branches. A
-series entry may name a patch in another branch's subdirectory, as
-C<../master/foo.patch>. Editing that patch does not change the
-referring branch's subdirectory tree, because the C<series> blob still
-holds the same text, so a tree-SHA trigger never fired and the branch
-was neither rebuilt nor retested against the changed patch.
-
-The series was still applied on every run -- the C<checkout> hook fires
-unconditionally, and C<run_branches.pl> declines to prune branches when
-this module is configured -- so a patch that had stopped applying was
-still reported as C<PatchStackBroken>. What was missing was any
-verification that the patched tree still built and passed its tests,
-and any record of which stack content had been exercised.
-
-Digesting resolved content instead tracks what the branch would
-actually apply. Patches the branch does not name contribute nothing, so
-an unrelated change elsewhere in the patches repo still does not cause
-a build here.
+What it compares is a digest of the net change the series made to the
+source tree: the diff from the commit the tree was on before anything
+was applied to the patched tree, with the hunk line numbers and the
+C<index> lines taken out. Those are the parts of the diff that move
+when upstream changes something nearby without changing what the
+patches do, so a commit upstream that the animal's trigger filters
+exclude does not force a build through this route either. Anything
+that changes the patched result does: an edited patch, including one
+reached through a C<../master/foo.patch> entry, a patch added, removed
+or reordered, or a patch now applying somewhere different.
 
 This is in addition to the usual upstream-branch trigger, so a build
-kicks off when either the upstream branch or the patch series moves.
+kicks off when either the upstream branch or the patched result moves.
 
-The identity changed shape when content digests replaced subdirectory
-tree SHAs. On the first run after upgrading from an earlier client,
-the recorded value is a tree SHA and the computed one is a digest, so
-each configured branch rebuilds once and then settles.
+A stack that fails to apply has no such result, so it reports an empty
+C<patch_stack_id>. That costs nothing: a broken stack is reported on
+every run without reaching the build decision.
+
+The identity changed shape when it moved from a digest of the C<series>
+content to a digest of the applied result. On the first run after
+upgrading from an earlier client the recorded value no longer matches,
+so each configured branch rebuilds once and then settles.
 
 =head2 CONFIGURATION
 
@@ -176,8 +171,10 @@ use PGBuild::SCM;
 use PGBuild::Utils       qw(:DEFAULT $st_prefix $branch_root $devnull);
 use PGBuild::PatchSeries qw(series_manifest materialize_series apply_series);
 
-use Cwd        qw(getcwd);
-use File::Path qw(mkpath);
+use Cwd         qw(getcwd);
+use Digest::SHA qw(sha1_hex);
+use File::Path  qw(mkpath);
+use File::Temp  qw(tempdir);
 
 use strict;
 use warnings;
@@ -323,10 +320,10 @@ sub _fetch_or_clone
 
 # Tree SHA of this branch's subdirectory in the patches branch, or empty
 # string if the subdirectory is not there at all. Used only to decide
-# whether this branch has a stack; the identity that decides whether the
-# stack has *changed* is the content digest from series_manifest(),
-# because a subdirectory tree SHA does not move when a patch reached by
-# a "../master/foo.patch" series entry is edited.
+# whether this branch has a stack; whether the stack has *changed* is
+# decided from what applying it did (see L</RUN TRIGGER>), because a
+# subdirectory tree SHA does not move when a patch reached by a
+# "../master/foo.patch" series entry is edited.
 sub _subdir_tree
 {
 	my $self = shift;
@@ -338,8 +335,8 @@ sub _subdir_tree
 	return $id;
 }
 
-# Log the patch series from the manifest computed in checkout(), rather
-# than a fresh read of series, one line per patch: the file name (as
+# Log the patch series from the manifest built in _apply_patches() --
+# the driver's reading of series where there is a driver -- one line per patch: the file name (as
 # listed in series) followed by the subject. We derive the subject the
 # same way quiltimport does for the commit it creates -- via
 # "git mailinfo", which unwraps the header and strips any "[PATCH ...]"
@@ -413,23 +410,45 @@ sub _apply_patches
 	my $log = shift;
 	my $local = $self->{local_repo};
 	my $sub = $self->{subdir};
-	my $patchdir = "$local/$sub";
 
-	unless (-f "$patchdir/series")
+	unless (-f "$local/$sub/series")
 	{
-		push(@$log, "$MODULE: no series file at $patchdir/series\n");
+		push(@$log, "$MODULE: no series file at $local/$sub/series\n");
 		$self->{series_status} = 'no-series';
 		return 1;
 	}
 
-	my $resolved = eval { $self->_build_resolved_dir($log) };
+	# Settle which applier runs before reading the series, because with a
+	# driver it is the driver's reading that gets used.
+	my $driver;
+	my $name = $self->{driver};
+	if ($name)
+	{
+		$driver = "$local/$name";
+		unless (-f $driver)
+		{
+			if ($self->{driver_required})
+			{
+				push(@$log, "$MODULE: no $name at the top of $self->{repo}\n");
+				$self->{series_status} = 'broken';
+				return 0;
+			}
+			undef $driver;
+		}
+	}
+	$self->{applier} = $driver ? $name : 'git-apply';
+
+	my $reader = $driver ? $self->_driver_reader($driver) : undef;
+	my $patchdir = eval {
+		$self->{manifest} = series_manifest($local, $sub, $reader);
+		$self->_build_resolved_dir($log);
+	};
 	if ($@)
 	{
 		push(@$log, "$MODULE: $@");
 		$self->{series_status} = 'broken';
 		return 0;
 	}
-	$patchdir = $resolved;
 
 	$self->{series_patches} = $self->_log_series($log, $patchdir);
 
@@ -437,22 +456,97 @@ sub _apply_patches
 	# that the tree has been touched before the first patch lands.
 	$self->{applied} = 1;
 
-	my $name = $self->{driver};
-	if ($name)
+	my $ok =
+		$driver
+	  ? $self->_apply_with_driver($log, $patchdir, $driver)
+	  : $self->_apply_builtin($log, $patchdir);
+	return 0 unless $ok;
+
+	$self->{patches_id} = eval { $self->_applied_id() };
+	if ($@)
 	{
-		my $driver = "$local/$name";
-		return $self->_apply_with_driver($log, $patchdir, $driver)
-		  if -f $driver;
-
-		if ($self->{driver_required})
-		{
-			push(@$log, "$MODULE: no $name at the top of $self->{repo}\n");
-			$self->{series_status} = 'broken';
-			return 0;
-		}
+		push(@$log, "$MODULE: $@");
+		$self->{series_status} = 'broken';
+		return 0;
 	}
+	return 1;
+}
 
-	return $self->_apply_builtin($log, $patchdir);
+# A series reader for series_manifest() that asks the driver, so that
+# where there is a driver its reading is the only one in play. See
+# L</DRIVER>.
+#
+# The driver's --list reads SERIES_DIR/series, so the text is written
+# to a scratch directory of its own rather than handing over the
+# checkout: the series file there may be a symlink, which on some
+# platforms checks out as a small file holding its target's path.
+sub _driver_reader
+{
+	my $self = shift;
+	my $driver = shift;
+	my $name = $self->{driver};
+	my $sub = $self->{subdir};
+
+	return sub {
+		my $text = shift;
+
+		my $dir = tempdir("patch_stack_list.XXXXXX", TMPDIR => 1, CLEANUP => 1);
+		open(my $fh, '>', "$dir/series") or die "writing $dir/series: $!\n";
+		binmode $fh;
+		print $fh $text;
+		close $fh;
+
+		my @out = run_log(qq{"$^X" "$driver" --list "$dir"});
+		die "$name --list failed, so $sub/series has no reading to apply\n",
+		  @out
+		  if $? >> 8;
+
+		my @entries;
+		foreach my $line (@out)
+		{
+			chomp $line;
+			next if $line eq '';
+			my ($pname, $strip) = split(/\t/, $line, 2);
+			$strip = undef if !defined $strip || $strip eq '-';
+			push(@entries, { name => $pname, strip => $strip });
+		}
+		return @entries;
+	};
+}
+
+# The identity of what this run applied: a digest of the net change the
+# series made to the source tree, compared by need_run() against the
+# previous run's. See L</RUN TRIGGER>.
+#
+# The diff is taken from the commit the tree started on to the index,
+# which covers both appliers: the built-in loop applies with --index and
+# leaves HEAD alone, and the driver's git am commits, after which the
+# index matches the new HEAD. Every option that git would otherwise
+# take from the animal's own config is spelled out, so that the digest
+# changes only when the diff does.
+#
+# Hunk line numbers and "index" lines are dropped before digesting:
+# both change when upstream edits a patched file somewhere else, which
+# does not change what the patches do. The function-name text after a
+# hunk header is kept, since it is part of the context.
+sub _applied_id
+{
+	my $self = shift;
+	my $srcdir = $self->{srcdir};
+	my $base = $self->{src_head} || 'HEAD';
+
+	my $diff =
+	  `git -C "$srcdir" diff --cached --binary --no-color --no-ext-diff --no-renames --no-relative -U3 --diff-algorithm=default --src-prefix=a/ --dst-prefix=b/ $base 2>$devnull`;
+	die "taking the diff of the applied series\n" if $? >> 8;
+
+	my $canon = '';
+	foreach my $line (split(/\n/, $diff))
+	{
+		next if $line =~ /^index /;
+		$line =~ s/^\@\@ -\d+(?:,\d+)? \+\d+(?:,\d+)? \@\@/\@\@/;
+		$canon .= "$line\n";
+	}
+	return $canon eq '' ? '' : sha1_hex($canon);
 }
 
 # Hand the series to the patches repository's own driver, which is what
@@ -471,10 +565,6 @@ sub _apply_with_driver
 	my $patchdir = shift;
 	my $driver = shift;
 	my $srcdir = $self->{srcdir};
-
-	$self->{applier} = $self->{driver};
-
-	return 0 unless $self->_check_series_agreement($log, $patchdir, $driver);
 
 	# git am moves HEAD, unlike the built-in loop, so record where the
 	# tree started: that, not HEAD, is what cleanup() resets to.
@@ -543,95 +633,6 @@ sub _apply_with_driver
 	return 1;
 }
 
-# Check the driver's reading of the series against our own before
-# anything is applied.
-#
-# Two programs parse the same series file. We parse it because the
-# digest that decides whether this branch rebuilds, and the list of
-# blobs to materialize, both come out of that reading; the driver parses
-# it because that reading is what gets applied. Nothing would otherwise
-# notice if the two read a line differently, and they have: a strip
-# level written past the "#" that starts a comment -- where the security
-# stacks keep a redmine id -- was a level to us and comment text to
-# quilt, so the farm would have applied a patch at a level no wrap would
-# use and reported a green build for it.
-#
-# The driver's --list prints its reading and exits without touching
-# anything: one line per entry, in series order, the name and the strip
-# level separated by a tab, with "-" where the line gave no level. It is
-# run against the materialized copy, which holds a byte copy of the
-# series blob we parsed, so the two are reading the same text.
-#
-# A driver that does not understand --list exits with a usage error, and
-# that is a broken stack too. A check that quietly skips itself when the
-# other side is unfamiliar is the failure this exists to prevent, and
-# --list is part of the interface from the first driver onwards.
-sub _check_series_agreement
-{
-	my $self = shift;
-	my $log = shift;
-	my $patchdir = shift;
-	my $driver = shift;
-	my $name = $self->{driver};
-
-	my @out = eval { run_log(qq{"$^X" "$driver" --list "$patchdir"}) };
-	if ($@)
-	{
-		push(@$log, "$MODULE: running $name --list: $@");
-		$self->{series_status} = 'broken';
-		return 0;
-	}
-	if ($? >> 8)
-	{
-		push(@$log,
-			"$MODULE: $name --list failed, so its reading of"
-			  . " $self->{subdir}/series cannot be checked against ours\n",
-			@out);
-		$self->{series_status} = 'broken';
-		return 0;
-	}
-
-	my @theirs;
-	foreach my $line (@out)
-	{
-		chomp $line;
-		next if $line eq '';
-		my ($pname, $strip) = split(/\t/, $line, 2);
-		push(@theirs, { name => $pname, strip => $strip });
-	}
-
-	my @ours = map {
-		{
-			name => $_->{name},
-			strip => defined $_->{strip} ? $_->{strip} : '-'
-		}
-	} @{ $self->{manifest}{entries} };
-
-	my $agreed = scalar(@ours) == scalar(@theirs);
-	foreach my $i (0 .. $#ours)
-	{
-		last unless $agreed;
-		my $t = $theirs[$i];
-		$agreed = 0
-		  if $ours[$i]{name} ne $t->{name} || $ours[$i]{strip} ne $t->{strip};
-	}
-	return 1 if $agreed;
-
-	# Report both readings in full rather than the first line they differ
-	# on: the point of disagreement is not always where the damage is,
-	# and this is rare enough to be worth the log space.
-	push(@$log,
-			"$MODULE: $name reads $self->{subdir}/series differently than"
-		  . " we do, so what would be applied is not what was digested\n");
-	push(@$log, "$MODULE: our reading:\n");
-	push(@$log, "    $_->{name}\t$_->{strip}\n") foreach @ours;
-	push(@$log, "$MODULE: theirs ($name --list):\n");
-	push(@$log, "    $_->{name}\t$_->{strip}\n") foreach @theirs;
-
-	$self->{series_status} = 'broken';
-	return 0;
-}
-
 # Apply the series ourselves, for a patches repository that carries no
 # driver. See L</DRIVER> for why this is a permanent path and not a
 # fallback waiting to be removed.
@@ -642,8 +643,6 @@ sub _apply_builtin
 	my $patchdir = shift;
 	my $sub = $self->{subdir};
 	my $srcdir = $self->{srcdir};
-
-	$self->{applier} = 'git-apply';
 
 	push(@$log, "$MODULE: applying patch series from $patchdir\n");
 
@@ -783,23 +782,17 @@ sub checkout
 		exit 0;
 	}
 
-	# Compute the series identity before applying anything, so that a
-	# series which fails to apply still has an identity to report.
-	my $manifest = series_manifest($self->{local_repo}, $self->{subdir});
-	$self->{manifest} = $manifest;
-	$self->{patches_id} = $manifest ? $manifest->{id} : '';
-
 	my $commit =
 	  `git -C $self->{local_repo} rev-parse --verify --quiet HEAD 2>$devnull`;
 	chomp $commit;
 	$self->{stack_commit} = $commit;
-
-	push(@$savescmlog,
-			"$MODULE: patches commit $commit, series id "
-		  . ($self->{patches_id} || '(none)')
-		  . "\n");
+	push(@$savescmlog, "$MODULE: patches commit $commit\n");
 
 	my $ok = $self->_apply_patches($savescmlog);
+	push(@$savescmlog,
+		"$MODULE: applied result id "
+		  . ($self->{patches_id} || '(none)') . "\n")
+	  if $ok;
 
 	unless ($ok)
 	{
