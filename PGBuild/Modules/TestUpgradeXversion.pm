@@ -99,6 +99,16 @@ sub run_psql    ## no critic (Subroutines::ProhibitManyArgs)
 	return;    # callers can check $?
 }
 
+# Stop a server.  Callers can check $?, and since this returns nothing,
+# error paths can stop the server and fail in one go with
+# "return stop_server(...) if $?;".
+sub stop_server
+{
+	my ($pg_ctl, $datadir, $logfile) = @_;
+	system(qq{"$pg_ctl" -D "$datadir" -w stop >> "$logfile" 2>&1});
+	return;
+}
+
 sub dbnames
 {
 	my $loc = shift;
@@ -303,6 +313,11 @@ sub save_for_testing
 
 	return if $?;
 
+	# use a different logfile here to get around windows sharing issue
+	my @stop_args = (
+		"$installdir/bin/pg_ctl", "$installdir/data-C", "$upgrade_loc/ctl2.log"
+	);
+
 	# fix the regression database so its functions point to $libdir rather than
 	# the source directory, which won't persist past this build.
 
@@ -325,7 +340,11 @@ sub save_for_testing
 		last if ($self->{bfconf}->{using_msvc});    # windows install adds these
 		my $dest = "$installdir/lib/postgresql/" . basename($lib);
 		copy($lib, $dest);
-		die "cannot find $dest (from $lib)" unless -e $dest;
+		unless (-e $dest)
+		{
+			stop_server(@stop_args);
+			die "cannot find $dest (from $lib)";
+		}
 		chmod 0755, $dest;
 	}
 
@@ -340,7 +359,7 @@ sub save_for_testing
 	run_psql("$installdir/bin/psql", "-A -t -e", $sql, "regression",
 		"$upgrade_loc/fix.log", 1);
 
-	return if $?;
+	return stop_server(@stop_args) if $?;
 
 	my $dblink = (grep { /_dblink$/ } keys %dbnames)[0];
 
@@ -349,12 +368,10 @@ sub save_for_testing
 	{
 		run_psql("$installdir/bin/psql", "-A -t -e", $sql,
 			$dblink, "$upgrade_loc/fix.log", 1);
-		return if $?;
+		return stop_server(@stop_args) if $?;
 	}
 
-	# use a different logfile here to get around windows sharing issue
-	system( qq{"$installdir/bin/pg_ctl" -D "$installdir/data-C" -w stop }
-		  . qq{>> "$upgrade_loc/ctl2.log" 2>&1});
+	stop_server(@stop_args);
 	return if $?;
 
 	my $have_lz4 = system(qq{lz4 --version > $devnull 2>&1}) == 0;
@@ -491,6 +508,12 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 	return if $?;
 
+	my @stop_args = (
+		"$other_branch/inst/bin/pg_ctl",
+		"$other_branch/inst/$upgrade_test",
+		"$upgrade_loc/$oversion-ctl2.log"
+	);
+
 	run_psql("psql", "-A -t", "show port", "postgres",
 		"$upgrade_loc/sport.dat");
 	my $sport = file_contents("$upgrade_loc/sport.dat");
@@ -511,7 +534,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 
 			run_psql("$other_branch/inst/bin/psql", "-e -v ON_ERROR_STOP=1",
 				$upcmds, $updb, "$upgrade_loc/$oversion-fix.log", 1);
-			return if $?;
+			return stop_server(@stop_args) if $?;
 		}
 	}
 
@@ -534,13 +557,11 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	system( qq{"$installdir/bin/pg_dumpall" $dump_opts -p $sport -f }
 		  . qq{"$upgrade_loc/origin-$oversion.sql" }
 		  . qq{> "$upgrade_loc/$oversion-dump1.log" 2>&1});
-	return if $?;
+	return stop_server(@stop_args) if $?;
 	delete $ENV{PGMAXPROTOCOLVERSION};
 	setinstenv($self, "$other_branch/inst", $save_env);
 
-	system( qq{"$other_branch/inst/bin/pg_ctl" -D }
-		  . qq{"$other_branch/inst/$upgrade_test" -w stop }
-		  . qq{>> "$upgrade_loc/$oversion-ctl2.log" 2>&1});
+	stop_server(@stop_args);
 	return if $?;
 	setinstenv($self, $installdir, $save_env);
 
@@ -615,19 +636,25 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 		  . qq{>> "$upgrade_loc/$oversion-ctl3.log" 2>&1});
 	return if $?;
 
+	@stop_args = (
+		"$installdir/bin/pg_ctl",
+		"$installdir/$oversion-upgrade",
+		"$upgrade_loc/$oversion-ctl4.log"
+	);
+
 	unless ($this_branch ge 'REL_18_STABLE' || $this_branch eq 'HEAD')
 	{
 		if (-e "$installdir/analyze_new_cluster.sh")
 		{
 			system( "cd $installdir && sh ./analyze_new_cluster.sh "
 				  . qq{> "$upgrade_loc/$oversion-analyse.log" 2>&1 });
-			return if $?;
+			return stop_server(@stop_args) if $?;
 		}
 		else
 		{
 			system( qq{"$installdir/bin/vacuumdb" --all --analyze-only }
 				  . qq{> "$upgrade_loc/$oversion-analyse.log" 2>&1 });
-			return if $?;
+			return stop_server(@stop_args) if $?;
 		}
 	}
 
@@ -635,13 +662,13 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	{
 		system( qq{psql -X -e -f "$installdir/reindex_hash.sql" postgres }
 			  . qq{> "$upgrade_loc/$oversion-reindex_hash.log" 2>&1 });
-		return if $?;
+		return stop_server(@stop_args) if $?;
 	}
 
 	system( "pg_dumpall $dump_opts -f "
 		  . qq{"$upgrade_loc/converted-$oversion-to-$this_branch.sql" }
 		  . qq{> "$upgrade_loc/converted-$oversion-$this_branch.log" 2>&1});
-	return if $?;
+	return stop_server(@stop_args) if $?;
 
 	# run amcheck before updating extensions if any
 	if ($this_branch ge 'REL_14_STABLE' || $this_branch eq 'HEAD')
@@ -658,18 +685,18 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 				"contrib_regression_amcheck",
 				"$upgrade_loc/amcheck-update.log"
 			);
-			return if $?;
+			return stop_server(@stop_args) if $?;
 		}
 		system( "pg_amcheck --all --install-missing"
 			  . qq{> "$upgrade_loc/$oversion-amcheck-1.log" 2>&1 });
-		return if $?;
+		return stop_server(@stop_args) if $?;
 	}
 
 	if (-e "$installdir/update_extensions.sql")
 	{
 		system( qq(psql -X -e -f "$installdir/update_extensions.sql" postgres)
 			  . qq{> "$upgrade_loc/$oversion-update_extensions.log" 2>&1});
-		return if $?;
+		return stop_server(@stop_args) if $?;
 
 		# rerun amcheck after updating extensions
 		# but only for dbs where we updated the extensions
@@ -694,13 +721,12 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 				my $dbstr = join(' ', @updatedbs);
 				system( "pg_amcheck $dbstr --install-missing"
 					  . qq{> "$upgrade_loc/$oversion-amcheck-2.log" 2>&1 });
-				return if $?;
+				return stop_server(@stop_args) if $?;
 			}
 		}
 	}
 
-	system( qq{pg_ctl -D "$installdir/$oversion-upgrade" -w stop }
-		  . qq{>> "$upgrade_loc/$oversion-ctl4.log" 2>&1});
+	stop_server(@stop_args);
 	return if $?;
 
 	if (-e "$installdir/delete_old_cluster.sh")
