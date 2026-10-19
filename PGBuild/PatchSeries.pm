@@ -193,10 +193,8 @@ sub series_manifest
 
 		# An entry is shared when it resolves outside this branch's own
 		# subdirectory -- a "../master/foo.patch" reference, or a symlink
-		# leading there. apply_series() allows such a patch more slack
-		# when matching context, since it was written against a different
-		# branch; a patch stored here was written for here and should
-		# apply exactly.
+		# leading there. Reported for display; apply_series() no longer
+		# treats a shared entry any differently (see its own comments).
 		my $shared = (defined $path && $path ne "$subdir/$e->{name}") ? 1 : 0;
 
 		push(
@@ -282,25 +280,31 @@ sub materialize_series
 # it on the failure path, leaving a repository git reported as
 # mid-rebase which could be neither continued nor aborted.
 #
-# Patches are applied with "git apply --index", plus a context setting
-# that depends on where the patch came from:
+# Patches are applied with "git apply --index -C1", unconditionally for
+# every entry regardless of where it came from:
 #
 #   --index  so a file added by a patch is staged, and "reset --hard"
 #            therefore removes it. Without it the file is untracked and
 #            survives into later runs.
-#   -C3      for a patch stored in this branch's own subdirectory. It
-#            was written for this branch, so it should apply exactly;
-#            if it no longer does, upstream has moved beneath the stack
-#            and that is worth reporting rather than absorbing.
-#   -C1      for an entry resolving into another branch's subdirectory,
-#            a "../master/foo.patch" reference. That patch was written
-#            against a different branch, so some drift in the code
-#            around it is expected, and it gets the tolerance
-#            quiltimport applied to everything.
-#
-# Note -C is a floor, not a setting: git tries the full context first
-# and reduces only as far as it must, so a patch whose context matches
-# in full is applied in full under either value.
+#   -C1      matches what "git quiltimport" itself runs (see its source,
+#            e.g. /usr/libexec/git-core/git-quiltimport): unconditional
+#            "git apply --index -C1", with no distinction between a
+#            patch's own branch and one it reaches via a
+#            "../master/foo.patch" reference. -C<n> is not a fuzz
+#            setting that git relaxes on its own when a hunk's context
+#            has drifted -- confirmed by testing: "-C3" against a patch
+#            whose context line itself was edited upstream fails
+#            outright ("patch does not apply"), where "-C1" succeeds
+#            with "Context reduced to (1/1)", the same message
+#            quiltimport and patch(1) give. An earlier version of this
+#            code used "-C3" for a branch's own patches on the theory
+#            that -C is a floor under which git tries full context
+#            first and reduces only as far as it must -- that isn't
+#            how it behaves, and it meant this loop could reject a
+#            patch that "git quiltimport" (what a release wrap runs)
+#            accepts, which is exactly the daylight between "the farm
+#            says broken" and "the wrap applies fine" that this module
+#            exists to avoid.
 #
 # No commits are created and HEAD never moves, so no rebase state is
 # written under $GIT_DIR and the corruption above cannot recur.
@@ -338,22 +342,10 @@ sub apply_series
 		# level during a real apply is what this change exists to stop.
 		my $strip = defined $e->{strip} ? "-p$e->{strip} " : '';
 
-		# Context tolerance depends on where the patch came from. A
-		# patch stored in this branch's own subdirectory was written for
-		# this branch and should apply exactly; if it no longer does,
-		# upstream has moved under it and the stack wants rebasing,
-		# which is worth being told about rather than papering over. An
-		# entry reaching into another branch's subdirectory was written
-		# against that branch, so some drift in the surrounding code is
-		# expected and it gets the slack quiltimport gave everything.
-		#
-		# git reduces context progressively and only as far as it must,
-		# so -C is a floor rather than a setting: a patch whose context
-		# matches in full is applied in full either way.
-		my $context = $e->{shared} ? '-C1' : '-C3';
-
+		# -C1 unconditionally, matching what "git quiltimport" itself
+		# runs for every entry -- see the comment above this function.
 		my @out =
-		  run_log(qq{git -C "$srcdir" apply --index $context $strip-- "$file"},
+		  run_log(qq{git -C "$srcdir" apply --index -C1 $strip-- "$file"},
 			$logdir);
 		my $status = $? >> 8;
 		my $text = join('', @out);
