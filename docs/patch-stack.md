@@ -309,16 +309,13 @@ supported, but relative paths are preferred: they are visible in the
 `series` file itself, and they behave identically on platforms without
 filesystem symlink support.
 
-Note that a shared patch is applied with more tolerance for drifting
-context than one stored in the branch's own subdirectory.  A patch
-written for a branch should apply to that branch exactly; if it stops
-doing so, upstream has moved beneath the stack and you want to be told,
-not to have it quietly absorbed.  A patch written against `master` and
-reached from a stable branch is a different case: the surrounding code
-legitimately differs, so it is allowed to match on less context.  If a
-shared patch drifts far enough that even that fails, it has stopped
-being the same patch for both branches and wants splitting into
-per-branch copies.
+Every patch, shared or not, must apply with its full context.  Earlier
+releases let a shared patch match on less context than one stored in
+the branch's own subdirectory, as `git quiltimport` did for all patches,
+and on the security stack that let patches apply in the wrong place
+rather than fail.  If a shared patch no longer applies exactly to some
+branch, it has stopped being the same patch for both, and that branch
+needs a copy of its own.
 
 
 ## Viewing what was applied on the web dashboard

@@ -191,12 +191,6 @@ sub series_manifest
 	{
 		my ($path, $sha) = resolve_patch_path($repo, "$subdir/$e->{name}");
 
-		# An entry is shared when it resolves outside this branch's own
-		# subdirectory -- a "../master/foo.patch" reference, or a symlink
-		# leading there. Reported for display; apply_series() no longer
-		# treats a shared entry any differently (see its own comments).
-		my $shared = (defined $path && $path ne "$subdir/$e->{name}") ? 1 : 0;
-
 		push(
 			@entries,
 			{
@@ -204,7 +198,6 @@ sub series_manifest
 				strip => $e->{strip},
 				path => $path,
 				sha => $sha,
-				shared => $shared,
 				missing => (defined $path ? 0 : 1),
 			}
 		);
@@ -280,31 +273,17 @@ sub materialize_series
 # it on the failure path, leaving a repository git reported as
 # mid-rebase which could be neither continued nor aborted.
 #
-# Patches are applied with "git apply --index -C1", unconditionally for
-# every entry regardless of where it came from:
+# Patches are applied with "git apply --index -C3":
 #
 #   --index  so a file added by a patch is staged, and "reset --hard"
 #            therefore removes it. Without it the file is untracked and
 #            survives into later runs.
-#   -C1      matches what "git quiltimport" itself runs (see its source,
-#            e.g. /usr/libexec/git-core/git-quiltimport): unconditional
-#            "git apply --index -C1", with no distinction between a
-#            patch's own branch and one it reaches via a
-#            "../master/foo.patch" reference. -C<n> is not a fuzz
-#            setting that git relaxes on its own when a hunk's context
-#            has drifted -- confirmed by testing: "-C3" against a patch
-#            whose context line itself was edited upstream fails
-#            outright ("patch does not apply"), where "-C1" succeeds
-#            with "Context reduced to (1/1)", the same message
-#            quiltimport and patch(1) give. An earlier version of this
-#            code used "-C3" for a branch's own patches on the theory
-#            that -C is a floor under which git tries full context
-#            first and reduces only as far as it must -- that isn't
-#            how it behaves, and it meant this loop could reject a
-#            patch that "git quiltimport" (what a release wrap runs)
-#            accepts, which is exactly the daylight between "the farm
-#            says broken" and "the wrap applies fine" that this module
-#            exists to avoid.
+#   -C3      so every patch matches all three lines of the context
+#            git format-patch gives it, wherever in the patches repo
+#            it is stored. quiltimport allowed reduction to one line
+#            (-C1), and on the security stack that misapplied patches
+#            rather than rejecting them. A patch that no longer
+#            applies exactly wants a version made for the branch.
 #
 # No commits are created and HEAD never moves, so no rebase state is
 # written under $GIT_DIR and the corruption above cannot recur.
@@ -342,10 +321,8 @@ sub apply_series
 		# level during a real apply is what this change exists to stop.
 		my $strip = defined $e->{strip} ? "-p$e->{strip} " : '';
 
-		# -C1 unconditionally, matching what "git quiltimport" itself
-		# runs for every entry -- see the comment above this function.
 		my @out =
-		  run_log(qq{git -C "$srcdir" apply --index -C1 $strip-- "$file"},
+		  run_log(qq{git -C "$srcdir" apply --index -C3 $strip-- "$file"},
 			$logdir);
 		my $status = $? >> 8;
 		my $text = join('', @out);
