@@ -1400,6 +1400,31 @@ sub list_remote_branches
 	return @branches;
 }
 
+# List the upstream's tags without requiring a local checkout. Used by
+# run_branches.pl to tell whether a stable branch has had a release yet.
+sub list_remote_tags
+{
+	my $self = shift;
+	my $url =
+	  (exists $self->{mirror} && -d $self->{mirror})
+	  ? $self->{mirror}
+	  : $self->{gitrepo};
+	$url = abs_path($url) if $url =~ m!^[/\\]!;
+	my @lines = `git ls-remote --tags "$url"`;
+	my $status = $? >> 8;
+	die "git ls-remote --tags $url failed (status $status)" if $status;
+	my @tags;
+	foreach (@lines)
+	{
+		chomp;
+		my (undef, $ref) = split(/\s+/, $_, 2);
+		next unless defined $ref && $ref =~ s!^refs/tags/!!;
+		$ref =~ s/\^\{\}$//;
+		push @tags, $ref;
+	}
+	return @tags;
+}
+
 # private Class level routine for getting changed file data
 sub parse_log
 {

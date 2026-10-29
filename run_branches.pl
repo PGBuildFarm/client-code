@@ -151,7 +151,7 @@ $branches_to_build = $explicit_branches if @{$explicit_branches};
 unless (((ref $branches_to_build) eq 'ARRAY' && @{$branches_to_build})
 	|| (ref $branches_to_build) =~ /Regexp/i
 	|| $branches_to_build =~
-	/^(ALL|OLD|STABLE|HEAD_PLUS_LATEST\d?|UP_TO_REL\w+)$/)
+	/^(ALL|OLD|STABLE|UNRELEASED|HEAD_PLUS_UNRELEASED|HEAD_PLUS_LATEST\d?|UP_TO_REL\w+)$/)
 {
 	die "no branches_to_build specified in $buildconf";
 }
@@ -190,6 +190,23 @@ elsif ((ref $branches_to_build) =~ /Regexp/i)
 		@branches = grep { $_ =~ /$branches_to_build/ } @cbranches;
 	}
 	$ENV{BF_CONF_BRANCHES} = join(',', "(found by regexp)", @branches);
+}
+elsif ($branches_to_build eq 'UNRELEASED'
+	|| $branches_to_build eq 'HEAD_PLUS_UNRELEASED')
+{
+	$ENV{BF_CONF_BRANCHES} = $branches_to_build;
+
+	# assumes that branches_of_interest is in order, oldest through to
+	# HEAD, so the newest stable branch is the one just before HEAD.
+	my @all_branches = get_branches_of_interest('STABLE');
+	my $newest_stable = $all_branches[-2];
+
+	@branches =
+	  ($newest_stable && !branch_has_release($newest_stable))
+	  ? ($newest_stable)
+	  : ();
+
+	unshift(@branches, 'HEAD') if $branches_to_build eq 'HEAD_PLUS_UNRELEASED';
 }
 elsif (
 	$branches_to_build =~
@@ -262,6 +279,28 @@ unlink $lockfilename;
 exit 0;
 
 ##########################################################
+
+# Has this stable branch had its first release yet? PostgreSQL tags each
+# release as REL_<major>_<minor>, but pre-release tags for the still
+# unreleased major version look like REL_<major>_BETA1, REL_<major>_RC1
+# etc, so the presence of any REL_<major>_<digits> tag means a release
+# (at least the GA release) has happened.
+sub branch_has_release
+{
+	my $branch = shift;
+	return 1 unless $branch =~ /^REL_(\d+)_STABLE$/;
+	my $major = $1;
+
+	my $scm = PGBuild::SCM->new(\%PGBuild::conf);
+	my @tags;
+	{
+		# pick up proxy settings if any from the config file
+		my $confenv = $PGBuild::conf{build_env};
+		local %ENV = (%ENV, %$confenv);
+		@tags = $scm->list_remote_tags();
+	}
+	return grep { /^REL_${major}_\d+$/ } @tags;
+}
 
 sub get_branches_of_interest
 {

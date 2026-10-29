@@ -394,6 +394,9 @@ my $confdir = File::Spec->rel2abs(File::Basename::dirname(__FILE__));
 		# or 'OLD' (very old branches we're still kind of interested in)
 		# or 'HEAD_PLUS_LATEST' or 'HEAD_PLUS_LATEST2'
 		# or 'STABLE' (i.e. live branches other than  HEAD)
+		# or 'UNRELEASED' (the newest stable branch, but only until it
+		#    has had its first release; otherwise there's nothing to build)
+		# or 'HEAD_PLUS_UNRELEASED' (HEAD, plus UNRELEASED as above)
 		# or 'UP_TO_REL_x_STABLE' (just this branch or older)
 		# or [qw( HEAD RELx_y_STABLE etc )] (explicit list of branches)
 
