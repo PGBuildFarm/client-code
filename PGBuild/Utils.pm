@@ -526,7 +526,7 @@ sub copydir
 	my ($cp, $rd);
 	if ($PGBuild::conf{using_msvc})
 	{
-		$cp = "robocopy /nfl /ndl /np /e /sec ";
+		$cp = "robocopy /nfl /ndl /np /e ";
 		$rd = qq{/LOG+:"$logfile" >nul};
 	}
 	else
