@@ -984,6 +984,14 @@ sub _setup_new_head
 		my $savedir = getcwd();
 		chdir "$head/$target";
 
+		# Disable auto-maintenance here too (see checkout()) so there's
+		# no window before the next checkout() sets it. gc.auto alone
+		# isn't enough: on current git, git-am/commit/fetch trigger
+		# maintenance via "git maintenance run --auto", which is gated
+		# by maintenance.auto, not gc.auto.
+		system(qq{git config gc.auto 0});
+		system(qq{git config maintenance.auto 0});
+
 		# On a fresh clone the current branch should be the upstream default.
 		# It may not exist, though: some repos ship only release branches
 		# and no master/main, leaving HEAD dangling. In that case we can't
@@ -1114,6 +1122,19 @@ sub _setup_new_basedir
 	if (!$status)
 	{
 		chdir $target;
+
+		# This clone isn't shared with any workdir, but it still gets
+		# the periodic explicit "git gc" in _update_target(), and
+		# PatchStack's git-am burst can still trigger "git maintenance
+		# run --auto --detach" internally on current git (gc.auto does
+		# not gate that, only maintenance.auto does -- see checkout()
+		# and _setup_new_head() for the full rationale). A detached
+		# auto-maintenance still running when that explicit gc fires can
+		# corrupt this repo's own pack directory even with nothing else
+		# sharing it. HEAD always takes this path, never the workdir
+		# one, so this is the only place that ever sets it for HEAD.
+		system(qq{git config gc.auto 0});
+		system(qq{git config maintenance.auto 0});
 
 		my $rbranch = $branch;
 
@@ -1247,15 +1268,40 @@ sub checkout
 
 	if (   $self->{use_workdirs}
 		&& !defined($self->{reference})
-		&& -d '../HEAD/'
 		&& $self->have_symlink())
 	{
+		# Don't gate the lock on '../HEAD' already existing: on a fresh
+		# or just-wiped buildroot it doesn't yet, and whichever branch
+		# gets there first still needs to clone it under _setup_new_head.
+		# Without the lock, two branches can race to clone into the same
+		# $buildroot/HEAD/$target at once.
+		mkdir '../HEAD' unless -d '../HEAD';
 		open($lockfile, ">", "../HEAD/checkout.LCK")
 		  || die "opening checkout lockfile: $!";
 
 		# no LOCK_NB here so we wait for the lock
 		die "acquiring lock on $self->{build_root}/HEAD/checkout.LCK"
 		  unless flock($lockfile, LOCK_EX);
+
+		# Workdirs symlink objects/ and config to this clone but not
+		# gc.pid, so git's own anti-concurrent-gc lock doesn't cover the
+		# shared object store. git-am (in the workdir) and git-fetch/
+		# checkout (in this primary) each independently trigger "git
+		# maintenance run --auto --detach" on current git; gc.auto does
+		# NOT gate that call, only maintenance.auto does. Without both
+		# set, the primary and its workdir can each repack the same
+		# shared pack directory at once, and whichever finishes first
+		# prunes objects out from under the other's still-open pack
+		# (confirmed on diomedes: "index not opened" / "cannot be
+		# accessed" errors and orphaned tmp_pack_* files on exactly this
+		# pattern, with gc.auto already 0). Setting gc.auto too costs
+		# nothing and covers older git. Set on every checkout, not just
+		# at clone time, so existing installs self-heal.
+		if (-d "../HEAD/$target/.git")
+		{
+			system(qq{git -C "../HEAD/$target" config gc.auto 0});
+			system(qq{git -C "../HEAD/$target" config maintenance.auto 0});
+		}
 	}
 
 	my @gitlog;

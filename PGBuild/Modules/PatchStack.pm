@@ -96,6 +96,13 @@ first clears any C<git am> state left behind by an entry that failed,
 which a reset does not remove. Any nonzero exit is reported as
 C<PatchStackBroken>.
 
+The driver runs with C<gc.auto> and C<maintenance.auto> forced off:
+committing one patch at a time can trigger automatic repository
+maintenance -- on current git that's C<git maintenance run --auto>,
+gated by C<maintenance.auto>, not C<gc.auto> -- and an interrupted one
+can damage the object store shared with the primary clone under
+C<git_use_workdirs>.
+
 When no driver is configured and the patches repository carries no
 script under the default name, the built-in C<git apply> loop runs
 instead. That is not a transition measure:
@@ -756,6 +763,19 @@ sub _apply_with_driver
 		);
 	}
 	local @ENV{ keys %ident } = values %ident;
+
+	# Force gc.auto and maintenance.auto off for the driver (committing
+	# one patch at a time can trigger automatic maintenance -- on current
+	# git that's "git maintenance run --auto", gated by maintenance.auto,
+	# not gc.auto) via the environment, not repo config, since the driver
+	# is an external script and this has to reach whatever git commands
+	# it runs internally.
+	local @ENV{
+		qw(GIT_CONFIG_COUNT
+		  GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
+		  GIT_CONFIG_KEY_1 GIT_CONFIG_VALUE_1)
+	  }
+	  = (2, 'gc.auto', 0, 'maintenance.auto', 0);
 
 	# Run the driver with the perl we are running under rather than
 	# relying on the shebang line and an execute bit, neither of which
