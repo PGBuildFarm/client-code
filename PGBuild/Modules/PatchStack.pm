@@ -156,11 +156,27 @@ In the animal's C<build-farm.conf>:
             # Postgres branch name itself.
             HEAD => 'master',
         },
+        # See L</DIAGNOSING REPOSITORY STATE> below. Off by default.
+        diagnose     => 0,
+        diagnose_log => undef, # default: <buildroot>/patch_stack_diag.<animal>.log
     },
 
 Add C<PatchStack> to the animal's C<modules> list. Branches whose
 subdirectory is missing in the patches branch are silently skipped
 (a message is printed in verbose mode).
+
+=head2 DIAGNOSING REPOSITORY STATE
+
+Set C<diagnose> to snapshot each repository's git state -- C<HEAD>,
+branch, any in-progress rebase/merge/lock files, C<git status>, and a
+full C<git fsck> -- before and after fetching, applying, and cleanup.
+
+The log is append-only at C<diagnose_log> (default
+C<< <buildroot>/patch_stack_diag.<animal>.log >>), outside
+C<lastrun-logs>, so it survives both C<cleanlogs()> and a killed run.
+
+This is a debugging aid, not something to leave on permanently: C<git
+fsck --full> on every run has a real cost.
 
 =cut
 
@@ -223,6 +239,149 @@ sub _driver_config
 	return ($driver, ($driver && defined $stackconf->{driver}) ? 1 : 0);
 }
 
+# Record a snapshot of a repository's git state at a named checkpoint
+# when "diagnose" is on (see L</DIAGNOSING REPOSITORY STATE>). Callers
+# bracket each step (fetch, apply, cleanup) with one before and after.
+sub _diag
+{
+	my $self = shift;
+	my $label = shift;
+	my $dir = shift;
+
+	return unless $self->{diagnose};
+	return unless -e "$dir/.git";
+
+	open(my $fh, '>>', $self->{diaglog}) or return;
+
+	$self->_diag_one($fh, $label, $dir);
+
+	# Under git_use_workdirs, objects/ is symlinked to the primary clone,
+	# so this workdir's fsck can't see past it. Follow the symlink and
+	# check the primary too.
+	if (-l "$dir/.git/objects")
+	{
+		my $real = readlink("$dir/.git/objects");
+		if (   defined $real
+			&& $real =~ s{/objects/?$}{}
+			&& $real =~ s{/\.git/?$}{})
+		{
+			$self->_diag_one($fh, "$label [primary]", $real)
+			  unless $real eq $dir;
+		}
+	}
+
+	print $fh "\n";
+	close $fh;
+	return;
+}
+
+# Snapshot body for one directory; _diag() calls this for the workdir
+# and, when symlinked, the primary clone too.
+sub _diag_one
+{
+	my $self = shift;
+	my $fh = shift;
+	my $label = shift;
+	my $dir = shift;
+
+	print $fh "---- ", time_str(),
+	  "$label: $dir (branch $self->{pgbranch}, pid $$) ----\n";
+
+	my $head = `git -C "$dir" rev-parse --verify --quiet HEAD 2>&1`;
+	chomp $head;
+	my $branchname = `git -C "$dir" symbolic-ref -q --short HEAD 2>&1`;
+	chomp $branchname;
+	print $fh "HEAD: ", ($head ne '' ? $head : '(none)'),
+	  "  branch: ", ($branchname ne '' ? $branchname : '(detached)'), "\n";
+
+	my $gitdir = `git -C "$dir" rev-parse --git-dir 2>&1`;
+	chomp $gitdir;
+	$gitdir = "$dir/$gitdir" unless $gitdir =~ m!^/!;
+	foreach my $state (
+		qw(rebase-apply rebase-merge MERGE_HEAD CHERRY_PICK_HEAD
+		BISECT_LOG sequencer index.lock HEAD.lock gc.pid gc.log)
+	  )
+	{
+		print $fh "present: $gitdir/$state\n" if -e "$gitdir/$state";
+	}
+
+	my $gcauto = `git -C "$dir" config --get gc.auto 2>&1`;
+	chomp $gcauto;
+	print $fh "gc.auto: ", ($gcauto ne '' ? $gcauto : '(default)'), "\n";
+
+	# The config that actually gates "git maintenance run --auto" on
+	# current git -- gc.auto does not, despite the similar name.
+	my $maintauto = `git -C "$dir" config --get maintenance.auto 2>&1`;
+	chomp $maintauto;
+	print $fh "maintenance.auto: ",
+	  ($maintauto ne '' ? $maintauto : '(default)'), "\n";
+
+	# A stray tmp_pack_*/tmp_obj_* means a gc --auto or maintenance run
+	# --auto was killed mid-repack.
+	my @stray = (
+		glob("$gitdir/objects/tmp_pack_*"),
+		glob("$gitdir/objects/tmp_obj_*"),
+		glob("$gitdir/objects/pack/tmp_pack_*")
+	);
+	print $fh "stray tmp object/pack file: $_\n" foreach @stray;
+
+	# A pack newer than its .idx, or a missing .idx, means an unfinished
+	# repack; the mtimes bound when.
+	my $packdir = "$gitdir/objects/pack";
+	if (-d $packdir)
+	{
+		foreach my $pack (sort glob("$packdir/*.pack"))
+		{
+			my $idx = $pack;
+			$idx =~ s/\.pack$/.idx/;
+			my @psz = stat($pack);
+			my @isz = stat($idx);
+			print $fh "pack: $pack size=",
+			  (@psz ? $psz[7]                    : '?'), " mtime=",
+			  (@psz ? scalar(localtime($psz[9])) : '?'), "\n";
+			print $fh "idx:  $idx ",
+			  (
+				@isz
+				? "size=$isz[7] mtime=" . scalar(localtime($isz[9]))
+				: "MISSING"
+			  ),
+			  "\n";
+		}
+	}
+
+	my @status = `git -C "$dir" status --porcelain=1 2>&1`;
+	print $fh "status: ", scalar(@status), " line(s)",
+	  (@status ? ':' : ''), "\n";
+	print $fh @status[ 0 .. ($#status > 19 ? 19 : $#status) ] if @status;
+
+	# Under git_use_workdirs, fsck on a workdir can't read the symlinked
+	# refs, so it reports every commit as "dangling" -- not real signal.
+	# Collapse those to a count; print anything else in full.
+	my @fsck = `git -C "$dir" fsck --no-progress --full 2>&1`;
+	my @dangling = grep { /^dangling commit/ } @fsck;
+	my @other = grep { !/^dangling commit/ } @fsck;
+	my $symlinked_refs =
+	  grep { /badRefFiletype|cannot open directory .*refs/ } @other;
+	if (!@fsck)
+	{
+		print $fh "fsck: clean\n";
+	}
+	elsif ($symlinked_refs && @dangling)
+	{
+		print $fh "fsck:\n", @other;
+		print $fh scalar(@dangling),
+			" dangling commit(s) suppressed (expected under"
+		  . " git_use_workdirs: refs unreadable through the symlink, not"
+		  . " real signal)\n";
+	}
+	else
+	{
+		print $fh "fsck:\n", @fsck;
+	}
+
+	return;
+}
+
 sub setup
 {
 	my $class = __PACKAGE__;
@@ -267,6 +426,9 @@ sub setup
 		manifest => undef,
 		applier => '',
 		src_head => '',
+		diagnose => $stackconf->{diagnose} ? 1 : 0,
+		diaglog => $stackconf->{diagnose_log}
+		  || "$buildroot/patch_stack_diag.$conf->{animal}.log",
 	};
 	bless($self, $class);
 
@@ -755,12 +917,18 @@ sub checkout
 
 	push(@$savescmlog, "------------- $MODULE checkout ----------------\n");
 
+	$self->_diag('checkout-start(local_repo)', $self->{local_repo});
+	$self->_diag('checkout-start(srcdir)', $self->{srcdir});
+
 	eval { $self->_fetch_or_clone($savescmlog); };
 	if ($@)
 	{
+		$self->_diag('fetch-failed(local_repo)', $self->{local_repo});
 		push(@$savescmlog, "$MODULE: $@");
 		send_result("$MODULE-fetch", 1, $savescmlog);
 	}
+
+	$self->_diag('post-fetch(local_repo)', $self->{local_repo});
 
 	my $subdir_tree = $self->_subdir_tree();
 	push(@$savescmlog,
@@ -788,7 +956,9 @@ sub checkout
 	$self->{stack_commit} = $commit;
 	push(@$savescmlog, "$MODULE: patches commit $commit\n");
 
+	$self->_diag('pre-apply(srcdir)', $self->{srcdir});
 	my $ok = $self->_apply_patches($savescmlog);
+	$self->_diag('post-apply(srcdir)', $self->{srcdir});
 	push(@$savescmlog,
 		"$MODULE: applied result id "
 		  . ($self->{patches_id} || '(none)') . "\n")
@@ -874,10 +1044,12 @@ sub cleanup
 	# subsequent run. -fd rather than -fdx: ignored files are left
 	# alone.
 	print time_str(), "$MODULE: restoring $srcdir\n" if $verbose > 1;
+	$self->_diag('pre-cleanup(srcdir)', $srcdir);
 	my $base = $self->{src_head};
 	run_log("git -C $srcdir am --abort") if $base;
 	run_log("git -C $srcdir reset --hard --quiet " . ($base || 'HEAD'));
 	run_log("git -C $srcdir clean -qfd");
+	$self->_diag('post-cleanup(srcdir)', $srcdir);
 	return;
 }
 
