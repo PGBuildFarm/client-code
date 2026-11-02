@@ -864,9 +864,9 @@ sub _apply_builtin
 # as the 'post-checkout-log' hook, which run_build.pl fires after
 # cleanlogs(), once lastrun-logs is settled for the run. When the series
 # is broken, checkout() calls send_result(), which reports and exits the
-# process well before cleanlogs() would run -- so that path writes the
-# log directly, right before send_result(), instead of relying on the
-# hook.
+# process well before cleanlogs() would run -- so that path empties
+# lastrun-logs itself and writes the log directly, right before
+# send_result(), instead of relying on the hook. See _fail().
 # Build the contents of patch_stack.log as a list of lines. Split out
 # from _write_patch_stack_log so the format can be exercised without a
 # lastrun-logs directory to write into.
@@ -927,6 +927,26 @@ sub _write_patch_stack_log
 	return;
 }
 
+# Report a failure from checkout() and exit. This runs before
+# run_build.pl's cleanlogs(), so lastrun-logs still holds the previous
+# run's stage logs. send_result() tars up every *.log there in mtime
+# order, so without emptying it first the server would get the whole of
+# the last run's build and test logs followed by ours, making it look as
+# though the patch stack was applied, and failed, after everything else.
+sub _fail
+{
+	my $self = shift;
+	my $stage = shift;
+	my $savescmlog = shift;
+	my $write_stack_log = shift;
+
+	cleanlogs();
+	writelog('SCM-checkout', $savescmlog);
+	$self->_write_patch_stack_log() if $write_stack_log;
+	send_result($stage, 1, $savescmlog);
+	return;    # not reached
+}
+
 sub checkout
 {
 	my $self = shift;
@@ -945,7 +965,7 @@ sub checkout
 	{
 		$self->_diag('fetch-failed(local_repo)', $self->{local_repo});
 		push(@$savescmlog, "$MODULE: $@");
-		send_result("$MODULE-fetch", 1, $savescmlog);
+		$self->_fail("$MODULE-fetch", $savescmlog, 0);
 	}
 
 	$self->_diag('post-fetch(local_repo)', $self->{local_repo});
@@ -984,11 +1004,7 @@ sub checkout
 		  . ($self->{patches_id} || '(none)') . "\n")
 	  if $ok;
 
-	unless ($ok)
-	{
-		$self->_write_patch_stack_log();
-		send_result('PatchStackBroken', 1, $savescmlog);
-	}
+	$self->_fail('PatchStackBroken', $savescmlog, 1) unless $ok;
 
 	return;
 }
