@@ -197,6 +197,7 @@ use PGBuild::PatchSeries qw(series_manifest materialize_series apply_series);
 use Cwd         qw(getcwd);
 use Digest::SHA qw(sha1_hex);
 use File::Path  qw(mkpath);
+use File::Spec;
 use File::Temp  qw(tempdir);
 
 use strict;
@@ -573,6 +574,31 @@ sub _build_resolved_dir
 	return $dest;
 }
 
+# Remove any git am state left in the source tree, returning the path
+# removed, if any. A run that stopped partway through the driver's git
+# am, and was killed or had its cleanup skipped, leaves the state behind,
+# and every later git am then refuses to start ("Stray .git/rebase-apply
+# directory found"), so the series fails on its first patch on every run.
+#
+# This drops the state without touching HEAD, the index or the work tree,
+# which is what makes it safe both before applying and under
+# rm_worktrees. "git am --abort" would be wrong before applying: by then
+# the SCM update has reset the tree to upstream, and an abort would move
+# it back to the stale ORIG_HEAD from the run that left the state.
+sub _clear_am_state
+{
+	my $srcdir = shift;
+
+	return unless -d "$srcdir/.git";
+	my $amdir = `git -C "$srcdir" rev-parse --git-path rebase-apply 2>$devnull`;
+	chomp $amdir;
+	return unless $amdir;
+	$amdir = "$srcdir/$amdir" unless File::Spec->file_name_is_absolute($amdir);
+	return unless -d $amdir;
+	rmtree($amdir);
+	return $amdir;
+}
+
 sub _apply_patches
 {
 	my $self = shift;
@@ -620,6 +646,11 @@ sub _apply_patches
 	}
 
 	$self->{series_patches} = $self->_log_series($log, $patchdir);
+
+	if (my $stale = _clear_am_state($self->{srcdir}))
+	{
+		push(@$log, "$MODULE: removed stale git am state $stale\n");
+	}
 
 	# A partially applied series must still be cleaned up, so record
 	# that the tree has been touched before the first patch lands.
@@ -1054,8 +1085,14 @@ sub cleanup
 
 	# When rm_worktrees is on the END block has already wiped the
 	# worktree files; running git commands here would just resurrect
-	# them. The next run's SCM update restores the tree anyway.
-	return if $self->{bfconf}->{rm_worktrees};
+	# them. The next run's SCM update restores the tree anyway. It does
+	# not clear git am state, though, which rm_worktree() leaves in .git,
+	# so drop that here.
+	if ($self->{bfconf}->{rm_worktrees})
+	{
+		_clear_am_state($self->{srcdir}) if $self->{applied};
+		return;
+	}
 
 	my $srcdir = $self->{srcdir};
 	return unless -d "$srcdir/.git";
