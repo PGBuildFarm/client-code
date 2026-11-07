@@ -151,7 +151,7 @@ $branches_to_build = $explicit_branches if @{$explicit_branches};
 unless (((ref $branches_to_build) eq 'ARRAY' && @{$branches_to_build})
 	|| (ref $branches_to_build) =~ /Regexp/i
 	|| $branches_to_build =~
-	/^(ALL|OLD|STABLE|UNRELEASED|HEAD_PLUS_UNRELEASED|HEAD_PLUS_LATEST\d?|UP_TO_REL\w+)$/)
+	/^(ALL|OLD|STABLE|UNRELEASED|HEAD_PLUS_UNRELEASED|HEAD_PLUS_LATEST\d?|UP_TO_REL\w+)$/) ## no critic(RegularExpressions::ProhibitComplexRegexes)
 {
 	die "no branches_to_build specified in $buildconf";
 }
@@ -287,8 +287,8 @@ exit 0;
 # (at least the GA release) has happened.
 sub branch_has_release
 {
-	my $branch = shift;
-	return 1 unless $branch =~ /^REL_(\d+)_STABLE$/;
+	my $brch = shift;
+	return 1 unless $brch =~ /^REL_(\d+)_STABLE$/;
 	my $major = $1;
 
 	my $scm = PGBuild::SCM->new(\%PGBuild::conf);
