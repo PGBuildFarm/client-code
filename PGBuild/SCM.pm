@@ -1291,10 +1291,11 @@ sub checkout
 		# NOT gate that call, only maintenance.auto does. Without both
 		# set, the primary and its workdir can each repack the same
 		# shared pack directory at once, and whichever finishes first
-		# prunes objects out from under the other's still-open pack
-		# (confirmed on diomedes: "index not opened" / "cannot be
-		# accessed" errors and orphaned tmp_pack_* files on exactly this
-		# pattern, with gc.auto already 0). Setting gc.auto too costs
+		# prunes objects out from under the other's still-open pack.
+		# This is a suspected cause of the "index not opened" / "cannot
+		# be accessed" errors and orphaned tmp_pack_* files seen on
+		# diomedes with gc.auto already 0, but has not been reproduced
+		# or confirmed as the cause. Setting gc.auto too costs
 		# nothing and covers older git. Set on every checkout, not just
 		# at clone time, so existing installs self-heal.
 		if (-d "../HEAD/$target/.git")
