@@ -170,7 +170,8 @@ In the animal's C<build-farm.conf>:
 
 Add C<PatchStack> to the animal's C<modules> list. Branches whose
 subdirectory is missing in the patches branch are silently skipped
-(a message is printed in verbose mode).
+(a message is printed in verbose mode). A subdirectory with no C<series>
+file, or one with no entries in it, is built with nothing applied.
 
 =head2 DIAGNOSING REPOSITORY STATE
 
@@ -609,6 +610,20 @@ sub _apply_patches
 	unless (-f "$local/$sub/series")
 	{
 		push(@$log, "$MODULE: no series file at $local/$sub/series\n");
+		$self->{series_status} = 'no-series';
+		return 1;
+	}
+
+	# A series with no entries is no stack, the same as no series file.
+	# Settle that with our own reading before the driver gets involved:
+	# a driver may well refuse an empty series (import-series.pl --list
+	# exits nonzero on one), which would report PatchStackBroken for a
+	# branch that simply has nothing to apply. A series we can't resolve
+	# is left for the reading below to report.
+	my $plain = eval { series_manifest($local, $sub) };
+	if ($plain && !@{ $plain->{entries} })
+	{
+		push(@$log, "$MODULE: no entries in $local/$sub/series\n");
 		$self->{series_status} = 'no-series';
 		return 1;
 	}
