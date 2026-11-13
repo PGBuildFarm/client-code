@@ -39,7 +39,7 @@ use File::Basename qw(dirname);
 
 use PGBuild::Utils qw($devnull run_log);
 
-our ($VERSION); $VERSION = 'REL_21';
+our ($VERSION); $VERSION = 'REL_22';
 
 use Exporter qw(import);
 our (@EXPORT_OK);

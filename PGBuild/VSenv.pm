@@ -17,7 +17,7 @@ use warnings;
 use Cwd;
 use File::Find;
 
-our ($VERSION); $VERSION = 'REL_21';
+our ($VERSION); $VERSION = 'REL_22';
 
 sub getenv
 {

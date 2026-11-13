@@ -218,7 +218,7 @@ my %DRIVER_EXIT = (
 	3 => 'a patch failed to apply',
 );
 
-our ($VERSION); $VERSION = 'REL_21';
+our ($VERSION); $VERSION = 'REL_22';
 
 my $hooks = {
 	'checkout' => \&checkout,

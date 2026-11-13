@@ -22,7 +22,7 @@ use MIME::Base64;
 use Digest::SHA qw(hmac_sha256_hex);
 use JSON::PP;
 
-our ($VERSION); $VERSION = 'REL_21';
+our ($VERSION); $VERSION = 'REL_22';
 
 # retry/backoff settings for run_web_txn's result-submission POST.
 # Not exposed as build-farm.conf keys.

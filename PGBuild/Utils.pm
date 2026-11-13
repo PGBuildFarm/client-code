@@ -24,7 +24,7 @@ use File::Copy;
 use File::Temp qw(tempfile);
 use File::Spec;
 
-our ($VERSION); $VERSION = 'REL_21';
+our ($VERSION); $VERSION = 'REL_22';
 
 ## no critic (ProhibitAutomaticExportation)
 use Exporter qw(import);
