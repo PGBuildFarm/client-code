@@ -14,7 +14,7 @@ ALLPERLFILES = $(shell find . -maxdepth 1 \( -name '*.pl' -o -name '*.pm' \) -pr
 # these are the explicitly selected perl files that will go in a 
 # release tarball
 PERLFILES = run_build.pl run_web_txn.pl run_branches.pl \
-	update_personality.pl setnotes.pl manage_alerts.pl \
+	update_personality.pl setnotes.pl manage_alerts.pl check_patch_stack.pl \
 	build-farm.conf.sample  \
 	PGBuild/SCM.pm PGBuild/Options.pm PGBuild/WebTxn.pm PGBuild/Utils.pm \
 	PGBuild/Log.pm PGBuild/VSenv.pm PGBuild/PatchSeries.pm \

@@ -83,6 +83,8 @@ patch fails or is missing, 2 on a usage/setup error.
 use strict;
 use warnings;
 
+our ($VERSION); $VERSION = 'REL_22';
+
 use Getopt::Long;
 use File::Temp qw(tempdir);
 use Cwd        qw(abs_path);
