@@ -148,13 +148,16 @@ my $branches_to_build = $PGBuild::conf{global}->{branches_to_build}
 # override with explicit branches if there are any
 $branches_to_build = $explicit_branches if @{$explicit_branches};
 
+## no critic (RegularExpressions::ProhibitComplexRegexes)
 unless (((ref $branches_to_build) eq 'ARRAY' && @{$branches_to_build})
 	|| (ref $branches_to_build) =~ /Regexp/i
 	|| $branches_to_build =~
-	/^(ALL|OLD|STABLE|UNRELEASED|HEAD_PLUS_UNRELEASED|HEAD_PLUS_LATEST\d?|UP_TO_REL\w+)$/) ## no critic(RegularExpressions::ProhibitComplexRegexes)
+	/^(ALL|OLD|STABLE|UNRELEASED|HEAD_PLUS_UNRELEASED|HEAD_PLUS_LATEST\d?|UP_TO_REL\w+)$/
+  )
 {
 	die "no branches_to_build specified in $buildconf";
 }
+## use critic
 
 if (-e "$buildroot/$animal.force-one-run" && !$check_for_work)
 {
@@ -202,7 +205,7 @@ elsif ($branches_to_build eq 'UNRELEASED'
 	my $newest_stable = $all_branches[-2];
 
 	@branches =
-	  ($newest_stable && !branch_has_release($newest_stable))
+		($newest_stable && !branch_has_release($newest_stable))
 	  ? ($newest_stable)
 	  : ();
 
@@ -210,7 +213,7 @@ elsif ($branches_to_build eq 'UNRELEASED'
 }
 elsif (
 	$branches_to_build =~
-	/^(ALL|STABLE|OLD|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d)|UP_TO_(REL\w+))$/ ## no critic(RegularExpressions::ProhibitComplexRegexes)
+	/^(ALL|STABLE|OLD|HEAD_PLUS_LATEST|HEAD_PLUS_LATEST(\d)|UP_TO_(REL\w+))$/  ## no critic(RegularExpressions::ProhibitComplexRegexes)
   )
 {
 	$ENV{BF_CONF_BRANCHES} = $branches_to_build;

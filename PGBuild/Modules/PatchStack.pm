@@ -199,7 +199,7 @@ use Cwd         qw(getcwd);
 use Digest::SHA qw(sha1_hex);
 use File::Path  qw(mkpath);
 use File::Spec;
-use File::Temp  qw(tempdir);
+use File::Temp qw(tempdir);
 
 use strict;
 use warnings;

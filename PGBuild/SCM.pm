@@ -149,7 +149,7 @@ sub check_access
 	my $cvspass;
 	my $loginfound = 0;
 	my $srvr;
-	(undef,, undef, $srvr, undef) = split(/:/, $self->{cvsrepo});
+	(undef, undef, $srvr, undef) = split(/:/, $self->{cvsrepo});
 	my $qsrvr = quotemeta($srvr);
 	if (open($cvspass, '<', glob("~/.cvspass")))
 	{
