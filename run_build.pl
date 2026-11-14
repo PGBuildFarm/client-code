@@ -506,21 +506,7 @@ foreach my $oldfile (glob("last*"))
 }
 
 # cleanup old kept error directories. First prune by number
-if (looks_like_number($keep_errs) && $keep_errs >= 0)
-{
-	foreach my $pref ('inst', 'pgsql')
-	{
-		# relies on glob returning data in name order, so essentially date order
-		my @dirs = glob("${pref}keep.*");
-		my $k = $keep_errs < @dirs ? $keep_errs : @dirs;
-		splice(@dirs, -$k) if $k > 0;
-		foreach my $dir (@dirs)
-		{
-			next unless -d $dir;
-			rmtree($dir);
-		}
-	}
-}
+prune_kept_error_trees();
 
 # then prune by age - 10 days should be plenty
 foreach my $kdir (glob("instkeep.* pgsqlkeep.*"))
@@ -718,6 +704,7 @@ END
 					print "error renaming 'inst' to 'instkeep.$timestr': $!";
 				}
 			}
+			prune_kept_error_trees();
 		}
 		else
 		{
@@ -1233,6 +1220,25 @@ send_result("OK");
 exit;
 
 ############## end of main program ###########################
+
+# remove kept error directories beyond the number configured to keep
+sub prune_kept_error_trees
+{
+	return unless (looks_like_number($keep_errs) && $keep_errs >= 0);
+	foreach my $pref ('inst', 'pgsql')
+	{
+		# relies on glob returning data in name order, so essentially date order
+		my @dirs = glob("${pref}keep.*");
+		my $k = $keep_errs < @dirs ? $keep_errs : @dirs;
+		splice(@dirs, -$k) if $k > 0;
+		foreach my $dir (@dirs)
+		{
+			next unless -d $dir;
+			rmtree($dir);
+		}
+	}
+	return;
+}
 
 sub print_help
 {
