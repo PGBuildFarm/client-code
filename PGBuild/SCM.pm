@@ -620,9 +620,9 @@ sub log_id
 sub have_symlink
 {
 	my $self = shift;
-	$self->{have_symlink} = 1 unless $^O eq 'msys' || $^O eq 'MSWin32';
+	$self->{have_symlink} = 1 unless osname() eq 'msys' || $^O eq 'MSWin32';
 	return $self->{have_symlink} if exists $self->{have_symlink};
-	if ($^O eq 'msys')
+	if (osname() eq 'msys')
 	{
 		my $symlink_exists = eval { symlink("", ""); 1 };
 		unless ($symlink_exists)

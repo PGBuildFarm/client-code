@@ -333,12 +333,12 @@ sub get_branches_of_interest
 
 	my $have_msys_https = $url !~ /^https:/;  # if not needed, assume it's there
 
-	if ($^O eq 'msys' && !$have_msys_https)
+	if (osname() eq 'msys' && !$have_msys_https)
 	{
 		eval { require LWP::Protocol::https; };
 		$have_msys_https = 1 unless $@;
 	}
-	if ($^O eq 'msys' && !$have_msys_https)
+	if (osname() eq 'msys' && !$have_msys_https)
 	{
 		# msys: use perl in PATH if necessary
 		$branches_of_interest = `perl -MLWP::Simple -e "getprint(q{$url})"`;

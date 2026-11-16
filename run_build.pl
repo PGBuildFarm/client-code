@@ -109,7 +109,7 @@ $send_result_routine = \&send_res;
 # so the next run can start clean.
 
 # can't rely on USR1 being present on Windows
-my @usig = $Config{osname} !~ /msys|MSWin/ ? qw(USR1) : ();
+my @usig = osname() !~ /msys|MSWin/ ? qw(USR1) : ();
 foreach my $sig (qw(INT TERM HUP QUIT), @usig)
 {
 	$SIG{$sig} = \&interrupt_exit;
@@ -213,7 +213,7 @@ my (
 $meson_test_timeout //= 3;
 
 # default is 4 hours, except on Windows, where it doesn't work
-if ($Config{osname} !~ /msys|MSWin/)
+if (osname() !~ /msys|MSWin/)
 {
 	$wait_timeout //= 4 * 60 * 60;
 }
@@ -395,7 +395,7 @@ my $use_auxpath = undef;
 
 unless ($nosend)
 {
-	if ($Config{osname} eq 'msys' && $target =~ /^https/)
+	if (osname() eq 'msys' && $target =~ /^https/)
 	{
 		eval { require LWP::Protocol::https; };
 		if ($@)
@@ -483,7 +483,7 @@ $tmpdir = File::Temp::tempdir(
 umask $oldmask unless $using_msvc;
 
 my $vtmpdir = $tmpdir;
-if ($Config{osname} =~ /msys/i)
+if (osname() =~ /msys/i)
 {
 	$tmpdir = `cygpath -a -m $tmpdir`;
 	chomp $tmpdir;
@@ -1056,7 +1056,7 @@ foreach my $lrec (@locales)
 		delete $ENV{TMPDIR} unless defined $ENV{TMPDIR};
 
 		local %ENV = %ENV;
-		if (!$using_msvc && $Config{osname} !~ /msys|MSWin/)
+		if (!$using_msvc && osname() !~ /msys|MSWin/)
 		{
 			$ENV{PGHOST} = $tmpdir;
 		}
@@ -1691,7 +1691,7 @@ sub initdb
 		print $handle "\n# Configuration added by buildfarm client\n\n";
 
 		if ($ENV{PG_TEST_USE_UNIX_SOCKETS}
-			|| (!$using_msvc && $Config{osname} !~ /msys|MSWin/))
+			|| (!$using_msvc && osname() !~ /msys|MSWin/))
 		{
 			# postgres treats backslash as escape
 			my $tmpd = $tmpdir;
@@ -1715,7 +1715,7 @@ sub initdb
 		close($handle);
 
 		if (!$ENV{PG_TEST_USE_UNIX_SOCKETS}
-			&& ($using_msvc || $Config{osname} =~ /msys|MSWin/))
+			&& ($using_msvc || osname() =~ /msys|MSWin/))
 		{
 			my $pg_regress;
 
@@ -1805,9 +1805,9 @@ sub start_db
 	{
 
 		# give Windows some breathing room if necessary
-		sleep(5) if $Config{osname} =~ /msys|MSWin|cygwin/;
+		sleep(5) if osname() =~ /msys|MSWin|cygwin/;
 		unlink "$installdir/logfile";
-		sleep(5) if $Config{osname} =~ /msys|MSWin|cygwin/;
+		sleep(5) if osname() =~ /msys|MSWin|cygwin/;
 	}
 
 	if ($use_valgrind)
@@ -2469,7 +2469,7 @@ sub run_tap_test
 
 	# fix path temporarily on msys
 	my $save_path = $ENV{PATH};
-	if ($Config{osname} eq 'msys' && $branch ne 'HEAD' && $branch lt 'REL_10')
+	if (osname() eq 'msys' && $branch ne 'HEAD' && $branch lt 'REL_10')
 	{
 		my $perlpathdir = dirname($Config{perlpath});
 		$ENV{PATH} = "$perlpathdir:$ENV{PATH}";
@@ -2589,7 +2589,7 @@ sub run_misc_tests
 	{
 		next
 		  if $test eq 'authentication'
-		  && ($using_msvc || $Config{osname} eq 'msys');
+		  && ($using_msvc || osname() eq 'msys');
 		next unless -d "$pgsql/src/test/$test/t";
 		next unless step_wanted("misc-$test");
 		print time_str(), "running test misc-$test ...\n" if $verbose;
@@ -2798,7 +2798,7 @@ sub find_typedefs
 	# work around the fact that ucrt/binutils objdump is far slower
 	# than the one in msys/binutils
 	local $ENV{PATH} = $ENV{PATH};
-	$ENV{PATH} = "/usr/bin:$ENV{PATH}" if $Config{osname} eq 'msys';
+	$ENV{PATH} = "/usr/bin:$ENV{PATH}" if osname() eq 'msys';
 
 	my ($hostobjdump) = grep { /--host=/ } @$config_opts;
 	$hostobjdump ||= "";

@@ -195,7 +195,7 @@ sub setinstenv
 
 	# now adjust it to point to new dir
 
-	if ($self->{bfconf}->{using_msvc} || $^O eq 'msys')
+	if ($self->{bfconf}->{using_msvc} || osname() eq 'msys')
 	{
 		my $sep = $self->{bfconf}->{using_msvc} ? ';' : ':';
 		$ENV{PATH} = "$installdir/bin$sep$ENV{PATH}";
@@ -287,7 +287,7 @@ sub save_for_testing
 	{
 		# except on windows :-)
 	}
-	elsif ($^O eq 'msys')
+	elsif (osname() eq 'msys')
 	{
 		copy "$self->{pgsql}/src/test/regress/regress.dll",
 		  "$installdir/lib/postgresql/regress.dll"
@@ -736,7 +736,7 @@ sub test_upgrade    ## no critic (Subroutines::ProhibitManyArgs)
 	}
 	elsif (-e "$installdir/delete_old_cluster.bat")
 	{
-		if ($^O eq 'msys')
+		if (osname() eq 'msys')
 		{
 			system(qq{cd "$installdir" && cmd //c 'delete_old_cluster > nul'});
 		}
@@ -806,7 +806,7 @@ sub installcheck
 	{
 		$ENV{PGHOST} = $tdir;
 	}
-	elsif ($self->{bfconf}->{using_msvc} || $^O eq 'msys')
+	elsif ($self->{bfconf}->{using_msvc} || osname() eq 'msys')
 	{
 		$ENV{PGHOST} = 'localhost';
 	}

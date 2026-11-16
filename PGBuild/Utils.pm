@@ -23,6 +23,7 @@ use File::Path 'mkpath';
 use File::Copy;
 use File::Temp qw(tempfile);
 use File::Spec;
+use POSIX ();
 
 our ($VERSION); $VERSION = 'REL_22';
 
@@ -35,7 +36,7 @@ our (@EXPORT, @EXPORT_OK, %EXPORT_TAGS);
   file_lines file_contents check_make_log_warnings
   find_in_path $log_file_marker set_last_stage get_last_stage
   check_install_is_complete spawn save_install copydir
-  rmtree normalize_locales locale_is_utf8
+  rmtree normalize_locales locale_is_utf8 osname
 );
 %EXPORT_TAGS = qw();
 @EXPORT_OK = qw($st_prefix $logdirname $branch_root $steps_completed
@@ -55,11 +56,28 @@ our (
 
 my $saved;    # have we already saved the binaries
 
+# cached result of osname()
+my $osname;
+
 BEGIN
 {
 	$log_file_marker = "==~_~===-=-===~_~==";
 	$ts_prefix = "";
 	$devnull = File::Spec->devnull;
+}
+
+# The OS name to use for platform checks, in place of $^O/$Config{osname}.
+# MSYS2's perl used to report "msys", but recent releases report "cygwin",
+# just like a real Cygwin perl. Map that back to "msys", telling the two
+# apart by the kernel name, which only Cygwin reports as CYGWIN_NT-*.
+# MSYS2 reports MSYS_NT-*, MINGW64_NT-* and so on.
+sub osname
+{
+	return $osname if defined $osname;
+	$osname = $Config{osname};
+	$osname = 'msys'
+	  if $osname eq 'cygwin' && (POSIX::uname())[0] !~ /^CYGWIN/;
+	return $osname;
 }
 
 # wrap the main program's send_res routine (formerly send_result)
